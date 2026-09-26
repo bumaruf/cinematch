@@ -1,6 +1,6 @@
 import type { StoredDailyPick } from '../../application/ports.ts';
 import { send, syncProfileFully } from '../../messaging/client.ts';
-import { differentOriginalTitle } from '../shared/film.ts';
+import { differentOriginalTitle, hydratePoster } from '../shared/film.ts';
 import iconSvg from '../assets/cinematch-icon.svg?raw';
 import { html, joinHtml, Markup, render, safeUrl } from '../shared/html.ts';
 import { usernameFromLetterboxdUrl } from '../shared/letterboxd.ts';
@@ -26,30 +26,34 @@ function showDailyModal({ film, curatorReason, phaseInfo }: StoredDailyPick): vo
   render(
     modal,
     html`
-      <div class="lb-ai-modal-card">
+      <div class="lb-ai-modal-card" role="dialog" aria-modal="true" aria-labelledby="lb-ai-daily-title">
         <div class="lb-ai-modal-header">
           <div class="lb-ai-modal-brand">
-            <div class="lb-ai-dots"><span class="lb-ai-dot green"></span><span class="lb-ai-dot orange"></span><span class="lb-ai-dot blue"></span></div>
             <span class="lb-ai-modal-tag">✨ Filme do Dia · Fase ${phaseInfo.currentYear}</span>
           </div>
-          <button class="lb-ai-modal-close" title="Fechar">&times;</button>
+          <button type="button" class="lb-ai-modal-close" title="Fechar" aria-label="Fechar recomendação">&times;</button>
         </div>
         <div class="lb-ai-modal-body">
-          <div class="lb-ai-film-headline">
-            <h2 class="lb-ai-film-title">${film.title}${original ? ` (${original})` : ''}</h2>
-            ${Number.isFinite(film.imdbRating) ? html`<div class="lb-ai-film-rating">★ ${film.imdbRating.toFixed(1)}</div>` : ''}
+          <div class="lb-ai-poster" aria-label="Pôster de ${film.title}">
+            <div class="lb-ai-poster-fallback" aria-hidden="true">${ICON}</div>
           </div>
-          <div class="lb-ai-film-meta">${meta}</div>
-          <div class="lb-ai-curator-box">
-            <div class="lb-ai-curator-label">Recomendação personalizada</div>
-            <p class="lb-ai-curator-text">"${curatorReason || 'Filme escolhido a dedo para a sua sessão de hoje.'}"</p>
+          <div class="lb-ai-film-content">
+            <div class="lb-ai-film-headline">
+              <h2 id="lb-ai-daily-title" class="lb-ai-film-title">${film.title}${original ? html`<span class="lb-ai-original-title">${original}</span>` : ''}</h2>
+              ${Number.isFinite(film.imdbRating) ? html`<div class="lb-ai-film-rating">★ ${film.imdbRating.toFixed(1)}</div>` : ''}
+            </div>
+            <div class="lb-ai-film-meta">${meta}</div>
+            <div class="lb-ai-curator-box">
+              <div class="lb-ai-curator-label">Por que combina com você</div>
+              <p class="lb-ai-curator-text">${curatorReason || 'Filme escolhido a dedo para a sua sessão de hoje.'}</p>
+            </div>
+            <div class="lb-ai-film-pitch">${film.pitch || 'Uma joia cinematográfica para o seu dia.'}</div>
+            ${film.genres.length ? html`<div class="lb-ai-genre-pills">${genres}</div>` : ''}
           </div>
-          <div class="lb-ai-film-pitch">${film.pitch || 'Uma joia cinematográfica para o seu dia.'}</div>
-          ${film.genres.length ? html`<div class="lb-ai-genre-pills">${genres}</div>` : ''}
         </div>
         <div class="lb-ai-modal-footer">
-          <a href="${safeUrl(film.letterboxdUrl)}" target="_blank" rel="noreferrer" class="lb-ai-btn-primary"><span>🎬 Ver no Letterboxd ↗</span></a>
-          <button class="lb-ai-btn-secondary lb-ai-open-studio"><span>Studio Completo</span></button>
+          <a href="${safeUrl(film.letterboxdUrl)}" target="_blank" rel="noreferrer" class="lb-ai-btn-primary"><span>Ver no Letterboxd ↗</span></a>
+          <button type="button" class="lb-ai-btn-secondary lb-ai-open-studio"><span>Abrir o Studio</span></button>
         </div>
       </div>`,
   );
@@ -60,6 +64,8 @@ function showDailyModal({ film, curatorReason, phaseInfo }: StoredDailyPick): vo
     modal.remove();
   });
   document.body.append(modal);
+  hydratePoster(modal.querySelector<HTMLElement>('.lb-ai-poster'), film, 'w342');
+  modal.querySelector<HTMLElement>('.lb-ai-modal-close')?.focus();
 }
 
 function injectBadge(): void {
