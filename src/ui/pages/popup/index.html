@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CineMatch</title>
+  <link rel="stylesheet" href="../../styles/app.css">
+</head>
+<body class="w-[400px] min-h-[200px]">
+  <header class="flex items-center justify-between px-4 pt-3 pb-2">
+    <span class="font-serif text-lg font-semibold tracking-tight">CineMatch</span>
+    <div class="flex">
+      <button id="btnOpenDashboard" class="btn btn-icon" type="button" title="Abrir o painel" aria-label="Abrir o painel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+      </button>
+      <button id="btnOpenSettings" class="btn btn-icon" type="button" title="Configurações" aria-label="Configurações">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="errorBanner" class="mx-4 mb-3 flex items-start gap-2 rounded-r-md border-l-2 border-danger bg-surface py-1.5 pr-1.5 pl-3 text-[13px] hidden" role="alert">
+    <span id="errorMessage" class="flex-1 pt-1.5"></span>
+    <button id="btnDismissError" class="btn btn-icon" type="button" aria-label="Fechar aviso">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+
+  <main id="homeView">
+    <section id="profileSection" class="border-b border-line px-4 pt-1 pb-4 has-[#profileEmpty:not(.hidden)]:border-b-0" aria-label="Perfil">
+      <div id="profileLoading" class="flex items-center gap-3 text-[13px] text-muted hidden" role="status">
+        <div class="size-5 animate-spin rounded-full border-2 border-line-strong border-t-accent"></div>
+        <span id="syncProgressText">Sincronizando…</span>
+      </div>
+
+      <form id="profileEmpty">
+        <label for="usernameInput" class="mb-2 block text-[13px] text-muted">Seu usuário no Letterboxd</label>
+        <div class="flex gap-2">
+          <input type="text" id="usernameInput" class="field" placeholder="ex.: seu_usuario" autocomplete="off" spellcheck="false">
+          <button id="btnSyncProfile" class="btn btn-primary min-h-10" type="submit">Conectar</button>
+        </div>
+        <p class="mt-3 text-[13px] text-muted">Perfil privado ou sem internet? <button id="btnImportCsv" class="cursor-pointer text-ink underline underline-offset-2 hover:text-accent" type="button">Importe o CSV do Letterboxd</button></p>
+      </form>
+
+      <div id="profileLoaded" class="flex items-center gap-3 hidden">
+        <img id="userAvatar" class="size-9 shrink-0 rounded-full object-cover ring-1 ring-white/10 hidden" src="" alt="">
+        <span id="avatarFallback" class="grid size-9 shrink-0 place-items-center rounded-full bg-raised text-[13px] font-semibold text-muted" aria-hidden="true"></span>
+        <div class="flex min-w-0 flex-1 flex-col">
+          <strong id="userDisplayName" class="truncate font-semibold"></strong>
+          <span class="flex gap-3 text-[13px] text-muted"><span><span id="userTotalFilms">0</span> filmes</span><span>média <span id="userAvgRating" class="font-semibold text-accent">—</span></span></span>
+        </div>
+        <button id="btnChangeUser" class="btn btn-icon" type="button" title="Trocar de perfil" aria-label="Trocar de perfil">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <section id="discoverSection" class="flex flex-col gap-4 p-4 hidden" aria-label="Descobrir filmes">
+      <div class="relative">
+        <svg class="pointer-events-none absolute top-1/2 left-3 size-[18px] -translate-y-1/2 text-faint" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
+        <input type="text" id="customPromptInput" class="field min-h-11 pl-10 text-[15px]" placeholder="O que você quer ver hoje?" aria-label="Descreva o que você quer ver">
+      </div>
+      <div id="themesGrid" class="flex flex-wrap gap-2" role="group" aria-label="Climas"></div>
+
+      <details class="disclosure">
+        <summary>Refinar</summary>
+        <div class="mt-3 grid grid-cols-2 gap-3">
+          <label class="flex flex-col gap-1 text-[13px] text-muted">
+            <span>Época</span>
+            <select id="filterDecade" class="field">
+              <option value="">Qualquer época</option>
+              <option value="2020-2026">Anos 2020</option>
+              <option value="2010-2019">Anos 2010</option>
+              <option value="2000-2009">Anos 2000</option>
+              <option value="1990-1999">Anos 90</option>
+              <option value="1980-1989">Anos 80</option>
+              <option value="1970-1979">Anos 70</option>
+              <option value="1900-1969">Antes de 1970</option>
+            </select>
+          </label>
+          <label class="flex flex-col gap-1 text-[13px] text-muted">
+            <span>Duração</span>
+            <select id="filterRuntime" class="field">
+              <option value="">Qualquer duração</option>
+              <option value="under-90">Até 90 min</option>
+              <option value="90-120">90 a 120 min</option>
+              <option value="under-120">Até 2 h</option>
+              <option value="over-120">Mais de 2 h</option>
+              <option value="over-150">Mais de 2 h 30</option>
+            </select>
+          </label>
+          <label class="col-span-2 flex cursor-pointer items-center gap-2">
+            <input type="checkbox" id="filterNicheOnly" class="size-4">
+            <span>Só filmes menos conhecidos</span>
+          </label>
+        </div>
+      </details>
+
+      <div class="flex gap-2">
+        <button id="btnGenerateCustom" class="btn btn-primary min-h-11 flex-1" type="button">Encontrar filmes</button>
+        <button id="btnDailyRec" class="btn btn-quiet min-h-11" type="button" title="Um filme para você, escolhido ao acaso entre os que combinam com seu gosto">Surpreenda-me</button>
+      </div>
+    </section>
+  </main>
+
+  <section id="resultsSection" class="px-4 pb-4 hidden" aria-labelledby="resultsTitle">
+    <div class="-mx-2 flex justify-between">
+      <button id="btnNewSearch" class="btn btn-quiet gap-1 px-2 [&_svg]:size-4" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Voltar
+      </button>
+      <button id="btnCopyAll" class="btn btn-quiet px-2" type="button">Copiar lista</button>
+    </div>
+    <h2 id="resultsTitle" class="mt-1 font-serif text-2xl leading-tight font-medium text-balance"></h2>
+    <p id="curatorNote" class="mt-2 text-[13px] text-muted empty:hidden"></p>
+    <div id="moviesContainer" class="mt-1" aria-live="polite"></div>
+  </section>
+
+  <script type="module" src="./popup.ts"></script>
+</body>
+</html>

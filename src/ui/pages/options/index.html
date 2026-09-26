@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurações — CineMatch</title>
+  <link rel="stylesheet" href="../../styles/app.css">
+</head>
+<body>
+  <main class="mx-auto max-w-[620px] px-6 py-12">
+    <a class="inline-flex items-center gap-1 text-[13px] text-muted no-underline hover:text-ink [&_svg]:size-4" href="../dashboard/index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Voltar ao painel
+    </a>
+    <h1 class="mt-3 font-serif text-4xl leading-tight font-medium tracking-tight md:text-5xl">Configurações</h1>
+
+    <section class="mt-10 rounded-2xl border border-line bg-surface p-6" aria-labelledby="prefsTitle">
+      <h2 id="prefsTitle" class="font-serif text-2xl font-medium">Sugestões</h2>
+
+      <label class="mt-4 flex cursor-pointer items-start gap-3 py-2" for="avoidWatched">
+        <input type="checkbox" id="avoidWatched" class="mt-1 size-4" checked>
+        <span class="flex flex-col gap-0.5">
+          <strong class="font-semibold">Esconder filmes que você já viu</strong>
+          <small class="text-[13px] text-muted">Tudo o que está no seu histórico do Letterboxd fica de fora.</small>
+        </span>
+      </label>
+
+      <label class="flex cursor-pointer items-start gap-3 py-2" for="includeUnderrated">
+        <input type="checkbox" id="includeUnderrated" class="mt-1 size-4" checked>
+        <span class="flex flex-col gap-0.5">
+          <strong class="font-semibold">Dar espaço a filmes menos conhecidos</strong>
+          <small class="text-[13px] text-muted">Filmes bem avaliados e com menos votos sobem na lista.</small>
+        </span>
+      </label>
+
+      <div class="mt-3 flex flex-col gap-2 border-t border-line pt-4">
+        <div class="flex justify-between">
+          <label for="popularityLevel" class="font-semibold">Popularidade mínima</label>
+          <output id="popularityValue" for="popularityLevel" class="font-semibold text-accent">Sem limite</output>
+        </div>
+        <input type="range" id="popularityLevel" class="w-full" min="0" max="4" step="1" value="0" aria-describedby="popularityHint">
+        <small id="popularityHint" class="text-[13px] text-muted">Quanto maior, mais conhecidos são os filmes sugeridos.</small>
+      </div>
+    </section>
+
+    <section class="mt-6 rounded-2xl border border-line bg-surface p-6" aria-labelledby="dataTitle">
+      <h2 id="dataTitle" class="font-serif text-2xl font-medium">Dados salvos</h2>
+      <div id="cacheStatusArea" class="mt-3 text-[13px] leading-relaxed text-muted"><p>Carregando…</p></div>
+      <div class="mt-5 flex flex-wrap justify-end gap-2">
+        <a class="btn btn-quiet" href="../dashboard/index.html#recovery">Importar CSV</a>
+        <button id="clearCacheBtn" class="btn btn-danger" type="button">Apagar perfil salvo</button>
+      </div>
+    </section>
+
+    <span id="saveMessage" class="pointer-events-none fixed right-6 bottom-6 rounded-lg border border-line-strong bg-raised px-4 py-2 text-[13px] opacity-0 shadow-xl shadow-black/40 transition-opacity [&.visible]:opacity-100" role="status" aria-live="polite"></span>
+  </main>
+
+  <dialog id="clearCacheDialog" class="m-auto w-[min(440px,calc(100%-32px))] rounded-2xl border border-line-strong bg-surface p-6 text-ink backdrop:bg-black/70 backdrop:backdrop-blur-sm" aria-labelledby="clearCacheTitle" aria-describedby="clearCacheDescription">
+    <form method="dialog">
+      <h2 id="clearCacheTitle" class="font-serif text-2xl font-medium">Apagar o perfil salvo?</h2>
+      <p id="clearCacheDescription" class="mt-2 text-muted">Seu histórico sai desta extensão. Para voltar a receber sugestões, sincronize ou importe o CSV de novo. Filmes salvos e histórico de buscas continuam.</p>
+      <div class="mt-5 flex justify-end gap-2">
+        <button value="cancel" class="btn btn-quiet">Cancelar</button>
+        <button id="confirmClearCacheBtn" type="button" class="btn btn-danger">Apagar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="./options.ts"></script>
+</body>
+</html>

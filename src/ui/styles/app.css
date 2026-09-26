@@ -1,0 +1,150 @@
+/* CineMatch design system on Tailwind v4. Pages use utilities; the few
+   patterns repeated everywhere (buttons, chips, fields, skeletons) live in
+   the components layer. The content script keeps its own CSS: Tailwind's
+   preflight must never reach Letterboxd's pages. */
+/* Only the UI declares classes; scanning the 9 MB catalog would add noise. */
+@import 'tailwindcss' source('../');
+@import '@fontsource-variable/atkinson-hyperlegible-next/wght.css';
+@import '@fontsource-variable/newsreader/wght.css';
+
+@custom-variant pressed (&[aria-pressed='true']);
+
+@theme {
+  --color-bg: #15171a;
+  --color-surface: #1d2025;
+  --color-raised: #252930;
+  --color-line: #2e3239;
+  --color-line-strong: #454a53;
+  --color-ink: #eeebe5;
+  --color-muted: #a5a9b0;
+  --color-faint: #767b83;
+  --color-accent: #e8b54f;
+  --color-accent-strong: #f5c96f;
+  --color-on-accent: #1d1705;
+  --color-danger: #ea8573;
+
+  --font-sans: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif;
+  --font-serif: 'Newsreader Variable', Georgia, serif;
+
+  --radius-card: 10px;
+
+  --animate-rise: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-shimmer: shimmer 1.4s ease-in-out infinite;
+  --animate-pop: pop 0.3s ease-out;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+
+  @keyframes shimmer {
+    50% {
+      opacity: 0.45;
+    }
+  }
+
+  @keyframes pop {
+    40% {
+      transform: scale(1.18);
+    }
+  }
+}
+
+/* Chrome injects an unlayered stylesheet into extension pages that sets the
+   body font; unlayered rules beat Tailwind's layers, so these stay outside. */
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-bg font-sans text-[14px] leading-normal text-ink antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+
+  input,
+  select {
+    accent-color: var(--color-accent);
+  }
+
+  [hidden],
+  .hidden {
+    display: none !important;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex min-h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-line-strong px-4 font-semibold whitespace-nowrap text-ink no-underline transition-colors hover:bg-raised disabled:cursor-wait disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply border-accent bg-accent text-on-accent hover:border-accent-strong hover:bg-accent-strong;
+  }
+
+  .btn-quiet {
+    @apply border-transparent text-muted hover:bg-transparent hover:text-ink;
+  }
+
+  .btn-icon {
+    @apply size-8 min-h-8 border-transparent p-0 text-muted hover:bg-raised hover:text-ink [&_svg]:size-[18px];
+  }
+
+  .btn-danger {
+    @apply border-danger text-danger hover:bg-danger hover:text-bg;
+  }
+
+  .field {
+    @apply min-h-10 w-full rounded-lg border border-line-strong bg-bg px-3 text-ink placeholder:text-faint focus-visible:border-accent focus-visible:outline-offset-0;
+  }
+
+  .chip {
+    @apply inline-flex min-h-8 cursor-pointer items-center rounded-full border border-line px-3 whitespace-nowrap text-muted transition-colors hover:border-line-strong hover:text-ink pressed:border-accent pressed:bg-accent/10 pressed:text-ink;
+  }
+
+  .nav-item {
+    @apply flex min-h-9 cursor-pointer items-center justify-between gap-2 rounded-md px-2 text-left text-muted transition-colors hover:text-ink;
+  }
+
+  .nav-item.active {
+    @apply bg-surface font-semibold text-ink;
+  }
+
+  .tab-pane {
+    @apply hidden;
+  }
+
+  .tab-pane.active {
+    @apply block;
+  }
+
+  .skeleton {
+    @apply animate-shimmer rounded-md bg-raised motion-reduce:animate-none;
+  }
+
+  .disclosure > summary {
+    @apply inline-flex cursor-pointer list-none items-center gap-2 text-muted hover:text-ink;
+  }
+
+  .disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .disclosure > summary::before {
+    @apply size-1.5 -rotate-45 border-r-[1.5px] border-b-[1.5px] border-current transition-transform content-[''];
+  }
+
+  .disclosure[open] > summary::before {
+    @apply rotate-45;
+  }
+}

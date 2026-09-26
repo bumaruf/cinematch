@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.claude/worktrees/
+tools/catalog/.tmp-dataset.mjs
+
+# Chaves e pacotes da extensão: nunca versionar
+*.pem
+*.crx
+e2e-screenshots/
+
+# Dados derivados dos datasets do IMDb (uso pessoal e não comercial):
+# gerados localmente por tools/catalog, nunca versionados.
+src/data/films-dataset.js
+tools/catalog/pitch-checkpoint.json
+cinematch-v*.zip

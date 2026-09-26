@@ -1,0 +1,44 @@
+{
+  "name": "cinematch",
+  "version": "1.0.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "description": "Extensão não oficial de recomendações de filmes para usuários do Letterboxd.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm run test && npm run build",
+    "e2e": "npm run build && node tools/diagnostics/e2e-smoke.mjs",
+    "package": "npm run check && node tools/package.js",
+    "icons": "node tools/icons/generate-icons.js",
+    "catalog:stub": "node tools/catalog/stub.js",
+    "catalog:import": "node tools/catalog/import-imdb.js",
+    "catalog:enrich": "node tools/catalog/enrich-database.js",
+    "catalog:pitches": "node tools/catalog/enrich-pitches.js",
+    "catalog:posters": "node tools/catalog/enrich-posters-tmdb.js",
+    "catalog:dedup": "node tools/catalog/dedup-database.js"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^3.0.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/chrome": "^0.3.0",
+    "@types/node": "^26.6.2",
+    "playwright-core": "1.52",
+    "sharp": "^0.35.4",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.1"
+  },
+  "dependencies": {
+    "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
+    "@fontsource-variable/newsreader": "^5.3.0"
+  }
+}

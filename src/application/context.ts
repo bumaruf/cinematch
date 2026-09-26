@@ -1,0 +1,25 @@
+import type { Catalog } from '../domain/catalog/catalog.ts';
+import type {
+  ArtworkSource,
+  Clock,
+  DailyPickStore,
+  HistoryStore,
+  LetterboxdSync,
+  ProfileStore,
+  SavedFilmsStore,
+  SettingsStore,
+} from './ports.ts';
+
+/** Everything a use case may depend on, wired by the background worker. */
+export interface AppContext {
+  /** Indexed on first use: building it costs a few hundred milliseconds. */
+  catalog(): Catalog;
+  clock: Clock;
+  profiles: ProfileStore;
+  settings: SettingsStore;
+  history: HistoryStore;
+  saved: SavedFilmsStore;
+  daily: DailyPickStore;
+  letterboxd: LetterboxdSync;
+  artwork: ArtworkSource;
+}

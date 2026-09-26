@@ -1,0 +1,67 @@
+import type { Settings } from '../domain/film.ts';
+import { letterboxdSearchUrl } from '../domain/recommend/recommendation.ts';
+import { slugKey } from '../domain/text.ts';
+import type { AppContext } from './context.ts';
+import type { HistoryEntry, SavedFilm } from './ports.ts';
+
+export type SavedFilmInput = Omit<SavedFilm, 'savedAt'>;
+
+function sameFilm(a: SavedFilmInput, b: SavedFilmInput): boolean {
+  const slugA = slugKey(a.letterboxdSlug || a.slug);
+  const slugB = slugKey(b.letterboxdSlug || b.slug);
+  return Boolean(slugA && slugB && slugA === slugB) || (a.title === b.title && a.year === b.year);
+}
+
+export async function toggleSavedFilm(ctx: AppContext, film: SavedFilmInput): Promise<{ isSaved: boolean; totalSaved: number }> {
+  if (!film?.title) throw new Error('Filme inválido.');
+  const saved = await ctx.saved.list();
+  const index = saved.findIndex((entry) => sameFilm(entry, film));
+  const updated =
+    index >= 0 ? saved.filter((_, i) => i !== index) : [{ ...film, savedAt: ctx.clock.now().toISOString() }, ...saved];
+  await ctx.saved.replaceAll(updated);
+  return { isSaved: index < 0, totalSaved: updated.length };
+}
+
+/**
+ * Saved films, completed with catalog metadata: entries saved by older
+ * versions may lack poster, genres or a link.
+ */
+export async function listSavedFilms(ctx: AppContext): Promise<SavedFilm[]> {
+  const catalog = ctx.catalog();
+  return (await ctx.saved.list()).map((film) => {
+    const match = catalog.resolve({ ...film, slug: film.letterboxdSlug || film.slug }).film;
+    return {
+      ...film,
+      originalTitle: film.originalTitle || match?.originalTitle || film.title,
+      director: film.director || match?.director || '',
+      posterPath: film.posterPath || (match ? catalog.posterPath(match.imdbId) : ''),
+      genres: film.genres?.length ? film.genres : (match?.genres ?? []),
+      runtimeMinutes: film.runtimeMinutes || match?.runtime || 0,
+      letterboxdUrl: film.letterboxdUrl || letterboxdSearchUrl(film),
+    };
+  });
+}
+
+export async function isSaved(ctx: AppContext, film: SavedFilmInput): Promise<boolean> {
+  return (await ctx.saved.list()).some((entry) => sameFilm(entry, film));
+}
+
+export async function listHistory(ctx: AppContext): Promise<HistoryEntry[]> {
+  return ctx.history.list();
+}
+
+export async function getSettings(ctx: AppContext): Promise<Settings> {
+  return ctx.settings.get();
+}
+
+export async function updateSettings(ctx: AppContext, changes: Partial<Settings>): Promise<Settings> {
+  const allowed: Partial<Settings> = {};
+  if (typeof changes.avoidWatched === 'boolean') allowed.avoidWatched = changes.avoidWatched;
+  if (typeof changes.includeUnderrated === 'boolean') allowed.includeUnderrated = changes.includeUnderrated;
+  if (Number.isFinite(changes.minVotes) && Number(changes.minVotes) >= 0) allowed.minVotes = Number(changes.minVotes);
+  return ctx.settings.update(allowed);
+}
+
+export async function getFilmArtwork(ctx: AppContext, slug: string): Promise<string> {
+  return ctx.artwork.artworkUrl(slug);
+}
