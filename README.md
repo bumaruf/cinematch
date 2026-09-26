@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/brand/cinematch-logo.svg" alt="CineMatch" width="420"></p>
+
 # CineMatch for Letterboxd (não oficial)
 
 [![CI](https://github.com/bumaruf/cinematch/actions/workflows/ci.yml/badge.svg)](https://github.com/bumaruf/cinematch/actions/workflows/ci.yml)
@@ -42,6 +44,7 @@ npm run dev        # build em modo de desenvolvimento, com recarga
 npm test           # Vitest (os testes com filmes reais rodam só com o catálogo gerado)
 npm run e2e        # carrega dist/ no Chromium e testa as telas (requer o catálogo)
 npm run package    # gera cinematch-v<versão>.zip para a Chrome Web Store (requer o catálogo)
+npm run icons      # regera a logo da interface e os ícones a partir de assets/brand
 ```
 
 Para instalar, abra `chrome://extensions`, ative o **modo do desenvolvedor**,
@@ -70,7 +73,8 @@ src/
 tools/
   catalog/         pipeline que gera src/data
   diagnostics/     teste de carga do motor e teste de ponta a ponta
-  icons/           gera os ícones a partir do logo
+  icons/           gera a logo e os ícones a partir de assets/brand
+assets/brand/      logo e ícone originais (fonte da marca)
 tests/             Vitest
 docs/              arquitetura e screenshots
 ```

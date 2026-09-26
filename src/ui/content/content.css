@@ -34,16 +34,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #00e054;
+}
+
+.lb-ai-curator-floating-btn .lb-ai-icon-wrap svg {
+  width: 22px;
+  height: 22px;
 }
 
 .lb-ai-curator-floating-btn.syncing .lb-ai-icon-wrap {
-  animation: lb-ai-spin 1.2s infinite linear;
+  animation: lb-ai-pulse 1.2s infinite ease-in-out;
 }
 
-@keyframes lb-ai-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@keyframes lb-ai-pulse {
+  50% { opacity: 0.4; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lb-ai-curator-floating-btn.syncing .lb-ai-icon-wrap { animation: none; }
 }
 
 /* Modal Backdrop */
