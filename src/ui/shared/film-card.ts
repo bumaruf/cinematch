@@ -1,4 +1,4 @@
-import { differentOriginalTitle, hydratePoster, letterboxdLink, type FilmLike } from './film.ts';
+import { differentOriginalTitle, hydratePoster, letterboxdLink, trailerSearchUrl, type FilmLike } from './film.ts';
 import { html, joinHtml, render, type Markup } from './html.ts';
 import { ICONS } from './icons.ts';
 
@@ -48,6 +48,7 @@ export function filmCard(film: FilmLike, { variant = 'list', onToggleSave, saved
   const card = document.createElement('article');
   card.style.animationDelay = `${Math.min(index, 8) * 60}ms`;
   const link = letterboxdLink(film);
+  const trailer = trailerSearchUrl(film);
   const fallback = html`<span class="font-serif text-base" aria-hidden="true">${film.year ?? ''}</span>`;
 
   if (variant === 'poster') {
@@ -64,6 +65,9 @@ export function filmCard(film: FilmLike, { variant = 'list', onToggleSave, saved
           <p class="flex flex-wrap items-center gap-x-3 text-[13px] text-muted">${film.year ? html`<span>${film.year}</span>` : ''}${rating(film)}${meta(film)}</p>
           ${film.affinityReason ? html`<p class="mt-1 border-l-2 border-accent/60 pl-2.5 text-[13px] leading-snug">${film.affinityReason}</p>` : ''}
           ${film.pitch ? html`<p class="mt-1 line-clamp-3 text-[13px] leading-relaxed text-muted">${film.pitch}</p>` : ''}
+          <div class="mt-1 flex flex-wrap gap-1">
+            <a class="btn btn-quiet min-h-8 gap-1.5 px-2 text-[13px] [&_svg]:size-4" href="${trailer}" target="_blank" rel="noreferrer" aria-label="Buscar trailer de ${film.title} no YouTube">${ICONS.play}Trailer</a>
+          </div>
         </div>`,
     );
   } else {
@@ -79,6 +83,7 @@ export function filmCard(film: FilmLike, { variant = 'list', onToggleSave, saved
           ${film.pitch ? html`<p class="mt-0.5 line-clamp-3 text-[13px] leading-relaxed text-muted">${film.pitch}</p>` : ''}
           <div class="mt-1 -ml-2 flex flex-wrap gap-1">
             <a class="btn btn-quiet min-h-8 gap-1.5 px-2 text-[13px] [&_svg]:size-4" href="${link}" target="_blank" rel="noreferrer">${ICONS.external}Letterboxd</a>
+            <a class="btn btn-quiet min-h-8 gap-1.5 px-2 text-[13px] [&_svg]:size-4" href="${trailer}" target="_blank" rel="noreferrer" aria-label="Buscar trailer de ${film.title} no YouTube">${ICONS.play}Trailer</a>
             ${onToggleSave ? saveButton(variant) : ''}
           </div>
         </div>`,

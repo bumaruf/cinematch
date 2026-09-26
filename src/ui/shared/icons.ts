@@ -19,4 +19,7 @@ export const ICONS = {
   search: icon('<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>'),
   star: new Markup('<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.2l2.6 5.5 6 .8-4.4 4.1 1.1 5.9L12 16.6l-5.3 2.9 1.1-5.9-4.4-4.1 6-.8z"/></svg>'),
   back: icon('<path d="M15 5l-7 7 7 7"/>'),
+  play: new Markup(
+    '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l10-6.5z"/></svg>',
+  ),
 };

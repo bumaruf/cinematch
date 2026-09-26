@@ -1,7 +1,7 @@
 import { usernameKey } from '../../../domain/recommend/daily.ts';
 import { send } from '../../../messaging/client.ts';
 import { byId, hide, show } from '../../shared/dom.ts';
-import { hydratePoster, letterboxdLink } from '../../shared/film.ts';
+import { hydratePoster, letterboxdLink, trailerSearchUrl } from '../../shared/film.ts';
 import { html, joinHtml, render } from '../../shared/html.ts';
 import { ICONS } from '../../shared/icons.ts';
 
@@ -12,6 +12,7 @@ export function setupDailyHero(currentUsername: () => string | null, onSavedChan
   const meta = byId('dashDailyMeta');
   const reason = byId('dashDailyReason');
   const link = byId<HTMLAnchorElement>('dashDailyLbLink');
+  const trailer = byId<HTMLAnchorElement>('dashDailyTrailerLink');
   const save = byId<HTMLButtonElement>('dashDailySave');
   const backdrop = byId<HTMLImageElement>('dashDailyBackdrop');
   const art = hero.querySelector<HTMLElement>('.daily-art')!;
@@ -27,6 +28,7 @@ export function setupDailyHero(currentUsername: () => string | null, onSavedChan
     loaded = false;
     film = null;
     hide(hero);
+    hide(trailer);
     art.dataset.posterKey = '';
     art.replaceChildren();
     backdrop.classList.replace('opacity-90', 'opacity-0');
@@ -54,7 +56,10 @@ export function setupDailyHero(currentUsername: () => string | null, onSavedChan
         backdrop.classList.replace('opacity-0', 'opacity-90');
       });
       link.href = letterboxdLink(film);
+      trailer.href = trailerSearchUrl(film);
+      trailer.setAttribute('aria-label', `Buscar trailer de ${film.title} no YouTube`);
       show(link);
+      show(trailer);
       setSaved(false);
       loaded = true;
       show(hero);

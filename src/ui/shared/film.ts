@@ -11,6 +11,12 @@ export function letterboxdLink(film: FilmLike): string {
   return safeUrl(film.letterboxdUrl || letterboxdSearchUrl(film));
 }
 
+/** A focused YouTube search avoids guessing which upload is the official trailer. */
+export function trailerSearchUrl(film: FilmLike): string {
+  const identity = [film.originalTitle || film.title, film.year, film.director].filter(Boolean).join(' ');
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(`${identity} official trailer`)}`;
+}
+
 export function differentOriginalTitle(film: FilmLike): string {
   return film.originalTitle && film.originalTitle.toLowerCase() !== film.title.toLowerCase() ? film.originalTitle : '';
 }
