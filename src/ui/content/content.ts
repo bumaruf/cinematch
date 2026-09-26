@@ -1,13 +1,16 @@
 import type { StoredDailyPick } from '../../application/ports.ts';
 import { send, syncProfileFully } from '../../messaging/client.ts';
 import { differentOriginalTitle } from '../shared/film.ts';
-import { html, joinHtml, render, safeUrl } from '../shared/html.ts';
+import iconSvg from '../assets/cinematch-icon.svg?raw';
+import { html, joinHtml, Markup, render, safeUrl } from '../shared/html.ts';
 import { usernameFromLetterboxdUrl } from '../shared/letterboxd.ts';
 
 // Adds a "Filme do Dia" button to Letterboxd pages. On a member's page it
 // syncs that member first, so the pick reflects the history being viewed.
 
-const BADGE_LABEL = '✨ Filme do Dia';
+const BADGE_LABEL = 'Filme do Dia';
+// Inlined, so Letterboxd pages need no access to the extension's files.
+const ICON = new Markup(iconSvg);
 
 function showDailyModal({ film, curatorReason, phaseInfo }: StoredDailyPick): void {
   document.getElementById('lb-ai-daily-modal')?.remove();
@@ -68,11 +71,7 @@ function injectBadge(): void {
   render(
     badge,
     html`
-      <div class="lb-ai-icon-wrap">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-        </svg>
-      </div>
+      <div class="lb-ai-icon-wrap" aria-hidden="true">${ICON}</div>
       <span class="lb-ai-label">${BADGE_LABEL}</span>`,
   );
   const label = badge.querySelector('.lb-ai-label')!;

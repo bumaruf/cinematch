@@ -16,6 +16,9 @@ camadas (`domain` → `application` → `infrastructure`/`messaging` → `backgr
   padrões repetidos em toda parte (botões, chips, campos, skeleton). Não crie
   CSS por página. O content script (`src/ui/content/content.css`) não usa
   Tailwind: o reset dele quebraria as páginas do Letterboxd.
+- A marca vive em `assets/brand` (logo e ícone originais, em SVG). Depois de
+  mudá-la, rode `npm run icons`: ele gera `src/ui/assets/*.svg` (enquadrados
+  para a interface) e `public/icons/*.png`. Não edite esses gerados à mão.
 - As chaves de `chrome.storage` em `src/infrastructure/storage/stores.ts` estão
   gravadas nos navegadores dos usuários. Não as renomeie.
 
