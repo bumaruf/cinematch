@@ -8,6 +8,18 @@ export interface CatalogInfo {
   missingImdbIds: number;
 }
 
+/** Folded, reusable representation of a film for free-text matching. */
+export interface CatalogSearchDocument {
+  title: string;
+  originalTitle: string;
+  director: string;
+  country: string;
+  pitch: string;
+  genres: string;
+  keywords: readonly string[];
+  searchable: string;
+}
+
 export interface Resolution {
   film: CatalogFilm | null;
   /** The title matched several catalog films, so no identity was assumed. */
@@ -22,6 +34,10 @@ export interface Catalog {
   /** Completes a profile film with metadata from its catalog match. */
   enrich(film: ProfileFilm): EnrichedFilm;
   bySlug(slug: string): CatalogFilm | undefined;
+  /** Union of films carrying at least one canonical genre, in catalog order. */
+  filmsWithAnyGenre(genres: readonly string[]): readonly CatalogFilm[];
+  /** Pre-normalized fields used by repeated free-text searches. */
+  searchDocument(film: CatalogFilm): CatalogSearchDocument;
   /** TMDB poster path, or '' when unknown. */
   posterPath(imdbId: string): string;
   /** How many catalog films carry this (folded) keyword. */
@@ -59,12 +75,18 @@ export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: Post
   const byNormalizedSlug = new Map<string, CatalogFilm[]>();
   const byTitle = new Map<string, CatalogFilm[]>();
   const byYear = new Map<number, CatalogFilm[]>();
-  for (const film of films) {
+  const byGenre = new Map<string, CatalogFilm[]>();
+  const catalogPosition = new WeakMap<CatalogFilm, number>();
+  const searchDocuments = new WeakMap<CatalogFilm, CatalogSearchDocument>();
+  for (const [position, film] of films.entries()) {
+    catalogPosition.set(film, position);
     addTo(byNormalizedSlug, normalizeSlug(film.slug), film);
     addTo(byYear, film.year, film);
     for (const title of new Set([film.title, film.originalTitle].filter(Boolean).map(normalizeTitle))) {
       addTo(byTitle, title, film);
     }
+    for (const genre of new Set(film.genres.map(fold))) addTo(byGenre, genre, film);
+
   }
 
   let frequency: Map<string, number> | null = null;
@@ -132,6 +154,35 @@ export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: Post
     resolve,
     enrich,
     bySlug: (slug) => bySlug.get(slug),
+    filmsWithAnyGenre: (genres) => {
+      if (genres.length === 0) return films;
+      const matches = new Set(genres.flatMap((genre) => byGenre.get(fold(genre)) ?? []));
+      return [...matches].sort((a, b) => (catalogPosition.get(a) ?? 0) - (catalogPosition.get(b) ?? 0));
+    },
+    searchDocument: (film) => {
+      let searchDoc = searchDocuments.get(film);
+      if (searchDoc) return searchDoc;
+      if (!catalogPosition.has(film)) throw new Error('O filme não pertence a este catálogo.');
+      const title = fold(film.title);
+      const originalTitle = fold(film.originalTitle);
+      const director = fold(film.director);
+      const country = fold(film.country);
+      const pitch = fold(film.pitch);
+      const genres = film.genres.map(fold).join(' ');
+      const keywords = film.keywords.map(fold);
+      searchDoc = {
+        title,
+        originalTitle,
+        director,
+        country,
+        pitch,
+        genres,
+        keywords,
+        searchable: [title, originalTitle, director, country, pitch, keywords.join(' ')].join(' '),
+      };
+      searchDocuments.set(film, searchDoc);
+      return searchDoc;
+    },
     posterPath: (imdbId) => posters[imdbId] ?? '',
     keywordFrequency: (keyword) => keywordFrequencies().get(keyword) ?? 0,
   };

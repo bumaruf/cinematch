@@ -100,28 +100,36 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
     ranked = rankSearch(catalog, query, { passesFilters, qualityBonus, affinityBonus, themeId });
   } else if (themeId) {
     const strict = criteria?.minSignals ?? 0;
-    const collect = ({ allowRecent = false, minSignals = strict } = {}): Ranked[] =>
-      catalog.films.flatMap((film) => {
-        if (!passesFilters(film, { allowRecent }) || !matchesThemePacing(film, themeId)) return [];
+    const themePool = catalog.filmsWithAnyGenre(criteria?.requiredAnyGenres ?? []);
+    const eligible = (minSignals: number): { film: CatalogFilm; signalCount: number }[] =>
+      themePool.flatMap((film) => {
+        if (!matchesThemePacing(film, themeId)) return [];
         const eligibility = themeEligibility(film, criteria, minSignals);
-        if (!eligibility.eligible) return [];
-        const semantic = eligibility.signalCount * 10 + (film.themes.includes(themeId) ? 2 : 0);
+        return eligibility.eligible ? [{ film, signalCount: eligibility.signalCount }] : [];
+      });
+    const strictCandidates = eligible(strict);
+    let expandedCandidates: { film: CatalogFilm; signalCount: number }[] | null = null;
+    const expanded = (): { film: CatalogFilm; signalCount: number }[] => (expandedCandidates ??= strict > 0 ? eligible(0) : strictCandidates);
+    const collect = (candidates: readonly { film: CatalogFilm; signalCount: number }[], { allowRecent = false } = {}): Ranked[] =>
+      candidates.flatMap(({ film, signalCount }) => {
+        if (!passesFilters(film, { allowRecent })) return [];
+        const semantic = signalCount * 10 + (film.themes.includes(themeId) ? 2 : 0);
         // Theme evidence is decisive; quality and taste only break ties.
         return [{ film, keys: [semantic, qualityBonus(film), affinityBonus(film), film.imdbRating || 0] }];
       });
     // Reusing an unwatched earlier suggestion beats an empty theme; after
     // that, broaden the descriptive signal but keep the genre contract.
-    ranked = collect();
+    ranked = collect(strictCandidates);
     if (ranked.length === 0) {
-      ranked = collect({ allowRecent: true });
+      ranked = collect(strictCandidates, { allowRecent: true });
       if (ranked.length > 0) fallback = 'recent';
     }
     if (ranked.length === 0 && strict > 0) {
-      ranked = collect({ minSignals: 0 });
+      ranked = collect(expanded());
       if (ranked.length > 0) fallback = 'expanded';
     }
     if (ranked.length === 0 && strict > 0) {
-      ranked = collect({ allowRecent: true, minSignals: 0 });
+      ranked = collect(expanded(), { allowRecent: true });
       if (ranked.length > 0) fallback = 'expanded-recent';
     }
     ranked.sort(byKeys);
@@ -168,18 +176,15 @@ function rankSearch(catalog: Catalog, query: SearchQuery, scorers: Scorers): Ran
   // At least 70% of the tokens must match; a single token always must.
   const minTokens = lexicalTokens.length === 1 ? 1 : Math.ceil(lexicalTokens.length * 0.7);
   const ranked: Ranked[] = [];
+  const requiredGenre = query.genres.values().next().value;
+  const candidates = requiredGenre ? catalog.filmsWithAnyGenre([requiredGenre]) : catalog.films;
 
-  for (const film of catalog.films) {
+  for (const film of candidates) {
     if (!scorers.passesFilters(film) || !matchesThemePacing(film, scorers.themeId)) continue;
-    const title = fold(film.title);
-    const originalTitle = fold(film.originalTitle);
-    const director = fold(film.director);
-    const country = fold(film.country);
-    const pitch = fold(film.pitch);
-    const searchable = [title, originalTitle, director, country, pitch, film.keywords.map(fold).join(' ')].join(' ');
+    const searchDoc = catalog.searchDocument(film);
+    const { title, originalTitle, director, country, pitch, genres, searchable } = searchDoc;
     const franchiseTitle = franchiseAliases.some((alias) => containsPhrase(title, alias) || containsPhrase(originalTitle, alias));
-    const keywords = film.keywords.filter(isSpecificKeyword).map(fold).join(' ');
-    const genres = film.genres.map(fold).join(' ');
+    const keywords = searchDoc.keywords.filter(isSpecificKeyword).join(' ');
 
     let relevance = 0;
     let tokensMatched = 0;
