@@ -27,6 +27,19 @@ testWithCatalog('catalog access normalizes mixed genres without mutating the dow
   assert.deepEqual(normalizeGenres(['Ação', 'Comédia Dramática', 'Sci-Fi']), ['Action', 'Comedy', 'Drama', 'Sci-Fi']);
 });
 
+testWithCatalog('catalog indexes genres and normalized search fields without changing catalog order', () => {
+  const scienceFiction = catalog.filmsWithAnyGenre(['Sci-Fi']);
+  assert.ok(scienceFiction.length > 0);
+  assert.ok(scienceFiction.every((film) => film.genres.includes('Sci-Fi')));
+  assert.deepEqual(scienceFiction, catalog.films.filter((film) => film.genres.includes('Sci-Fi')));
+
+  const bladeRunner = catalog.bySlug('blade-runner');
+  assert.ok(bladeRunner);
+  const document = catalog.searchDocument(bladeRunner);
+  assert.equal(document.title, 'blade runner: o cacador de androides');
+  assert.ok(document.searchable.includes('blade runner'));
+});
+
 test('catalog poster mapping includes The Empire Strikes Back', () => {
   assert.equal(catalog.posterPath('tt0080684'), '/nNAeTmF4CtdSgMDplXTDPOpYzsX.jpg');
 });

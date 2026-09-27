@@ -32,10 +32,10 @@ const GENRE_INTENTS: Record<string, string | string[]> = {
   guerra: 'War', war: 'War', faroeste: 'Western', western: 'Western',
   musical: 'Musical', musica: 'Music', fantasia: 'Fantasy', fantasy: 'Fantasy',
   biografia: 'Biography', biography: 'Biography', esporte: 'Sport', desporto: 'Sport',
-  classico: 'Clássico', mudo: 'Mudo', giallo: 'Giallo', satira: 'Sátira',
+  classico: 'Drama', mudo: 'Drama', giallo: ['Horror', 'Mystery'], satira: 'Comedy',
   'road movie': 'Road Movie', 'filme de estrada': 'Road Movie',
-  'artes marciais': 'Artes Marciais',
-  'film noir': 'Film-Noir', noir: 'Film-Noir', 'neo noir': 'Neo-Noir', neonoir: 'Neo-Noir',
+  'artes marciais': 'Action',
+  'film noir': 'Film-Noir', noir: 'Film-Noir', 'neo noir': 'Film-Noir', neonoir: 'Film-Noir',
   // The catalog canonicalizes this as "Sci-Fi"; keeping the aliases aligned
   // prevents a valid Portuguese search from being filtered down to zero.
   ficcao: 'Sci-Fi', 'ficcao cientifica': 'Sci-Fi', 'science fiction': 'Sci-Fi',

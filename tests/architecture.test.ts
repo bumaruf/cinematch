@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 
@@ -24,7 +24,7 @@ function sourceFiles(dir: string): string[] {
 }
 
 function layerOf(file: string): Layer {
-  return relative(SRC, file).split('/')[0] as Layer;
+  return relative(SRC, file).split(sep)[0] as Layer;
 }
 
 function importsOf(file: string): Import[] {
@@ -95,5 +95,5 @@ describe('platform access stays at the edges', () => {
 
 test('only the infrastructure loads the generated catalog data', () => {
   const loaders = files.filter((file) => importsOf(file).some((dependency) => !dependency.typeOnly && layerOf(dependency.target) === 'data'));
-  expect(loaders.map((file) => relative(SRC, file))).toEqual(['infrastructure/catalog.ts']);
+  expect(loaders.map((file) => relative(SRC, file))).toEqual([join('infrastructure', 'catalog.ts')]);
 });

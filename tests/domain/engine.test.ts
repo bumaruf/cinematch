@@ -188,9 +188,9 @@ testWithCatalog('genre intent aliases constrain common Portuguese and English se
     ['faroeste', ['Western']],
     ['musical', ['Musical']],
     ['noir', ['Film-Noir']],
-    ['neo-noir', ['Neo-Noir']],
-    ['giallo', ['Giallo']],
-    ['artes marciais', ['Artes Marciais']],
+    ['neo-noir', ['Film-Noir']],
+    ['giallo', ['Horror', 'Mystery']],
+    ['artes marciais', ['Action']],
   ];
   for (const [query, expectedGenres] of cases) {
     const result = run({ profile: emptyProfile, customPrompt: query });
