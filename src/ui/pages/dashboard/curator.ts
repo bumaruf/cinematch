@@ -9,6 +9,35 @@ import { readFilters } from '../../shared/filters.ts';
 import { html, render } from '../../shared/html.ts';
 import type { Notifier } from './state.ts';
 
+type ThemeCollection = {
+  title: string;
+  description: string;
+  themeIds: readonly string[];
+};
+
+const THEME_COLLECTIONS: readonly ThemeCollection[] = [
+  {
+    title: 'Quero tensão',
+    description: 'Nervos à flor da pele.',
+    themeIds: ['psychological-slow-burn-horror', 'paranoia-70s-conspiracy-thriller', 'claustrophobic-single-location', 'cyberpunk-neon-noir'],
+  },
+  {
+    title: 'Quero mergulhar',
+    description: 'Outro ritmo, outro mundo.',
+    themeIds: ['slow-cinema-contemplative', 'dreamlike-magical-realism', 'philosophical-hard-scifi', 'hidden-gems-underrated'],
+  },
+  {
+    title: 'Quero me surpreender',
+    description: 'Nada é tão estável quanto parece.',
+    themeIds: ['mindfuck-broken-reality', 'acid-satire-dark-comedy', 'gritty-90s-crime-neo-realism'],
+  },
+  {
+    title: 'Quero me emocionar',
+    description: 'Histórias que ficam depois dos créditos.',
+    themeIds: ['existential-urban-melancholy', 'cozy-bittersweet-coming-of-age', 'poetic-romance-fleeting-encounters', 'whimsical-cozy-comfort'],
+  },
+];
+
 /** Free-text search, themes, filters and the result list. */
 export function setupCurator({
   notify,
@@ -93,28 +122,76 @@ export function setupCurator({
     }
   }
 
-  el.themes.replaceChildren(
-    ...THEMES_CATALOG.map((theme) => {
-      const option = document.createElement('button');
-      option.type = 'button';
-      option.className =
-        'group flex cursor-pointer flex-col gap-1 rounded-card border border-transparent p-3 text-left transition-colors hover:border-line hover:bg-surface pressed:border-accent/50 pressed:bg-accent/5';
-      option.dataset.themeId = theme.id;
-      option.setAttribute('aria-pressed', 'false');
-      render(
-        option,
-        html`<span class="font-semibold group-aria-pressed:text-accent">${theme.title}</span><span class="line-clamp-2 text-[13px] text-muted">${theme.vibe}</span>`,
-      );
-      // One click is enough: a theme is a complete request.
-      option.addEventListener('click', () => {
-        selectedThemeId = theme.id;
-        el.prompt.value = '';
-        markSelected();
-        void generate();
-      });
-      return option;
-    }),
-  );
+  const themesById = new Map(THEMES_CATALOG.map((theme) => [theme.id, theme]));
+  let activeCollectionIndex = 0;
+
+  function renderThemePicker(): void {
+    const activeCollection = THEME_COLLECTIONS[activeCollectionIndex];
+    const picker = document.createElement('div');
+    const collectionControls = document.createElement('div');
+    collectionControls.className = 'flex flex-wrap gap-2';
+    collectionControls.setAttribute('aria-label', 'Tipos de clima');
+    const themesTitleId = 'activeThemeCollection';
+
+    collectionControls.replaceChildren(
+      ...THEME_COLLECTIONS.map((collection, index) => {
+        const control = document.createElement('button');
+        control.type = 'button';
+        control.className =
+          'rounded-full border border-line px-4 py-2 text-left text-[13px] font-semibold text-muted transition-colors hover:border-line-strong hover:text-ink pressed:border-accent pressed:bg-accent pressed:text-on-accent';
+        control.setAttribute('aria-pressed', String(index === activeCollectionIndex));
+        render(control, html`${collection.title}`);
+        control.addEventListener('click', () => {
+          activeCollectionIndex = index;
+          renderThemePicker();
+        });
+        return control;
+      }),
+    );
+
+    const collectionHeader = document.createElement('div');
+    collectionHeader.className = 'mt-7';
+    render(
+      collectionHeader,
+      html`<h3 id="${themesTitleId}" class="font-serif text-2xl font-medium">${activeCollection.title}</h3><p class="mt-1 text-[13px] text-muted">${activeCollection.description}</p>`,
+    );
+
+    const list = document.createElement('ul');
+    list.className = 'mt-3 grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3';
+    list.setAttribute('aria-labelledby', themesTitleId);
+    list.setAttribute('role', 'list');
+    list.replaceChildren(
+      ...activeCollection.themeIds.flatMap((themeId) => {
+        const theme = themesById.get(themeId);
+        if (!theme) return [];
+        const item = document.createElement('li');
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className =
+          'group flex min-h-28 w-full cursor-pointer flex-col justify-between rounded-card border border-line bg-surface p-4 text-left transition-[border-color,background-color,transform] hover:-translate-y-0.5 hover:border-line-strong hover:bg-raised pressed:border-accent pressed:bg-accent/10 motion-reduce:transform-none';
+        option.dataset.themeId = theme.id;
+        option.setAttribute('aria-pressed', String(theme.id === selectedThemeId));
+        render(
+          option,
+          html`<span class="font-serif text-xl leading-tight font-medium group-aria-pressed:text-accent">${theme.shortTitle}</span><span class="mt-3 line-clamp-2 text-[13px] leading-snug text-muted">${theme.vibe}</span>`,
+        );
+        // A climate remains an immediate recommendation request.
+        option.addEventListener('click', () => {
+          selectedThemeId = theme.id;
+          el.prompt.value = '';
+          markSelected();
+          void generate();
+        });
+        item.append(option);
+        return [item];
+      }),
+    );
+
+    picker.append(collectionControls, collectionHeader, list);
+    el.themes.replaceChildren(picker);
+  }
+
+  renderThemePicker();
 
   el.generate.addEventListener('click', () => {
     // Without a prompt, the search uses general taste, not an earlier theme.

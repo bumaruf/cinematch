@@ -87,15 +87,6 @@
           </div>
         </details>
 
-        <section id="dashResultsArea" class="mt-10 scroll-mt-8 hidden" aria-labelledby="dashResultsTitle">
-          <div class="flex items-baseline justify-between gap-4">
-            <h2 id="dashResultsTitle" class="font-serif text-3xl leading-tight font-medium text-balance"></h2>
-            <button id="dashBtnExportText" class="btn btn-quiet" type="button">Copiar lista</button>
-          </div>
-          <p id="dashCuratorComment" class="mt-2 text-[13px] text-muted empty:hidden"></p>
-          <div id="dashMoviesGrid" class="mt-6 grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-4" aria-live="polite"></div>
-        </section>
-
         <section id="dashDailyRecHero" class="relative mt-10 isolate overflow-hidden rounded-2xl border border-line bg-surface hidden" aria-labelledby="dashDailyTitle">
           <img id="dashDailyBackdrop" class="absolute inset-0 -z-10 size-full scale-125 object-cover opacity-0 blur-3xl saturate-150 transition-opacity duration-700 motion-reduce:transition-none" alt="">
           <div class="absolute inset-0 -z-10 bg-gradient-to-r from-bg/90 via-bg/60 to-bg/10"></div>
@@ -118,8 +109,21 @@
         </section>
 
         <section class="mt-14" aria-labelledby="themesTitle">
-          <h2 id="themesTitle" class="font-serif text-2xl font-medium">Ou escolha um clima</h2>
-          <div id="dashThemesGrid" class="mt-4 grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2"></div>
+          <div class="max-w-xl">
+            <p class="text-[12px] font-semibold tracking-[0.16em] text-accent uppercase">Curadoria por atmosfera</p>
+            <h2 id="themesTitle" class="mt-1 font-serif text-3xl font-medium text-balance">O que você quer sentir hoje?</h2>
+            <p class="mt-2 text-[14px] leading-relaxed text-muted">Escolha uma sensação e a gente encontra o filme.</p>
+          </div>
+          <div id="dashThemesGrid" class="mt-5"></div>
+        </section>
+
+        <section id="dashResultsArea" class="mt-10 scroll-mt-8 hidden" aria-labelledby="dashResultsTitle">
+          <div class="flex items-baseline justify-between gap-4">
+            <h2 id="dashResultsTitle" class="font-serif text-3xl leading-tight font-medium text-balance"></h2>
+            <button id="dashBtnExportText" class="btn btn-quiet" type="button">Copiar lista</button>
+          </div>
+          <p id="dashCuratorComment" class="mt-2 text-[13px] text-muted empty:hidden"></p>
+          <div id="dashMoviesGrid" class="mt-6 grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-4" aria-live="polite"></div>
         </section>
       </section>
 
