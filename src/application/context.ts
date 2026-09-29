@@ -5,6 +5,7 @@ import type {
   DailyPickStore,
   HistoryStore,
   LetterboxdSync,
+  PopupSessionStore,
   ProfileStore,
   SavedFilmsStore,
   SettingsStore,
@@ -18,6 +19,7 @@ export interface AppContext {
   profiles: ProfileStore;
   settings: SettingsStore;
   history: HistoryStore;
+  popupSession: PopupSessionStore;
   saved: SavedFilmsStore;
   daily: DailyPickStore;
   letterboxd: LetterboxdSync;

@@ -20,18 +20,18 @@ function showDailyModal({ film, curatorReason, phaseInfo }: StoredDailyPick): vo
     .join(' • ');
   const genres = joinHtml(film.genres.map((genre) => html`<span class="lb-ai-genre-pill">${genre}</span>`));
 
-  const modal = document.createElement('div');
+  const modal = document.createElement('dialog');
   modal.id = 'lb-ai-daily-modal';
-  modal.className = 'lb-ai-modal-backdrop';
+  modal.className = 'lb-ai-modal';
   render(
     modal,
     html`
-      <div class="lb-ai-modal-card" role="dialog" aria-modal="true" aria-labelledby="lb-ai-daily-title">
+      <div class="lb-ai-modal-card">
         <div class="lb-ai-modal-header">
           <div class="lb-ai-modal-brand">
-            <span class="lb-ai-modal-tag">✨ Filme do Dia · Fase ${phaseInfo.currentYear}</span>
+            <span class="lb-ai-modal-tag">Filme do Dia · Fase ${phaseInfo.currentYear}</span>
           </div>
-          <button type="button" class="lb-ai-modal-close" title="Fechar" aria-label="Fechar recomendação">&times;</button>
+          <form method="dialog"><button class="lb-ai-modal-close" aria-label="Fechar recomendação">&times;</button></form>
         </div>
         <div class="lb-ai-modal-body">
           <div class="lb-ai-poster" aria-label="Pôster de ${film.title}">
@@ -57,27 +57,28 @@ function showDailyModal({ film, curatorReason, phaseInfo }: StoredDailyPick): vo
         </div>
       </div>`,
   );
-  modal.querySelector('.lb-ai-modal-close')?.addEventListener('click', () => modal.remove());
-  modal.addEventListener('click', (event) => event.target === modal && modal.remove());
+  modal.addEventListener('close', () => modal.remove());
+  modal.addEventListener('click', (event) => event.target === modal && modal.close());
   modal.querySelector('.lb-ai-open-studio')?.addEventListener('click', () => {
     void send('openDashboard', {});
     modal.remove();
   });
   document.body.append(modal);
+  modal.showModal();
   hydratePoster(modal.querySelector<HTMLElement>('.lb-ai-poster'), film, 'w342');
-  modal.querySelector<HTMLElement>('.lb-ai-modal-close')?.focus();
 }
 
 function injectBadge(): void {
   if (document.getElementById('lb-ai-curator-badge')) return;
-  const badge = document.createElement('div');
+  const badge = document.createElement('button');
   badge.id = 'lb-ai-curator-badge';
   badge.className = 'lb-ai-curator-floating-btn';
+  badge.type = 'button';
   badge.title = 'Filme do Dia · Baseado na sua fase no Letterboxd';
   render(
     badge,
     html`
-      <div class="lb-ai-icon-wrap" aria-hidden="true">${ICON}</div>
+      <span class="lb-ai-icon-wrap" aria-hidden="true">${ICON}</span>
       <span class="lb-ai-label">${BADGE_LABEL}</span>`,
   );
   const label = badge.querySelector('.lb-ai-label')!;
@@ -86,6 +87,7 @@ function injectBadge(): void {
   badge.addEventListener('click', async () => {
     if (busy) return;
     busy = true;
+    let completionLabel = BADGE_LABEL;
     badge.classList.add('syncing');
     label.textContent = 'Curando...';
     const username = usernameFromLetterboxdUrl(location.href);
@@ -94,20 +96,20 @@ function injectBadge(): void {
         try {
           await syncProfileFully(username, { onProgress: (message) => (label.textContent = message) });
         } catch (error) {
-          alert((error as Error).message || 'Não foi possível sincronizar este perfil.');
+          completionLabel = (error as Error).message || 'Não foi possível sincronizar. Tente novamente.';
           return;
         }
       }
       try {
         showDailyModal((await send('getDailyPick', {})).data);
       } catch {
-        alert('Não foi possível gerar a recomendação do dia no momento. Tente abrir o Studio.');
+        completionLabel = 'Não foi possível gerar agora. Abrindo o Studio…';
         void send('openDashboard', {}).catch(() => {});
       }
     } finally {
       busy = false;
       badge.classList.remove('syncing');
-      label.textContent = BADGE_LABEL;
+      label.textContent = completionLabel;
     }
   });
   document.body.append(badge);

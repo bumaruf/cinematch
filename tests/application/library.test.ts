@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { getFilmArtwork, getSettings, listSavedFilms, toggleSavedFilm, updateSettings } from '../../src/application/library.ts';
+import { getFilmArtwork, getPopupSession, getSettings, listSavedFilms, savePopupSession, toggleSavedFilm, updateSettings } from '../../src/application/library.ts';
 import { DEFAULT_SETTINGS, KEYS } from '../../src/infrastructure/storage/stores.ts';
 import { createTestContext, FIXED_NOW, testWithCatalog } from '../helpers.ts';
 
@@ -50,4 +50,20 @@ test('updateSettings accepts only valid values and getSettings starts from defau
 test('getFilmArtwork delegates to the artwork source', async () => {
   const { ctx } = await createTestContext({ artwork: { artworkUrl: async (slug) => `https://img/${slug}.jpg` } });
   assert.equal(await getFilmArtwork(ctx, 'alien'), 'https://img/alien.jpg');
+});
+
+test('the popup session keeps the current list for this browser session', async () => {
+  const { ctx } = await createTestContext();
+  const session = {
+    username: 'test',
+    view: 'results' as const,
+    prompt: '',
+    result: { title: 'Cinema lento', note: 'Uma seleção', films: [{ title: 'Stalker', originalTitle: 'Stalker', year: 1979, director: 'Andrei Tarkovsky', letterboxdSlug: 'stalker', catalogSlug: 'stalker', letterboxdUrl: 'https://letterboxd.com/film/stalker/', posterPath: '', pitch: '', runtimeMinutes: 163, country: 'USSR', genres: [], imdbRating: 8.1, affinityReason: null }] },
+  };
+  await savePopupSession(ctx, session);
+  assert.deepEqual(await getPopupSession(ctx), session);
+  const draft = { username: 'test', view: 'home' as const, prompt: 'terror' };
+  await savePopupSession(ctx, draft);
+  assert.deepEqual(await getPopupSession(ctx), draft);
+  await assert.rejects(savePopupSession(ctx, { ...session, result: { ...session.result, title: '' } }), /Resultado inválido/);
 });

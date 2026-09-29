@@ -58,6 +58,7 @@ export async function syncProfile(
   const result = await ctx.letterboxd.syncBatch(username.trim(), { previous, forceFull, onProgress });
   if (result.pending) return result;
   await ctx.profiles.save(result.profile);
+  await ctx.popupSession.clear();
   await ctx.letterboxd.clearProgress();
   return { pending: false, ...describe(ctx, result.profile) };
 }
@@ -70,6 +71,7 @@ export async function importCsvProfile(ctx: AppContext, files: CsvFile[]): Promi
   const base: UserProfile = previous ?? { username: 'Usuário', displayName: 'Cinéfilo', films: [], favorites: [] };
   const result = importProfileSnapshot(ctx.catalog(), base, incoming, ctx.clock.now());
   await ctx.profiles.replace(result.profile, previous, 'import');
+  await ctx.popupSession.clear();
   await ctx.letterboxd.clearProgress();
   return {
     ...describe(ctx, result.profile),
@@ -81,7 +83,7 @@ export async function importCsvProfile(ctx: AppContext, files: CsvFile[]): Promi
 }
 
 export async function clearProfile(ctx: AppContext): Promise<void> {
-  await ctx.profiles.clear();
+  await Promise.all([ctx.profiles.clear(), ctx.popupSession.clear()]);
 }
 
 /**

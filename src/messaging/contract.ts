@@ -1,5 +1,5 @@
 import type { SavedFilmInput } from '../application/library.ts';
-import type { HistoryEntry, SavedFilm, SyncProgress } from '../application/ports.ts';
+import type { HistoryEntry, PopupSession, SavedFilm, SyncProgress } from '../application/ports.ts';
 import type { ActiveProfile, CsvFile, ImportSummary, SyncResult } from '../application/profile.ts';
 import type { DailyPickResponse, RecommendationQuery } from '../application/recommendations.ts';
 import type { RecommendationResult, Settings } from '../domain/film.ts';
@@ -18,6 +18,8 @@ export interface Contract {
   listSavedFilms: { request: void; response: SavedFilm[] };
   toggleSavedFilm: { request: SavedFilmInput; response: { isSaved: boolean; totalSaved: number } };
   listHistory: { request: void; response: HistoryEntry[] };
+  getPopupSession: { request: void; response: PopupSession | null };
+  savePopupSession: { request: PopupSession; response: void };
   getSettings: { request: void; response: Settings };
   updateSettings: { request: Partial<Settings>; response: Settings };
   getFilmArtwork: { request: { slug: string }; response: string };
@@ -51,6 +53,8 @@ export const ACTIONS: readonly Action[] = [
   'listSavedFilms',
   'toggleSavedFilm',
   'listHistory',
+  'getPopupSession',
+  'savePopupSession',
   'getSettings',
   'updateSettings',
   'getFilmArtwork',

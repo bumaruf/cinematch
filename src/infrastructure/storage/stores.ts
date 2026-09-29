@@ -3,6 +3,8 @@ import type {
   DailyPickStore,
   HistoryEntry,
   HistoryStore,
+  PopupSession,
+  PopupSessionStore,
   ProfileStore,
   SavedFilm,
   SavedFilmsStore,
@@ -20,6 +22,7 @@ export const KEYS = {
   importBackup: 'lb_curator_import_backup',
   repairBackup: 'lb_curator_repair_backup',
   history: 'lb_curator_rec_history',
+  popupSession: 'lb_curator_popup_session',
   saved: 'lb_curator_saved_recs',
   daily: 'lb_curator_daily_recs',
   settings: 'lb_curator_settings',
@@ -41,18 +44,31 @@ export const DEFAULT_SETTINGS: Settings = { avoidWatched: true, includeUnderrate
 
 const HISTORY_LIMIT = 30;
 const DAILY_LIMIT = 180;
+/** Keeps local storage predictable even for exceptionally large imports. */
+export const PROFILE_FILMS_LIMIT = 20_000;
 
 export function profileStore(kv: KeyValueStore, clock: () => Date = () => new Date()): ProfileStore {
   return {
     get: async () => (await kv.get<UserProfile>(KEYS.profile)) ?? null,
-    save: (profile) => kv.set({ [KEYS.profile]: profile }),
-    replace: (profile, previous, reason) =>
-      kv.set({
+    save: (profile) => {
+      assertProfileSize(profile);
+      return kv.set({ [KEYS.profile]: profile });
+    },
+    replace: (profile, previous, reason) => {
+      assertProfileSize(profile);
+      return kv.set({
         [KEYS.profile]: profile,
         [reason === 'import' ? KEYS.importBackup : KEYS.repairBackup]: { profile: previous, savedAt: clock().toISOString() },
-      }),
+      });
+    },
     clear: () => kv.remove([KEYS.profile, KEYS.syncCheckpoint, KEYS.importBackup, KEYS.repairBackup]),
   };
+}
+
+function assertProfileSize(profile: UserProfile): void {
+  if (profile.films.length > PROFILE_FILMS_LIMIT) {
+    throw new Error(`Este perfil tem mais de ${PROFILE_FILMS_LIMIT.toLocaleString('pt-BR')} filmes e excede o limite local do CineMatch.`);
+  }
 }
 
 export function syncCheckpointStore(kv: KeyValueStore): SyncCheckpointStore {
@@ -90,6 +106,14 @@ export function historyStore(kv: KeyValueStore): HistoryStore {
   return {
     list,
     append: async (entry) => kv.set({ [KEYS.history]: [entry, ...(await list())].slice(0, HISTORY_LIMIT) }),
+  };
+}
+
+export function popupSessionStore(kv: KeyValueStore): PopupSessionStore {
+  return {
+    get: async () => (await kv.get<PopupSession>(KEYS.popupSession)) ?? null,
+    save: (session) => kv.set({ [KEYS.popupSession]: session }),
+    clear: () => kv.remove(KEYS.popupSession),
   };
 }
 

@@ -6,6 +6,7 @@ import { memoryKeyValueStore } from '../src/infrastructure/storage/key-value.ts'
 import {
   dailyPickStore,
   historyStore,
+  popupSessionStore,
   profileStore,
   savedFilmsStore,
   settingsStore,
@@ -64,6 +65,7 @@ export async function createTestContext(options: TestContextOptions = {}) {
     profiles: profileStore(kv, clock.now),
     settings: settingsStore(kv),
     history: historyStore(kv),
+    popupSession: popupSessionStore(kv),
     saved: savedFilmsStore(kv),
     daily: dailyPickStore(kv),
     letterboxd: options.letterboxd ?? fakeLetterboxd(),

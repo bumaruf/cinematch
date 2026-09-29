@@ -47,6 +47,26 @@ export interface HistoryStore {
   append(entry: HistoryEntry): Promise<void>;
 }
 
+export interface PopupResult {
+  title: string;
+  note: string;
+  films: Recommendation[];
+}
+
+/** Popup state, kept only for the current browser session. */
+export interface PopupSession {
+  username: string;
+  view: 'home' | 'results';
+  prompt: string;
+  result?: PopupResult;
+}
+
+export interface PopupSessionStore {
+  get(): Promise<PopupSession | null>;
+  save(session: PopupSession): Promise<void>;
+  clear(): Promise<void>;
+}
+
 /** Saved films may predate the current Recommendation shape. */
 export type SavedFilm = Partial<Recommendation> & { title: string; year?: number; savedAt: string; slug?: string };
 

@@ -8,6 +8,7 @@ import {
   DEFAULT_SETTINGS,
   historyStore,
   KEYS,
+  PROFILE_FILMS_LIMIT,
   profileStore,
   removeObsoleteData,
   settingsStore,
@@ -101,4 +102,10 @@ test('profile store keeps backups on replace and clears everything profile-relat
   await profiles.clear();
   assert.equal(await profiles.get(), null);
   for (const key of [KEYS.syncCheckpoint, KEYS.importBackup, KEYS.repairBackup]) assert.equal(await kv.get(key), undefined);
+});
+
+test('profile storage rejects imports that exceed the local safety limit', async () => {
+  const profiles = profileStore(memoryKeyValueStore());
+  const films = Array.from({ length: PROFILE_FILMS_LIMIT + 1 }, (_, index) => ({ title: `Filme ${index}`, slug: `filme-${index}` }));
+  assert.throws(() => profiles.save({ username: 'muito-grande', films, favorites: [] }), /excede o limite local/);
 });

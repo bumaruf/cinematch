@@ -5,7 +5,7 @@ import { chromePlatform, createContext, listen } from './composition.ts';
 import { createHandlers } from './router.ts';
 
 const kv = chromeKeyValueStore();
-const ctx = createContext(kv);
+const ctx = createContext(kv, chromeKeyValueStore(chrome.storage.session));
 
 chrome.runtime.onInstalled.addListener(async () => {
   await removeObsoleteData(kv);

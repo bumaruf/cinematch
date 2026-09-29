@@ -1,5 +1,5 @@
 import type { AppContext } from '../application/context.ts';
-import { getFilmArtwork, getSettings, listHistory, listSavedFilms, toggleSavedFilm, updateSettings } from '../application/library.ts';
+import { getFilmArtwork, getPopupSession, getSettings, listHistory, listSavedFilms, savePopupSession, toggleSavedFilm, updateSettings } from '../application/library.ts';
 import type { SyncProgress } from '../application/ports.ts';
 import { clearProfile, getActiveProfile, importCsvProfile, syncProfile } from '../application/profile.ts';
 import { generateRecommendations, getDailyPick } from '../application/recommendations.ts';
@@ -25,6 +25,8 @@ export function createHandlers(ctx: AppContext, platform: Platform): Handlers {
     listSavedFilms: () => listSavedFilms(ctx),
     toggleSavedFilm: (film) => toggleSavedFilm(ctx, film),
     listHistory: () => listHistory(ctx),
+    getPopupSession: () => getPopupSession(ctx),
+    savePopupSession: (session) => savePopupSession(ctx, session),
     getSettings: () => getSettings(ctx),
     updateSettings: (changes) => updateSettings(ctx, changes),
     getFilmArtwork: ({ slug }) => getFilmArtwork(ctx, slug),
