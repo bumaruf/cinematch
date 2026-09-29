@@ -21,6 +21,6 @@ export function createProfileState() {
 export type ProfileState = ReturnType<typeof createProfileState>;
 
 export interface Notifier {
-  toast(message: string, durationMs?: number): void;
+  toast(message: string, durationMs?: number, tone?: 'default' | 'error'): void;
   error(message: string): void;
 }

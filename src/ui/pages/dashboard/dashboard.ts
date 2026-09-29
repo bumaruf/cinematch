@@ -11,13 +11,15 @@ onReady(async () => {
   const toastElement = byId('dashToast');
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
   const notify: Notifier = {
-    toast(message, durationMs = 4000) {
+    toast(message, durationMs = 4000, tone = 'default') {
       toastElement.textContent = message;
+      toastElement.classList.toggle('border-danger', tone === 'error');
+      toastElement.classList.toggle('text-danger', tone === 'error');
       show(toastElement);
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => hide(toastElement), durationMs);
     },
-    error: (message) => alert(message),
+    error: (message) => notify.toast(message, 7000, 'error'),
   };
 
   const state = createProfileState();

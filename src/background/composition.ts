@@ -7,6 +7,7 @@ import { chromeKeyValueStore, type KeyValueStore } from '../infrastructure/stora
 import {
   dailyPickStore,
   historyStore,
+  popupSessionStore,
   profileStore,
   removeObsoleteData,
   savedFilmsStore,
@@ -16,7 +17,7 @@ import {
 import { DASHBOARD_PATH, isRequestMessage, type ResponseMessage, type SyncProgressEvent } from '../messaging/contract.ts';
 import { createHandlers, type Handlers, type Platform } from './router.ts';
 
-export function createContext(kv: KeyValueStore): AppContext {
+export function createContext(kv: KeyValueStore, sessionKv: KeyValueStore = kv): AppContext {
   const clock = { now: () => new Date() };
   const checkpoints = syncCheckpointStore(kv);
   return {
@@ -25,6 +26,7 @@ export function createContext(kv: KeyValueStore): AppContext {
     profiles: profileStore(kv, clock.now),
     settings: settingsStore(kv),
     history: historyStore(kv),
+    popupSession: popupSessionStore(sessionKv),
     saved: savedFilmsStore(kv),
     daily: dailyPickStore(kv),
     // A fresh fetcher per batch looks up the open Letterboxd tab again.

@@ -45,6 +45,7 @@ onReady(async () => {
   };
 
   let hasProfile = false;
+  let profileUsername = '';
   let selectedThemeId: string | null = null;
   let current: Recommendation[] = [];
   let syncing = false;
@@ -78,6 +79,7 @@ onReady(async () => {
 
   function displayProfile({ profile, analyzed }: Pick<ActiveProfile, 'profile' | 'analyzed'>): void {
     hasProfile = true;
+    profileUsername = profile.username;
     profileState('loaded');
     el.displayName.textContent = profile.displayName || profile.username;
     el.displayName.title = `@${profile.username}`;
@@ -112,6 +114,21 @@ onReady(async () => {
     }
   }
 
+  function hasSearchIntent(): boolean {
+    return Boolean(selectedThemeId || el.prompt.value.trim());
+  }
+
+  function updateGenerateState(): void {
+    byId<HTMLButtonElement>('btnGenerateCustom').disabled = !hasSearchIntent();
+  }
+
+  function saveDraft(): void {
+    if (!profileUsername) return;
+    void send('savePopupSession', { username: profileUsername, view: 'home', prompt: el.prompt.value }).catch(() => {
+      // A draft must never prevent the current search from being used.
+    });
+  }
+
   el.themes.replaceChildren(
     ...THEMES_CATALOG.map((theme) => {
       const chip = document.createElement('button');
@@ -126,6 +143,7 @@ onReady(async () => {
         selectedThemeId = theme.id;
         el.prompt.value = '';
         markSelected();
+        updateGenerateState();
         void generate();
       });
       return chip;
@@ -142,7 +160,7 @@ onReady(async () => {
     }
   };
 
-  function showResults({ title, note, films }: Results): void {
+  function showResults({ title, note, films }: Results, persist = true): void {
     current = films;
     el.resultsTitle.textContent = title;
     el.resultsNote.textContent = films.length ? note : '';
@@ -152,11 +170,17 @@ onReady(async () => {
       el.films.replaceChildren(...films.map((film, i) => filmCard(film, { onToggleSave: toggleSave, index: i })));
     }
     view('results');
+    if (persist && profileUsername) {
+      void send('savePopupSession', { username: profileUsername, view: 'results', prompt: '', result: { title, note, films } }).catch(() => {
+        // Restoring the list is a convenience; the visible result remains usable.
+      });
+    }
   }
 
   async function generate(): Promise<void> {
     if (!hasProfile) return showError('Conecte seu perfil do Letterboxd primeiro.');
     const customPrompt = el.prompt.value.trim();
+    if (!customPrompt && !selectedThemeId) return;
     hide(el.errorBanner);
     view('loading');
     try {
@@ -190,30 +214,26 @@ onReady(async () => {
   byId('btnOpenSettings').addEventListener('click', () => void chrome.runtime.openOptionsPage());
   byId('btnOpenDashboard').addEventListener('click', () => void send('openDashboard', {}));
   byId('btnDismissError').addEventListener('click', () => hide(el.errorBanner));
-  byId('btnGenerateCustom').addEventListener('click', () => {
-    // Without a prompt, a previously clicked theme is not implied.
-    if (!el.prompt.value.trim()) {
-      selectedThemeId = null;
-      markSelected();
-    }
-    void generate();
-  });
+  byId('btnGenerateCustom').addEventListener('click', () => void generate());
   byId('btnDailyRec').addEventListener('click', () => void surprise());
   byId('btnNewSearch').addEventListener('click', () => {
     view('home');
+    saveDraft();
     el.prompt.focus();
   });
   el.copyAll.addEventListener('click', () => {
     if (current.length) void copyWithFeedback(el.copyAll, recommendationsText(`${el.resultsTitle.textContent} — CineMatch`, current), 'Copiada');
   });
   el.prompt.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') byId('btnGenerateCustom').click();
+    if (event.key === 'Enter' && !event.isComposing && hasSearchIntent()) byId<HTMLButtonElement>('btnGenerateCustom').click();
   });
   el.prompt.addEventListener('input', () => {
     if (el.prompt.value.trim() && selectedThemeId) {
       selectedThemeId = null;
       markSelected();
     }
+    updateGenerateState();
+    saveDraft();
   });
   el.profileEmpty.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -229,8 +249,14 @@ onReady(async () => {
   // ── Start ─────────────────────────────────────────────────────────────────
   try {
     const active = await send('getActiveProfile');
-    if (active) displayProfile(active);
-    else profileState('empty');
+    if (active) {
+      displayProfile(active);
+      const session = await send('getPopupSession');
+      if (session?.username.toLowerCase() === active.profile.username.toLowerCase()) {
+        if (session.view === 'results' && session.result) showResults(session.result, false);
+        else el.prompt.value = session.prompt;
+      }
+    } else profileState('empty');
   } catch (error) {
     profileState('empty');
     showError((error as Error).message);
@@ -240,4 +266,5 @@ onReady(async () => {
     const username = usernameFromLetterboxdUrl(tab?.url);
     if (username) el.usernameInput.value = username;
   }
+  updateGenerateState();
 });

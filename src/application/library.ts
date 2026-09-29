@@ -2,7 +2,7 @@ import type { Settings } from '../domain/film.ts';
 import { letterboxdSearchUrl } from '../domain/recommend/recommendation.ts';
 import { slugKey } from '../domain/text.ts';
 import type { AppContext } from './context.ts';
-import type { HistoryEntry, SavedFilm } from './ports.ts';
+import type { HistoryEntry, PopupSession, SavedFilm } from './ports.ts';
 
 export type SavedFilmInput = Omit<SavedFilm, 'savedAt'>;
 
@@ -48,6 +48,16 @@ export async function isSaved(ctx: AppContext, film: SavedFilmInput): Promise<bo
 
 export async function listHistory(ctx: AppContext): Promise<HistoryEntry[]> {
   return ctx.history.list();
+}
+
+export async function getPopupSession(ctx: AppContext): Promise<PopupSession | null> {
+  return ctx.popupSession.get();
+}
+
+export async function savePopupSession(ctx: AppContext, session: PopupSession): Promise<void> {
+  if (!session.username || !['home', 'results'].includes(session.view)) throw new Error('Sessão inválida.');
+  if (session.view === 'results' && (!session.result?.title || !Array.isArray(session.result.films))) throw new Error('Resultado inválido.');
+  await ctx.popupSession.save(session);
 }
 
 export async function getSettings(ctx: AppContext): Promise<Settings> {

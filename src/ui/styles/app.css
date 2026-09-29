@@ -85,7 +85,7 @@ body {
 
 @layer components {
   .btn {
-    @apply inline-flex min-h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-line-strong px-4 font-semibold whitespace-nowrap text-ink no-underline transition-colors hover:bg-raised disabled:cursor-wait disabled:opacity-50;
+    @apply inline-flex min-h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-line-strong px-4 font-semibold whitespace-nowrap text-ink no-underline transition-colors hover:bg-raised disabled:cursor-default disabled:opacity-50;
   }
 
   .btn-primary {
