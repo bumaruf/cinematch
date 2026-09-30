@@ -1,6 +1,6 @@
 import type { StoredDailyPick } from '../../application/ports.ts';
 import { send, syncProfileFully } from '../../messaging/client.ts';
-import { differentOriginalTitle, hydratePoster } from '../shared/film.ts';
+import { differentOriginalTitle, hydratePoster, trailerSearchUrl } from '../shared/film.ts';
 import iconSvg from '../assets/cinematch-icon.svg?raw';
 import { html, joinHtml, Markup, render, safeUrl } from '../shared/html.ts';
 import { usernameFromLetterboxdUrl } from '../shared/letterboxd.ts';
@@ -53,6 +53,7 @@ function showDailyModal({ film, curatorReason, phaseInfo }: StoredDailyPick): vo
         </div>
         <div class="lb-ai-modal-footer">
           <a href="${safeUrl(film.letterboxdUrl)}" target="_blank" rel="noreferrer" class="lb-ai-btn-primary"><span>Ver no Letterboxd ↗</span></a>
+          <a href="${safeUrl(trailerSearchUrl(film))}" target="_blank" rel="noreferrer" class="lb-ai-btn-secondary"><span>Trailer ↗</span></a>
           <button type="button" class="lb-ai-btn-secondary lb-ai-open-studio"><span>Abrir o Studio</span></button>
         </div>
       </div>`,
@@ -89,12 +90,17 @@ function injectBadge(): void {
     busy = true;
     let completionLabel = BADGE_LABEL;
     badge.classList.add('syncing');
-    label.textContent = 'Curando...';
+    label.textContent = 'Buscando sugestão…';
     const username = usernameFromLetterboxdUrl(location.href);
     try {
       if (username) {
         try {
-          await syncProfileFully(username, { onProgress: (message) => (label.textContent = message) });
+          const active = await send('getActiveProfile');
+          const isCurrentProfile = active?.profile.username.toLowerCase() === username.toLowerCase();
+          if (!isCurrentProfile) {
+            label.textContent = 'Atualizando histórico…';
+            await syncProfileFully(username);
+          }
         } catch (error) {
           completionLabel = (error as Error).message || 'Não foi possível sincronizar. Tente novamente.';
           return;

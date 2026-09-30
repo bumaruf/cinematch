@@ -2,7 +2,7 @@ import type { AppContext } from '../application/context.ts';
 import { getFilmArtwork, getPopupSession, getSettings, listHistory, listSavedFilms, savePopupSession, toggleSavedFilm, updateSettings } from '../application/library.ts';
 import type { SyncProgress } from '../application/ports.ts';
 import { clearProfile, getActiveProfile, importCsvProfile, syncProfile } from '../application/profile.ts';
-import { generateRecommendations, getDailyPick } from '../application/recommendations.ts';
+import { generateRecommendations, getDailyPick, getSurprisePick } from '../application/recommendations.ts';
 import type { Action, RequestOf, ResponseOf } from '../messaging/contract.ts';
 
 export type Handlers = { [A in Action]: (payload: RequestOf<A>) => Promise<ResponseOf<A>> };
@@ -22,6 +22,7 @@ export function createHandlers(ctx: AppContext, platform: Platform): Handlers {
     clearProfile: () => clearProfile(ctx),
     generateRecommendations: (query) => generateRecommendations(ctx, query),
     getDailyPick: (options) => getDailyPick(ctx, options),
+    getSurprisePick: () => getSurprisePick(ctx),
     listSavedFilms: () => listSavedFilms(ctx),
     toggleSavedFilm: (film) => toggleSavedFilm(ctx, film),
     listHistory: () => listHistory(ctx),
