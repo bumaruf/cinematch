@@ -1,7 +1,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import type { HistoryEntry } from '../../src/application/ports.ts';
-import { generateRecommendations, getDailyPick, ProfileChangedError } from '../../src/application/recommendations.ts';
+import { generateRecommendations, getDailyPick, getSurprisePick, ProfileChangedError } from '../../src/application/recommendations.ts';
 import type { Recommendation, UserProfile } from '../../src/domain/film.ts';
 import { DAILY_MATCHING_VERSION, NoDailyCandidateError, profileKey } from '../../src/domain/recommend/daily.ts';
 import { loadCatalog } from '../../src/infrastructure/catalog.ts';
@@ -133,6 +133,15 @@ testWithCatalog('refresh recomputes the pick and never repeats an earlier one', 
   assert.equal((await ctx.daily.list('taste')).length, 2);
   // The newest pick is the one served from the cache afterwards.
   assert.deepEqual(await getDailyPick(ctx), refreshed);
+});
+
+testWithCatalog('a surprise is an alternative and leaves the daily pick unchanged', async () => {
+  const { ctx } = await createTestContext({ profile: tasteProfile });
+  const daily = await getDailyPick(ctx);
+  const surprise = await getSurprisePick(ctx);
+  assert.notEqual(surprise.data.film.letterboxdSlug, daily.data.film.letterboxdSlug);
+  assert.equal(surprise.data.kind, 'surprise');
+  assert.deepEqual(await getDailyPick(ctx), daily);
 });
 
 testWithCatalog('a changed profile recomputes the pick', async () => {

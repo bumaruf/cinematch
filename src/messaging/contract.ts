@@ -15,6 +15,7 @@ export interface Contract {
   clearProfile: { request: void; response: void };
   generateRecommendations: { request: RecommendationQuery; response: RecommendationResult };
   getDailyPick: { request: { refresh?: boolean; username?: string }; response: DailyPickResponse };
+  getSurprisePick: { request: void; response: DailyPickResponse };
   listSavedFilms: { request: void; response: SavedFilm[] };
   toggleSavedFilm: { request: SavedFilmInput; response: { isSaved: boolean; totalSaved: number } };
   listHistory: { request: void; response: HistoryEntry[] };
@@ -50,6 +51,7 @@ export const ACTIONS: readonly Action[] = [
   'clearProfile',
   'generateRecommendations',
   'getDailyPick',
+  'getSurprisePick',
   'listSavedFilms',
   'toggleSavedFilm',
   'listHistory',

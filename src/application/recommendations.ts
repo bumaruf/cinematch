@@ -125,7 +125,14 @@ export async function getDailyPick(ctx: AppContext, options: { refresh?: boolean
   const today = dateKey(now);
   const key = profileKey(profile);
   const history = await ctx.daily.list(username);
-  const cached = history.find((entry) => entry.date === today && entry.data?.film?.letterboxdSlug);
+  // "Surpresas" are alternatives. They must never replace the daily pick
+  // shown by the dashboard and the Letterboxd button.
+  const todayEntries = history.filter((entry) => entry.date === today && entry.data?.film?.letterboxdSlug);
+  const cached =
+    todayEntries.find((entry) => entry.data.kind === 'daily') ??
+    // Before alternatives were stored separately, they had no kind. The
+    // oldest entry is the original daily selection; newer ones were refreshes.
+    todayEntries.filter((entry) => !entry.data.kind).at(-1);
   if (!options.refresh && cached?.data.matchingVersion === DAILY_MATCHING_VERSION && cached.data.profileKey === key) {
     return { username, profileKey: key, data: cached.data };
   }
@@ -135,7 +142,30 @@ export async function getDailyPick(ctx: AppContext, options: { refresh?: boolean
     .map((entry) => entry.data?.film?.letterboxdSlug)
     .filter(Boolean);
   const pick = pickDaily(profile, ctx.catalog(), { date: today, now, excludedSlugs });
-  const data: StoredDailyPick = { ...pick, profileKey: key, profileUsername: username };
+  const data: StoredDailyPick = { ...pick, profileKey: key, profileUsername: username, kind: 'daily' };
   await ctx.daily.add({ username, date: today, data });
   return { username, profileKey: key, data };
+}
+
+/**
+ * An extra recommendation for the popup. It is kept in the daily history so
+ * later surprises vary, but it never overwrites the canonical Film of the Day.
+ */
+export async function getSurprisePick(ctx: AppContext, options: { username?: string } = {}): Promise<DailyPickResponse> {
+  const daily = await getDailyPick(ctx, options);
+  const profile = (await ctx.profiles.get()) ?? GUEST_PROFILE;
+  const username = usernameKey(profile.username);
+  const key = profileKey(profile);
+  if (username !== daily.username || key !== daily.profileKey) throw new ProfileChangedError();
+  const now = ctx.clock.now();
+  const today = dateKey(now);
+  const history = await ctx.daily.list(username);
+  const excludedSlugs = [daily.data.film.letterboxdSlug, ...history
+    .slice(0, RECENT_DAILY_PICKS)
+    .map((entry) => entry.data?.film?.letterboxdSlug)
+    .filter(Boolean)];
+  const pick = pickDaily(profile, ctx.catalog(), { date: today, now, excludedSlugs });
+  const data: StoredDailyPick = { ...pick, profileKey: key, profileUsername: username, kind: 'surprise' };
+  await ctx.daily.add({ username, date: today, data });
+  return { username: daily.username, profileKey: key, data };
 }

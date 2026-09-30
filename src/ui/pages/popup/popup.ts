@@ -201,7 +201,7 @@ onReady(async () => {
     hide(el.errorBanner);
     view('loading');
     try {
-      const { data } = await send('getDailyPick', { refresh: true });
+      const { data } = await send('getSurprisePick');
       showResults({ title: 'Uma sugestão para você', note: '', films: [data.film] });
     } catch (error) {
       view('home');

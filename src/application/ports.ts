@@ -78,6 +78,8 @@ export interface SavedFilmsStore {
 export interface StoredDailyPick extends DailyPick {
   profileKey: string;
   profileUsername: string;
+  /** Older saved entries predate this field and are the canonical daily pick. */
+  kind?: 'daily' | 'surprise';
 }
 
 export interface DailyPickEntry {
