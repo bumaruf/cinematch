@@ -20,7 +20,7 @@ export function toRecommendation(film: CatalogFilm, catalog: Catalog, affinityRe
     letterboxdUrl: letterboxdSearchUrl(film),
     posterPath: catalog.posterPath(film.imdbId),
     pitch: film.pitch,
-    runtimeMinutes: film.runtime,
+    runtimeMinutes: film.runtimeKnown === false ? 0 : film.runtime,
     country: film.country,
     genres: film.genres,
     imdbRating: film.imdbRating,

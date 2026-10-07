@@ -116,8 +116,8 @@ test('watched validation blocks shortened alternate titles from the catalog orig
 
 testWithCatalog('profile entries resolve to canonical catalog slugs only when unambiguous', () => {
   assert.equal(catalog.resolve({ title: 'The Empire Strikes Back', year: 1980 }).film?.slug, 'star-wars-episode-v-the-empire-strikes-back');
-  assert.equal(catalog.resolve({ title: 'O Abrigo', year: 2011 }).film, null);
-  assert.equal(catalog.resolve({ title: 'O Abrigo', year: 2011 }).ambiguous, true);
+  assert.equal(catalog.resolve({ title: 'Tabu' }).film, null);
+  assert.equal(catalog.resolve({ title: 'Tabu' }).ambiguous, true);
 });
 
 testWithCatalog('distinct canonical slugs prevent translated-title collisions from blocking films', () => {

@@ -14,4 +14,5 @@ e2e-screenshots/
 # gerados localmente por tools/catalog, nunca versionados.
 src/data/films-dataset.js
 tools/catalog/pitch-checkpoint.json
+tools/catalog/tmdb-checkpoint.json
 cinematch-v*.zip

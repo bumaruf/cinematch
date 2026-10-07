@@ -79,7 +79,7 @@ async function syncRecent(username: string, previous: UserProfile, fetchPage: Pa
     const recent = parseRssFeed(xml);
     const known = new Map<string, ProfileFilm>(previous.films.map((film) => [film.slug ?? '', { ...film, isFavorite: false }]));
     const pageHtml = await fetchPage(`${LETTERBOXD_ORIGIN}/${username}/films/`);
-    if (/cf-chl-|challenge-platform|Verify you are human/i.test(pageHtml)) return null;
+    if (isVerificationPage(pageHtml)) return null;
     const firstPage = parseFilmsListHtml(pageHtml);
     if (metadata.totalFilms > 0 && !firstPage.length) return null;
     for (const film of firstPage) {

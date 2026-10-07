@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "check": "npm run typecheck && npm run test && npm run build",
     "e2e": "npm run build && node tools/diagnostics/e2e-smoke.mjs",
+    "diagnostics:recommendations": "node tools/diagnostics/recommendation-quality.ts",
     "package": "npm run check && node tools/package.js",
     "icons": "node tools/icons/generate-icons.js",
     "catalog:stub": "node tools/catalog/stub.js",
@@ -23,6 +24,7 @@
     "catalog:enrich": "node tools/catalog/enrich-database.js",
     "catalog:pitches": "node tools/catalog/enrich-pitches.js",
     "catalog:posters": "node tools/catalog/enrich-posters-tmdb.js",
+    "catalog:tmdb": "node tools/catalog/enrich-tmdb.js",
     "catalog:dedup": "node tools/catalog/dedup-database.js"
   },
   "devDependencies": {

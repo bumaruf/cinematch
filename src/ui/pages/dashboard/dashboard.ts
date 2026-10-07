@@ -3,6 +3,7 @@ import { byId, hide, onReady, show } from '../../shared/dom.ts';
 import { setupCurator } from './curator.ts';
 import { setupDailyHero } from './daily.ts';
 import { renderDna } from './dna.ts';
+import { setupFeedbackReview } from './feedback.ts';
 import { renderHistory, setupSaved } from './library.ts';
 import { setupProfile } from './profile.ts';
 import { createProfileState, type Notifier } from './state.ts';
@@ -27,14 +28,16 @@ onReady(async () => {
   const tabPanes = [...document.querySelectorAll<HTMLElement>('.tab-pane')];
 
   const saved = setupSaved({ notify, goToCurator: () => activateTab('curator') });
+  const feedback = setupFeedbackReview(() => state.get()?.profile.username ?? null, notify);
   const daily = setupDailyHero(() => state.get()?.profile.username ?? null, () => void saved.updateBadge());
-  const curator = setupCurator({ notify, onSavedChange: () => void saved.updateBadge(), hasDaily: () => daily.hasContent() });
+  const curator = setupCurator({ notify, onSavedChange: () => void saved.updateBadge(), hasDaily: () => daily.hasContent(), currentUsername: () => state.get()?.profile.username ?? null });
   setupProfile({
     state,
     notify,
     beforeChange: () => {
       curator.reset();
       daily.clear();
+      feedback.reset();
     },
   });
 

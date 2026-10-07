@@ -1,7 +1,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import type { UserProfile } from '../../src/domain/film.ts';
-import { dateKey, NoDailyCandidateError, pickDaily, profileKey } from '../../src/domain/recommend/daily.ts';
+import { dateKey, DAILY_MATCHING_VERSION, NoDailyCandidateError, pickDaily, profileKey } from '../../src/domain/recommend/daily.ts';
 import { loadCatalog } from '../../src/infrastructure/catalog.ts';
 import { emptyProfile, FIXED_NOW, testWithCatalog } from '../helpers.ts';
 
@@ -89,7 +89,7 @@ test('daily cache identity changes when a profile changes, even for the same use
 });
 
 testWithCatalog('daily payload records the matching version it was computed with', () => {
-  assert.equal(daily(tasteProfile, '2026-09-17').matchingVersion, 3);
+  assert.equal(daily(tasteProfile, '2026-09-17').matchingVersion, DAILY_MATCHING_VERSION);
 });
 
 test('dateKey uses the São Paulo calendar day', () => {

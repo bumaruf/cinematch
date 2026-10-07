@@ -1,6 +1,7 @@
 import type {
   DailyPickEntry,
   DailyPickStore,
+  FeedbackStore,
   HistoryEntry,
   HistoryStore,
   PopupSession,
@@ -12,7 +13,7 @@ import type {
   SyncCheckpoint,
   SyncCheckpointStore,
 } from '../../application/ports.ts';
-import type { Settings, UserProfile } from '../../domain/film.ts';
+import type { FilmFeedback, Settings, UserProfile } from '../../domain/film.ts';
 import type { KeyValueStore } from './key-value.ts';
 
 // Key names are persisted in users' browsers: renaming one loses their data.
@@ -26,10 +27,14 @@ export const KEYS = {
   saved: 'lb_curator_saved_recs',
   daily: 'lb_curator_daily_recs',
   settings: 'lb_curator_settings',
+  feedback: 'lb_curator_film_feedback',
+  /** Retired integration: kept for cleanup without renaming persisted keys. */
+  watchlist: 'lb_curator_letterboxd_watchlist',
 } as const;
 
 // Written by earlier versions and never read now.
 const OBSOLETE_KEYS = [
+  KEYS.watchlist,
   'lb_curator_api_key',
   'lb_curator_model',
   'lb_curator_engine_mode',
@@ -61,7 +66,7 @@ export function profileStore(kv: KeyValueStore, clock: () => Date = () => new Da
         [reason === 'import' ? KEYS.importBackup : KEYS.repairBackup]: { profile: previous, savedAt: clock().toISOString() },
       });
     },
-    clear: () => kv.remove([KEYS.profile, KEYS.syncCheckpoint, KEYS.importBackup, KEYS.repairBackup]),
+    clear: () => kv.remove([KEYS.profile, KEYS.syncCheckpoint, KEYS.importBackup, KEYS.repairBackup, KEYS.watchlist]),
   };
 }
 
@@ -91,9 +96,7 @@ export function settingsStore(kv: KeyValueStore): SettingsStore {
   return {
     get,
     async update(changes) {
-      const updated = { ...(await get()), ...changes };
-      await kv.set({ [KEYS.settings]: updated });
-      return updated;
+      return kv.update<Settings>(KEYS.settings, (saved) => ({ ...DEFAULT_SETTINGS, ...saved, ...changes }));
     },
   };
 }
@@ -105,7 +108,7 @@ export function historyStore(kv: KeyValueStore): HistoryStore {
   };
   return {
     list,
-    append: async (entry) => kv.set({ [KEYS.history]: [entry, ...(await list())].slice(0, HISTORY_LIMIT) }),
+    append: async (entry) => { await kv.update<HistoryEntry[]>(KEYS.history, (entries) => [entry, ...(Array.isArray(entries) ? entries : [])].slice(0, HISTORY_LIMIT)); },
   };
 }
 
@@ -124,6 +127,7 @@ export function savedFilmsStore(kv: KeyValueStore): SavedFilmsStore {
       return Array.isArray(films) ? films : [];
     },
     replaceAll: (films) => kv.set({ [KEYS.saved]: films }),
+    update: (transform) => kv.update<SavedFilm[]>(KEYS.saved, (films) => transform(Array.isArray(films) ? films : [])),
   };
 }
 
@@ -139,7 +143,17 @@ export function dailyPickStore(kv: KeyValueStore): DailyPickStore {
     },
     // Every pick is kept, including several on the same day, so later
     // requests can exclude all films already offered.
-    add: async (entry) => kv.set({ [KEYS.daily]: [entry, ...(await all())].slice(0, DAILY_LIMIT) }),
+    add: async (entry) => { await kv.update<DailyPickEntry[]>(KEYS.daily, (entries) => [entry, ...(Array.isArray(entries) ? entries : [])].slice(0, DAILY_LIMIT)); },
+  };
+}
+
+export function feedbackStore(kv: KeyValueStore): FeedbackStore {
+  return {
+    list: async (username) => {
+      const entries = await kv.get<FilmFeedback[]>(KEYS.feedback);
+      return (Array.isArray(entries) ? entries : []).filter((entry) => entry.username === username.trim().toLowerCase());
+    },
+    update: (transform) => kv.update<FilmFeedback[]>(KEYS.feedback, (entries) => transform(Array.isArray(entries) ? entries : [])),
   };
 }
 

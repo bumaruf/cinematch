@@ -4,6 +4,7 @@ import readline from 'readline';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { selectCatalogCandidates, selectionSummary } from './selection.js';
 // Curated fields of an existing catalog are kept; a fresh clone has none.
 const CURRENT_DB = await import('../../src/data/films-dataset.js')
   .then((module) => module.EXPANDED_FILM_DATABASE)
@@ -16,6 +17,7 @@ const __dirname = path.dirname(__filename);
 // the importer: IMDB_CATALOG_LIMIT=50000 node tools/catalog/import-imdb.js
 const CATALOG_LIMIT = Number.parseInt(process.env.IMDB_CATALOG_LIMIT || '10000', 10);
 const SOURCE_SELECTION_LIMIT = Math.ceil(CATALOG_LIMIT * 1.12);
+const CATALOG_END_YEAR = Number.parseInt(process.env.IMDB_CATALOG_END_YEAR || String(new Date().getUTCFullYear()), 10);
 
 // Helper to stream-read a gzipped TSV file line by line
 function streamTsvGz(url, onLine) {
@@ -120,8 +122,9 @@ async function run() {
     const rating = parseFloat(cols[1]);
     const numVotes = parseInt(cols[2], 10);
 
-    // Filter films with meaningful audience reception (at least 3,500 votes)
-    if (numVotes >= 3500 && rating >= 5.0) {
+    // A wider pool lets historical, international and niche films compete in
+    // their own periods instead of losing globally to recent blockbusters.
+    if (numVotes >= 500 && rating >= 5.5) {
       ratingMap.set(tconst, { rating, numVotes });
     }
   });
@@ -152,29 +155,28 @@ async function run() {
         primaryTitle,
         originalTitle: originalTitle !== '\\N' ? originalTitle : primaryTitle,
         year: startYear,
-        runtime: !isNaN(runtimeMinutes) ? runtimeMinutes : 100,
+        runtime: Number.isFinite(runtimeMinutes) && runtimeMinutes > 0 ? runtimeMinutes : 0,
+        runtimeKnown: Number.isFinite(runtimeMinutes) && runtimeMinutes > 0,
         genres,
         rating: ratingInfo.rating,
         numVotes: ratingInfo.numVotes,
-        // Weighted score for ranking top films (IMDb weighted formula)
-        rankScore: ratingInfo.numVotes * ratingInfo.rating
       });
     }
   });
 
   console.log(`✓ Longas-metragens válidos encontrados: ${movieMap.size} filmes.`);
 
-  // Sort and select a broad, reliable subset. IMDb has millions of records;
-  // this keeps the packaged extension responsive while expanding discovery.
-  const sortedMovies = Array.from(movieMap.values())
-    .sort((a, b) => b.rankScore - a.rankScore)
-    .slice(0, Number.isFinite(CATALOG_LIMIT) && CATALOG_LIMIT > 0 ? SOURCE_SELECTION_LIMIT : 11200);
+  const selectionLimit = Number.isFinite(CATALOG_LIMIT) && CATALOG_LIMIT > 0 ? SOURCE_SELECTION_LIMIT : 11200;
+  const sortedMovies = selectCatalogCandidates([...movieMap.values()], selectionLimit, CATALOG_END_YEAR);
 
   const selectedTconsts = new Set(sortedMovies.map(m => m.tconst));
   const selectedMovieMap = new Map();
   sortedMovies.forEach(m => selectedMovieMap.set(m.tconst, m));
 
-  console.log(`✓ Selecionados os Top ${selectedMovieMap.size} filmes mais aclamados e populares do cinema.`);
+  const summary = selectionSummary(sortedMovies);
+  console.log(`✓ Selecionados ${selectedMovieMap.size} filmes por cobertura histórica, gêneros e qualidade.`);
+  console.log(`  Décadas: ${Object.entries(summary.decades).map(([key, count]) => `${key}: ${count}`).join(' · ')}`);
+  console.log(`  Gêneros menores: ${['Documentary', 'Animation', 'Western', 'Film-Noir', 'Musical'].map((genre) => `${genre}: ${summary.genres[genre] ?? 0}`).join(' · ')}`);
 
   // STEP 3: Process title.crew.tsv.gz (directors)
   console.log('\n📥 3/5: Mapeando diretores em title.crew.tsv.gz...');
@@ -245,6 +247,7 @@ async function run() {
 
   const finalDatabase = [];
   const seenSlugs = new Set();
+  const seenTitleYears = new Set();
 
   for (const movie of sortedMovies) {
     const directorNconst = movieDirectorsMap.get(movie.tconst);
@@ -252,9 +255,11 @@ async function run() {
     const ptTitle = ptTitleMap.get(movie.tconst) || movie.primaryTitle;
     const origTitle = movie.originalTitle || movie.primaryTitle;
     const slug = slugify(movie.primaryTitle);
+    const titleYear = `${ptTitle.trim().toLowerCase()}|${movie.year}`;
 
-    if (seenSlugs.has(slug)) continue;
+    if (seenSlugs.has(slug) || seenTitleYears.has(titleYear)) continue;
     seenSlugs.add(slug);
+    seenTitleYears.add(titleYear);
 
     // Check if we already have curated rich data for this film
     const existing = existingSlugMap.get(slug) || existingSlugMap.get((ptTitle + '|' + movie.year).toLowerCase());
@@ -287,13 +292,20 @@ async function run() {
       director: directorName,
       slug: slug,
       runtime: movie.runtime,
+      runtimeKnown: movie.runtimeKnown,
       country: existing?.country || 'Internacional',
+      originalLanguage: existing?.originalLanguage || '',
       imdbRating: movie.rating,
       imdbVotes: movie.numVotes,
       imdbId: movie.tconst,
       themes,
       genres,
       keywords: Array.from(keywordsSet).slice(0, 15),
+      keywordEvidence: Array.from(keywordsSet).slice(0, 15).map(term => ({
+        term,
+        source: existing?.keywordEvidence?.find(entry => entry.term.toLowerCase() === term)?.source ||
+          (movie.genres.some(genre => genre.toLowerCase() === term) ? 'genre' : existing?.keywords?.some(keyword => keyword.toLowerCase() === term) ? 'legacy' : 'derived')
+      })),
       pitch
     });
     if (finalDatabase.length >= CATALOG_LIMIT) break;

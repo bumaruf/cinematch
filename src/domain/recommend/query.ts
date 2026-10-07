@@ -1,4 +1,7 @@
 import { containsPhrase, fold, foldWords } from '../text.ts';
+import { COUNTRIES, productionCountries } from '../catalog/countries.ts';
+import type { CatalogFilm, Filters } from '../film.ts';
+import { passesConstraints } from './filters.ts';
 
 const FRANCHISE_ALIASES: Record<string, string[]> = {
   marvel: [
@@ -21,7 +24,7 @@ const GENRE_INTENTS: Record<string, string | string[]> = {
   suspense: 'Thriller', thriller: 'Thriller',
   misterio: 'Mystery', mystery: 'Mystery', detetive: 'Mystery', detetives: 'Mystery',
   detective: 'Mystery', detectives: 'Mystery', investigacao: 'Mystery',
-  crime: 'Crime', criminal: 'Crime', mafia: 'Crime', policial: 'Policial',
+  crime: 'Crime', criminal: 'Crime', mafia: 'Crime', policial: 'Crime',
   acao: 'Action', action: 'Action', aventura: 'Adventure', adventure: 'Adventure',
   comedia: 'Comedy', comedy: 'Comedy', humor: 'Comedy',
   romance: 'Romance', romantico: 'Romance', romantica: 'Romance', romantic: 'Romance',
@@ -32,8 +35,7 @@ const GENRE_INTENTS: Record<string, string | string[]> = {
   guerra: 'War', war: 'War', faroeste: 'Western', western: 'Western',
   musical: 'Musical', musica: 'Music', fantasia: 'Fantasy', fantasy: 'Fantasy',
   biografia: 'Biography', biography: 'Biography', esporte: 'Sport', desporto: 'Sport',
-  classico: 'Drama', mudo: 'Drama', giallo: ['Horror', 'Mystery'], satira: 'Comedy',
-  'road movie': 'Road Movie', 'filme de estrada': 'Road Movie',
+  giallo: ['Horror', 'Mystery'], satira: 'Comedy',
   'artes marciais': 'Action',
   'film noir': 'Film-Noir', noir: 'Film-Noir', 'neo noir': 'Film-Noir', neonoir: 'Film-Noir',
   // The catalog canonicalizes this as "Sci-Fi"; keeping the aliases aligned
@@ -48,9 +50,12 @@ const GENRE_INTENT_ENTRIES = Object.entries(GENRE_INTENTS).sort(([a], [b]) => b.
 
 // Portuguese connectors too generic to be search signals.
 const STOPWORDS = new Set([
-  'de', 'da', 'do', 'em', 'no', 'na', 'ao', 'aos', 'as', 'os', 'um', 'uma',
+  'de', 'da', 'do', 'dos', 'das', 'em', 'no', 'na', 'nos', 'nas', 'ao', 'aos', 'as', 'os', 'um', 'uma',
   'uns', 'umas', 'que', 'com', 'para', 'por', 'anos', 'ano', 'filme',
   'filmes', 'ver', 'quero', 'gosto', 'tipo', 'como', 'mas', 'mais',
+  'sem', 'nao', 'exceto', 'evitar', 'excluindo', 'without', 'seja', 'sejam',
+  'algo', 'algum', 'alguma', 'hoje', 'assistir', 'minha', 'meu', 'mae', 'pai', 'familia',
+  'ate', 'minutos', 'min', 'horas', 'hora', 'producao', 'produzido', 'produzida',
 ]);
 
 // Keywords that appear in >15% of the catalog: genre-level noise for search.
@@ -121,50 +126,112 @@ export interface SearchQuery {
   lexicalTokens: string[];
   /** Folded canonical genres that every result must have. */
   genres: Set<string>;
+  excludedGenres: Set<string>;
+  countries: Set<string>;
+  excludedCountries: Set<string>;
+  constraints: Filters;
+  preferredGenres: Set<string>;
+  interpretation: string[];
   franchiseAliases: string[];
 }
 
-/** "anos 80" also searches for the "1980s" catalog tag. */
-function expandDecades(prompt: string): string {
-  return prompt
-    .replace(/anos\s+50s?/gi, 'anos 50 1950s')
-    .replace(/anos\s+60s?/gi, 'anos 60 1960s')
-    .replace(/anos\s+70s?/gi, 'anos 70 1970s')
-    .replace(/anos\s+80s?/gi, 'anos 80 1980s')
-    .replace(/anos\s+90s?/gi, 'anos 90 1990s')
-    .replace(/anos\s+2000s?/gi, 'anos 2000 2000s')
-    .replace(/anos\s+2010s?/gi, 'anos 2010 2010s');
+/** Extract explicit requirements before matching the remaining words. */
+export function parseSearchQuery(prompt: string): SearchQuery {
+  const literalTitle = prompt.trim().match(/^["“](.+)["”]$/)?.[1];
+  if (literalTitle) {
+    const clean = fold(literalTitle);
+    const tokens = foldWords(literalTitle).split(/\s+/).filter(Boolean);
+    return { clean, tokens, lexicalTokens: tokens, genres: new Set(), excludedGenres: new Set(),
+      countries: new Set(), excludedCountries: new Set(), constraints: {}, preferredGenres: new Set(),
+      interpretation: [`Título: ${literalTitle}`], franchiseAliases: [] };
+  }
+  const clean = fold(prompt.trim());
+  // "sci-fi", "sci fi" and "sci/fi" are the same query.
+  const intent = foldWords(prompt).replace(/\s+/g, ' ');
+  let remaining = intent;
+  const genres = new Set<string>();
+  const excludedGenres = new Set<string>();
+  const countries = new Set<string>();
+  const excludedCountries = new Set<string>();
+  const preferredGenres = new Set<string>();
+  const constraints: Filters = {};
+  const interpretation: string[] = [];
+  const consume = (pattern: RegExp, apply: (match: RegExpMatchArray) => void): void => {
+    for (const match of remaining.matchAll(pattern)) {
+      apply(match);
+      const index = match.index!;
+      remaining = remaining.slice(0, index) + ' '.repeat(match[0].length) + remaining.slice(index + match[0].length);
+    }
+  };
+  const negateAt = (index: number): boolean => {
+    const prefix = intent.slice(0, index);
+    const negative = [...prefix.matchAll(/\b(?:sem|exceto|evitar|excluindo|nao quero|nao|without)\b/g)].at(-1)?.index ?? -1;
+    const positive = [...prefix.matchAll(/\b(?:mas|com|incluindo)\b/g)].at(-1)?.index ?? -1;
+    return negative > positive;
+  };
+  // Explicit periods and durations become hard constraints, never keywords.
+  consume(/\b(?:entre|de)\s+(18\d{2}|19\d{2}|20\d{2})\s+(?:e|a|ate)\s+(18\d{2}|19\d{2}|20\d{2})\b/g, (m) => {
+    constraints.minYear = Number(m[1]); constraints.maxYear = Number(m[2]);
+  });
+  consume(/\b(?:anos|decada de)\s+(\d{4}|\d{2})s?\b/g, (m) => {
+    const value = Number(m[1]);
+    const year = value < 100 ? (value < 30 ? 2000 : 1900) + value : value;
+    constraints.minYear = Math.floor(year / 10) * 10; constraints.maxYear = constraints.minYear + 9;
+  });
+  consume(/\b(?:apos|depois de|a partir de)\s+(18\d{2}|19\d{2}|20\d{2})\b/g, (m) => { constraints.minYear = Number(m[1]) + (m[0].startsWith('a partir') ? 0 : 1); });
+  consume(/\b(?:antes de|ate)\s+(18\d{2}|19\d{2}|20\d{2})\b/g, (m) => { constraints.maxYear = Number(m[1]) - (m[0].startsWith('antes') ? 1 : 0); });
+  consume(/\b(?:ate|no maximo|menos de|mais de|pelo menos)\s+(\d{1,3})\s*(?:minutos|min|m)\b/g, (m) => {
+    const minutes = Number(m[1]);
+    if (/^(mais de|pelo menos)/.test(m[0])) constraints.minRuntime = minutes + (m[0].startsWith('mais') ? 1 : 0);
+    else constraints.maxRuntime = minutes - (m[0].startsWith('menos') ? 1 : 0);
+  });
+  consume(/\b(?:ate|no maximo|menos de|mais de|pelo menos)\s+(\d)\s*(?:h|horas?)(?:\s*(?:e\s*)?(\d{1,2})\s*(?:minutos|min)?)?\b/g, (m) => {
+    const minutes = Number(m[1]) * 60 + Number(m[2] || 0);
+    if (/^(mais de|pelo menos)/.test(m[0])) constraints.minRuntime = minutes + (m[0].startsWith('mais') ? 1 : 0);
+    else constraints.maxRuntime = minutes - (m[0].startsWith('menos') ? 1 : 0);
+  });
+  consume(/\b(18\d{2}|19\d{2}|20\d{2})\b/g, (m) => { constraints.minYear = Number(m[1]); constraints.maxYear = Number(m[1]); });
+  const aliases = COUNTRIES.flatMap((country) => country.aliases.map((alias) => ({ ...country, alias }))).sort((a, b) => b.alias.length - a.alias.length);
+  for (const { alias, code } of aliases) consume(new RegExp(`\\b${alias}\\b`, 'g'), (m) => { (negateAt(m.index!) ? excludedCountries : countries).add(code); });
+  for (const [term, genre] of GENRE_INTENT_ENTRIES) {
+    consume(new RegExp(`\\b${term}\\b`, 'g'), (m) => {
+      for (const canonical of Array.isArray(genre) ? genre : [genre]) (negateAt(m.index!) ? excludedGenres : genres).add(fold(canonical));
+    });
+  }
+  consume(/\b(?:leve|tranquilo|confortavel)\b/g, (m) => {
+    if (negateAt(m.index!)) return;
+    for (const genre of ['comedy', 'family']) preferredGenres.add(genre);
+    for (const genre of ['horror', 'thriller', 'war']) excludedGenres.add(genre);
+    interpretation.push('Clima leve: priorizar comédia e família');
+  });
+  const lexicalTokens = remaining.split(/\s+/).filter((word) => word.length >= 3 && !STOPWORDS.has(word));
+  const labels: Record<string, string> = { horror: 'terror', thriller: 'suspense', crime: 'crime', comedy: 'comédia', romance: 'romance', drama: 'drama', animation: 'animação', 'sci-fi': 'ficção científica', war: 'guerra', action: 'ação', documentary: 'documentário', mystery: 'mistério', fantasy: 'fantasia', western: 'faroeste', family: 'família' };
+  for (const genre of genres) interpretation.push(labels[genre] ?? genre);
+  for (const genre of excludedGenres) interpretation.push(`Sem ${labels[genre] ?? genre}`);
+  for (const country of countries) interpretation.push(`Produção: ${COUNTRIES.find((item) => item.code === country)!.label}`);
+  for (const country of excludedCountries) interpretation.push(`Excluir produção: ${COUNTRIES.find((item) => item.code === country)!.label}`);
+  if (constraints.minYear && constraints.maxYear) interpretation.push(constraints.minYear === constraints.maxYear ? `Ano: ${constraints.minYear}` : `${constraints.minYear}–${constraints.maxYear}`);
+  else if (constraints.minYear) interpretation.push(`A partir de ${constraints.minYear}`);
+  else if (constraints.maxYear) interpretation.push(`Até ${constraints.maxYear}`);
+  if (constraints.maxRuntime !== undefined) interpretation.push(`Até ${constraints.maxRuntime} min`);
+  if (constraints.minRuntime !== undefined) interpretation.push(`Pelo menos ${constraints.minRuntime} min`);
+  return {
+    clean, tokens: intent.split(/\s+/).filter(Boolean), lexicalTokens, genres, excludedGenres,
+    countries, excludedCountries, constraints, preferredGenres, interpretation,
+    franchiseAliases: FRANCHISE_ALIASES[clean] ?? [],
+  };
 }
 
-export function parseSearchQuery(prompt: string): SearchQuery {
-  const expanded = expandDecades(prompt);
-  const clean = fold(expanded);
-  // "sci-fi", "sci fi" and "sci/fi" are the same query.
-  const intent = foldWords(expanded).replace(/\s+/g, ' ');
-  const tokens = intent
-    ? intent.split(/[\s,.;:!?+\-_/]+/).filter((word) => {
-        if (!word) return false;
-        if (/^\d+$/.test(word)) return word.length >= 2;
-        return word.length >= 3 && !STOPWORDS.has(word);
-      })
-    : [];
-
-  const genres = new Set<string>();
-  const matchedAliases: string[] = [];
-  for (const [term, genre] of GENRE_INTENT_ENTRIES) {
-    if (!containsPhrase(intent, term)) continue;
-    if (matchedAliases.some((matched) => matched.includes(term))) continue;
-    matchedAliases.push(term);
-    for (const canonical of Array.isArray(genre) ? genre : [genre]) genres.add(fold(canonical));
+export function passesQuery(film: CatalogFilm, query: SearchQuery): boolean {
+  if (query.genres.size || query.excludedGenres.size) {
+    const genres = new Set(film.genres.map(fold));
+    if (![...query.genres].every((genre) => genres.has(genre))) return false;
+    if ([...query.excludedGenres].some((genre) => genres.has(genre))) return false;
   }
-  // An alias already interpreted as a genre need not appear literally too.
-  const aliasTokens = new Set(matchedAliases.flatMap((alias) => alias.split(' ')));
-
-  return {
-    clean,
-    tokens,
-    lexicalTokens: tokens.filter((token) => !aliasTokens.has(token)),
-    genres,
-    franchiseAliases: tokens.length === 1 ? (FRANCHISE_ALIASES[clean] ?? []) : [],
-  };
+  if (query.countries.size || query.excludedCountries.size) {
+    const countries = productionCountries(film.country);
+    if (![...query.countries].every((country) => countries.has(country))) return false;
+    if ([...query.excludedCountries].some((country) => countries.has(country))) return false;
+  }
+  return passesConstraints(film, query.constraints);
 }

@@ -1,11 +1,17 @@
 import type { SavedFilm } from '../../application/ports.ts';
 import type { Recommendation } from '../../domain/film.ts';
 import { letterboxdSearchUrl } from '../../domain/recommend/recommendation.ts';
+import { createFilmIdentityIndex } from '../../domain/profile/identity.ts';
 import { send } from '../../messaging/client.ts';
 import { safeUrl } from './html.ts';
 
 /** Anything the UI shows as a film: a recommendation or a saved entry. */
 export type FilmLike = Partial<Recommendation> & Pick<SavedFilm, 'title'> & { slug?: string; year?: number | null };
+
+export function savedMatcher(films: readonly FilmLike[]): (film: FilmLike) => boolean {
+  const index = createFilmIdentityIndex(films);
+  return (film) => index.has(film);
+}
 
 export function letterboxdLink(film: FilmLike): string {
   return safeUrl(film.letterboxdUrl || letterboxdSearchUrl(film));

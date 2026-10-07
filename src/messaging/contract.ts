@@ -1,8 +1,9 @@
 import type { SavedFilmInput } from '../application/library.ts';
+import type { FeedbackInput } from '../application/feedback.ts';
 import type { HistoryEntry, PopupSession, SavedFilm, SyncProgress } from '../application/ports.ts';
 import type { ActiveProfile, CsvFile, ImportSummary, SyncResult } from '../application/profile.ts';
 import type { DailyPickResponse, RecommendationQuery } from '../application/recommendations.ts';
-import type { RecommendationResult, Settings } from '../domain/film.ts';
+import type { FilmFeedback, RecommendationResult, Settings } from '../domain/film.ts';
 
 /**
  * Every request the UI can make to the background worker. The worker is the
@@ -18,6 +19,8 @@ export interface Contract {
   getSurprisePick: { request: void; response: DailyPickResponse };
   listSavedFilms: { request: void; response: SavedFilm[] };
   toggleSavedFilm: { request: SavedFilmInput; response: { isSaved: boolean; totalSaved: number } };
+  recordFilmFeedback: { request: FeedbackInput; response: void };
+  listFilmFeedback: { request: void; response: FilmFeedback[] };
   listHistory: { request: void; response: HistoryEntry[] };
   getPopupSession: { request: void; response: PopupSession | null };
   savePopupSession: { request: PopupSession; response: void };
@@ -54,6 +57,8 @@ export const ACTIONS: readonly Action[] = [
   'getSurprisePick',
   'listSavedFilms',
   'toggleSavedFilm',
+  'recordFilmFeedback',
+  'listFilmFeedback',
   'listHistory',
   'getPopupSession',
   'savePopupSession',

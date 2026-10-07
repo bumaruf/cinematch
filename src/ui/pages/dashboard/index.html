@@ -53,6 +53,7 @@
           <button id="dashBtnGenerate" class="btn btn-primary min-h-12 px-6" type="button">Encontrar filmes</button>
         </div>
 
+        <div id="dashDiscoveryControls" class="mt-4"></div>
         <details class="disclosure mt-3">
           <summary>Refinar</summary>
           <div class="mt-3 grid items-end gap-4 sm:grid-cols-[repeat(2,minmax(0,220px))_auto]">
@@ -104,6 +105,7 @@
                 </a>
                 <button id="dashDailySave" class="btn [&_svg]:size-4 pressed:border-accent pressed:text-accent" type="button" aria-pressed="false"></button>
               </div>
+              <div id="dashDailyFeedback"></div>
             </div>
           </div>
         </section>
@@ -123,6 +125,7 @@
             <button id="dashBtnExportText" class="btn btn-quiet" type="button">Copiar lista</button>
           </div>
           <p id="dashCuratorComment" class="mt-2 text-[13px] text-muted empty:hidden"></p>
+          <p id="dashInterpretation" class="mt-2 text-[13px] text-accent empty:hidden" role="status"></p>
           <div id="dashMoviesGrid" class="mt-6 grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-4" aria-live="polite"></div>
         </section>
       </section>
@@ -154,7 +157,7 @@
 
         <section class="mt-12" aria-labelledby="topTitle">
           <h2 id="topTitle" class="font-serif text-2xl font-medium">O que guia as sugestões</h2>
-          <p class="mt-2 max-w-prose text-[13px] text-muted">Filmes com 3,5 estrelas ou mais e seus favoritos. As sugestões partem de diretores e temas em comum com eles.</p>
+          <p class="mt-2 max-w-prose text-[13px] text-muted">Seus favoritos e suas melhores avaliações, considerando a escala de notas que você usa. Diretores e temas descritos nos filmes guiam a afinidade; os modos de descoberta abrem espaço a novos caminhos.</p>
           <div id="dnaTopFilmsList" class="mt-4 border-t border-line"></div>
         </section>
 
@@ -166,6 +169,12 @@
             <button id="btnOpenCsvHelpDna" class="btn btn-quiet" type="button">Como exportar do Letterboxd</button>
             <button id="btnFullSync" class="btn btn-quiet" type="button">Revisar histórico completo</button>
           </div>
+        </details>
+        <details id="dashFeedbackReview" class="disclosure mt-8">
+          <summary>Revisar feedback de sugestões</summary>
+          <p class="mt-2 text-[13px] text-muted">Estes filmes estão fora das sugestões deste perfil. Você pode desfazer a decisão a qualquer momento. Já assisti é um registro local do CineMatch.</p>
+          <button id="dashRefreshFeedback" class="btn btn-quiet mt-2" type="button">Atualizar feedback</button>
+          <ul id="dashFeedbackList" class="mt-2 max-h-96 overflow-y-auto text-[13px]" aria-live="polite"></ul>
         </details>
       </section>
 

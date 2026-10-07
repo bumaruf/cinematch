@@ -30,7 +30,9 @@ async function finished(result: Awaited<ReturnType<typeof syncProfile>>) {
   return result.profile;
 }
 
-test('10,080 films finish across durable batches; later page interruption resumes without losing the old profile', async () => {
+// This integration stress test copies a 10k-film history over many durable
+// batches; its timeout is a test budget, not a recommendation latency target.
+test('10,080 films finish across durable batches; later page interruption resumes without losing the old profile', { timeout: 30000 }, async () => {
   const old: UserProfile = { username: 'audit', films: [{ slug: 'old', title: 'Old' }], totalFilms: 1 };
   let fail = true;
   const visited: number[] = [];

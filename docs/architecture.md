@@ -94,7 +94,7 @@ Adaptadores das portas:
   skeletons usados por popup, painel e salvos.
 
 A UI nunca acessa o storage nem o catálogo diretamente. Como consequência, o
-catálogo de filmes (~9 MB) fica só no bundle do service worker, e as páginas
+catálogo de filmes (cerca de 25 MB na seleção expandida atual) fica só no bundle do service worker, e as páginas
 abrem sem carregá-lo.
 
 ## Dados e ferramentas

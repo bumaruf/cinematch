@@ -1,4 +1,4 @@
-import type { DailyPick, ProfileFilm, Recommendation, Settings, UserProfile } from '../domain/film.ts';
+import type { DailyPick, FilmFeedback, ProfileFilm, Recommendation, Settings, UserProfile } from '../domain/film.ts';
 
 /** Source of the current time, so use cases stay deterministic in tests. */
 export interface Clock {
@@ -51,6 +51,7 @@ export interface PopupResult {
   title: string;
   note: string;
   films: Recommendation[];
+  interpretation?: string[];
 }
 
 /** Popup state, kept only for the current browser session. */
@@ -73,6 +74,12 @@ export type SavedFilm = Partial<Recommendation> & { title: string; year?: number
 export interface SavedFilmsStore {
   list(): Promise<SavedFilm[]>;
   replaceAll(films: SavedFilm[]): Promise<void>;
+  update(transform: (films: SavedFilm[]) => SavedFilm[]): Promise<SavedFilm[]>;
+}
+
+export interface FeedbackStore {
+  list(username: string): Promise<FilmFeedback[]>;
+  update(transform: (entries: FilmFeedback[]) => FilmFeedback[]): Promise<FilmFeedback[]>;
 }
 
 export interface StoredDailyPick extends DailyPick {

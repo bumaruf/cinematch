@@ -139,6 +139,8 @@ export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: Post
       director: film.director || metadata?.director || '',
       genres: normalizeGenres(film.genres?.length ? film.genres : (metadata?.genres ?? [])),
       keywords: film.keywords?.length ? film.keywords : (metadata?.keywords ?? []),
+      keywordEvidence: film.keywordEvidence ?? metadata?.keywordEvidence,
+      pitch: film.pitch || metadata?.pitch || '',
       runtime: film.runtime || metadata?.runtime || null,
       country: film.country || metadata?.country || '',
     };

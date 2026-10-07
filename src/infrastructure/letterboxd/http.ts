@@ -30,7 +30,9 @@ export class LetterboxdNotFoundError extends LetterboxdError {
 
 /** Human verification pages (Cloudflare) served instead of the content. */
 export function isVerificationPage(html: string): boolean {
-  return /<title[^>]*>\s*Just a moment|cf-chl-|challenge-platform|Verify you are human/i.test(html);
+  // Cloudflare also injects challenge-platform/scripts/jsd into ordinary,
+  // readable pages. That script alone does not mean verification blocked them.
+  return /<title[^>]*>\s*Just a moment|cf-chl-|challenge-platform\/(?:h\/[^/]+\/)?orchestrate|Verify you are human/i.test(html);
 }
 
 export async function fetchLetterboxdPage(url: string, fetchImpl: typeof fetch = fetch): Promise<string> {

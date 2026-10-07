@@ -3,7 +3,8 @@ import { THEMES_CATALOG } from '../../../domain/themes/themes.ts';
 import { send } from '../../../messaging/client.ts';
 import { byId, copyWithFeedback, hide, show } from '../../shared/dom.ts';
 import { recommendationsText } from '../../shared/export.ts';
-import type { FilmLike } from '../../shared/film.ts';
+import { savedMatcher, type FilmLike } from '../../shared/film.ts';
+import { setupDiscoveryControls } from '../../shared/discovery.ts';
 import { filmCard, filmSkeletons } from '../../shared/film-card.ts';
 import { readFilters } from '../../shared/filters.ts';
 import { html, render } from '../../shared/html.ts';
@@ -43,11 +44,13 @@ export function setupCurator({
   notify,
   onSavedChange,
   hasDaily,
+  currentUsername,
 }: {
   notify: Notifier;
   onSavedChange: () => void;
   /** Whether the daily pick has content to show again after a failed search. */
   hasDaily: () => boolean;
+  currentUsername: () => string | null;
 }) {
   const el = {
     prompt: byId<HTMLInputElement>('dashCustomPrompt'),
@@ -62,10 +65,13 @@ export function setupCurator({
     list: byId('dashMoviesGrid'),
     exportText: byId('dashBtnExportText'),
     daily: byId('dashDailyRecHero'),
+    interpretation: byId('dashInterpretation'),
   };
+  const discovery = setupDiscoveryControls(byId('dashDiscoveryControls'));
   let selectedThemeId: string | null = null;
   let generating = false;
   let current: Recommendation[] = [];
+  let generation = 0;
 
   function markSelected(): void {
     for (const option of el.themes.querySelectorAll<HTMLElement>('[data-theme-id]')) {
@@ -87,38 +93,49 @@ export function setupCurator({
   async function generate(): Promise<void> {
     if (generating) return;
     const customPrompt = el.prompt.value.trim();
+    const requestId = ++generation;
+    const username = currentUsername() ?? 'convidado';
     generating = true;
     el.generate.disabled = true;
     // Poster-shaped placeholders hold the grid while the worker searches.
     hide(el.daily);
     el.resultsTitle.textContent = 'Buscando filmes…';
     el.note.textContent = '';
+    el.interpretation.textContent = '';
+    el.list.setAttribute('aria-busy', 'true');
     el.exportText.hidden = true;
     el.list.replaceChildren(...filmSkeletons(6, 'poster'));
     show(el.results);
     el.results.scrollIntoView({ behavior: 'smooth', block: 'start' });
     try {
-      const result = await send('generateRecommendations', {
+      const [result, saved] = await Promise.all([send('generateRecommendations', {
         themeId: customPrompt ? null : selectedThemeId,
         customPrompt,
+        mode: discovery.mode(),
+        username,
         filters: readFilters({ decade: el.decade, runtime: el.runtime, nicheOnly: el.niche }),
-      });
+      }), send('listSavedFilms')]);
+      if (requestId !== generation || username !== (currentUsername() ?? 'convidado')) return;
+      const isSaved = savedMatcher(saved);
       current = result.recommendations;
       el.resultsTitle.textContent = result.themeName;
       el.exportText.hidden = current.length === 0;
       el.note.textContent = current.length ? result.notice : '';
+      el.interpretation.textContent = result.interpretation?.length ? `Entendi: ${result.interpretation.join(' · ')}` : '';
       if (current.length === 0) {
-        render(el.list, html`<p class="col-span-full py-6 text-muted">${result.notice} Tente outro clima ou tire um filtro.</p>`);
+        render(el.list, html`<p class="col-span-full py-6 text-muted">${result.notice || 'Nenhum filme com esses critérios. Tente outro clima ou tire um filtro.'}</p>`);
       } else {
-        el.list.replaceChildren(...current.map((film, index) => filmCard(film, { variant: 'poster', onToggleSave: toggleSave, index })));
+        el.list.replaceChildren(...current.map((film, index) => filmCard(film, { variant: 'poster', onToggleSave: toggleSave, saved: isSaved(film), feedbackUsername: username, index })));
       }
     } catch (error) {
+      if (requestId !== generation) return;
       hide(el.results);
       show(el.daily, hasDaily());
       notify.error((error as Error).message);
     } finally {
       generating = false;
       el.generate.disabled = false;
+      el.list.setAttribute('aria-busy', 'false');
     }
   }
 
@@ -201,7 +218,7 @@ export function setupCurator({
     }
     void generate();
   });
-  el.prompt.addEventListener('keydown', (event) => event.key === 'Enter' && el.generate.click());
+  el.prompt.addEventListener('keydown', (event) => event.key === 'Enter' && !event.isComposing && el.generate.click());
   el.prompt.addEventListener('input', () => {
     if (el.prompt.value.trim() && selectedThemeId) {
       selectedThemeId = null;
@@ -215,6 +232,7 @@ export function setupCurator({
   return {
     /** Hides results that belonged to the previous profile. */
     reset(): void {
+      generation++;
       current = [];
       hide(el.results);
     },

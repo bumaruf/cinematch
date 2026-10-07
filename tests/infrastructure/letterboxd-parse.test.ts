@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { parseOgImage, letterboxdArtwork } from '../../src/infrastructure/letterboxd/artwork.ts';
 import {
   fetchLetterboxdPage,
+  isVerificationPage,
   LetterboxdBlockedError,
   LetterboxdError,
   LetterboxdNotFoundError,
@@ -13,6 +14,11 @@ import { cleanUsername, parseProfileHtml, parseRssFeed } from '../../src/infrast
 import { collectFullProfile } from '../../src/infrastructure/letterboxd/sync.ts';
 
 const profileHtml = (count: number) => `<h1 class="person-display-name">Test User</h1><a href="/test/films/"><span>${count}</span></a>`;
+
+test('ordinary Cloudflare telemetry does not hide readable Letterboxd pages', () => {
+  assert.equal(isVerificationPage(profileHtml(12) + '<script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js"></script>'), false);
+  assert.equal(isVerificationPage('<title>Just a moment...</title>'), true);
+});
 const filmHtml = (slug: string, title = slug, year = 2000) =>
   `<li class="griditem"><div data-item-slug="${slug}" data-item-name="${title} (${year})"><span class="rated-8"></span></div></li>`;
 const fixture = () => readFileSync(new URL('../fixtures/profile-nested-name.html', import.meta.url), 'utf8');

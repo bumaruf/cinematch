@@ -1,25 +1,25 @@
 import type { Settings } from '../domain/film.ts';
 import { letterboxdSearchUrl } from '../domain/recommend/recommendation.ts';
-import { slugKey } from '../domain/text.ts';
+import { createFilmIdentityIndex } from '../domain/profile/identity.ts';
 import type { AppContext } from './context.ts';
 import type { HistoryEntry, PopupSession, SavedFilm } from './ports.ts';
 
 export type SavedFilmInput = Omit<SavedFilm, 'savedAt'>;
 
 function sameFilm(a: SavedFilmInput, b: SavedFilmInput): boolean {
-  const slugA = slugKey(a.letterboxdSlug || a.slug);
-  const slugB = slugKey(b.letterboxdSlug || b.slug);
-  return Boolean(slugA && slugB && slugA === slugB) || (a.title === b.title && a.year === b.year);
+  return createFilmIdentityIndex([a]).has(b);
 }
 
 export async function toggleSavedFilm(ctx: AppContext, film: SavedFilmInput): Promise<{ isSaved: boolean; totalSaved: number }> {
   if (!film?.title) throw new Error('Filme inválido.');
-  const saved = await ctx.saved.list();
-  const index = saved.findIndex((entry) => sameFilm(entry, film));
-  const updated =
-    index >= 0 ? saved.filter((_, i) => i !== index) : [{ ...film, savedAt: ctx.clock.now().toISOString() }, ...saved];
-  await ctx.saved.replaceAll(updated);
-  return { isSaved: index < 0, totalSaved: updated.length };
+  const savedAt = ctx.clock.now().toISOString();
+  let isSaved = false;
+  const updated = await ctx.saved.update((saved) => {
+    const index = saved.findIndex((entry) => sameFilm(entry, film));
+    isSaved = index < 0;
+    return index >= 0 ? saved.filter((_, i) => i !== index) : [{ ...film, savedAt }, ...saved];
+  });
+  return { isSaved, totalSaved: updated.length };
 }
 
 /**
@@ -32,6 +32,7 @@ export async function listSavedFilms(ctx: AppContext): Promise<SavedFilm[]> {
     const match = catalog.resolve({ ...film, slug: film.letterboxdSlug || film.slug }).film;
     return {
       ...film,
+      catalogSlug: film.catalogSlug || match?.slug,
       originalTitle: film.originalTitle || match?.originalTitle || film.title,
       director: film.director || match?.director || '',
       posterPath: film.posterPath || (match ? catalog.posterPath(match.imdbId) : ''),
