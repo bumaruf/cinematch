@@ -5,6 +5,7 @@ import { loadCatalog } from '../src/infrastructure/catalog.ts';
 import { memoryKeyValueStore } from '../src/infrastructure/storage/key-value.ts';
 import {
   dailyPickStore,
+  feedbackStore,
   historyStore,
   popupSessionStore,
   profileStore,
@@ -68,6 +69,7 @@ export async function createTestContext(options: TestContextOptions = {}) {
     popupSession: popupSessionStore(kv),
     saved: savedFilmsStore(kv),
     daily: dailyPickStore(kv),
+    feedback: feedbackStore(kv),
     letterboxd: options.letterboxd ?? fakeLetterboxd(),
     artwork: options.artwork ?? fakeArtwork,
   };

@@ -1,4 +1,5 @@
 import type { AppContext } from '../application/context.ts';
+import { listFilmFeedback, recordFilmFeedback } from '../application/feedback.ts';
 import { getFilmArtwork, getPopupSession, getSettings, listHistory, listSavedFilms, savePopupSession, toggleSavedFilm, updateSettings } from '../application/library.ts';
 import type { SyncProgress } from '../application/ports.ts';
 import { clearProfile, getActiveProfile, importCsvProfile, syncProfile } from '../application/profile.ts';
@@ -25,6 +26,8 @@ export function createHandlers(ctx: AppContext, platform: Platform): Handlers {
     getSurprisePick: () => getSurprisePick(ctx),
     listSavedFilms: () => listSavedFilms(ctx),
     toggleSavedFilm: (film) => toggleSavedFilm(ctx, film),
+    recordFilmFeedback: (feedback) => recordFilmFeedback(ctx, feedback),
+    listFilmFeedback: () => listFilmFeedback(ctx),
     listHistory: () => listHistory(ctx),
     getPopupSession: () => getPopupSession(ctx),
     savePopupSession: (session) => savePopupSession(ctx, session),

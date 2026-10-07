@@ -1,4 +1,5 @@
 import type { CatalogFilm } from '../film.ts';
+import { specificKeywords } from '../catalog/evidence.ts';
 import { containsPhrase, fold, foldWords } from '../text.ts';
 import type { ThemeCriteria } from '../themes/themes.ts';
 
@@ -25,7 +26,7 @@ export function themeEligibility(film: CatalogFilm, criteria: ThemeCriteria | nu
   if (criteria.maxImdbVotes && (film.imdbVotes || 0) > criteria.maxImdbVotes) return INELIGIBLE;
   if (criteria.minImdbRating && (film.imdbRating || 0) < criteria.minImdbRating) return INELIGIBLE;
 
-  const text = foldWords([film.title, film.originalTitle, film.pitch, ...film.keywords].filter(Boolean).join(' '));
+  const text = foldWords([film.pitch, ...specificKeywords(film)].filter(Boolean).join(' '));
   const matches = (signal: string): boolean => containsPhrase(text, foldWords(signal));
   if ([...new Set((criteria.excludedSignals ?? []).map(fold))].some(matches)) return INELIGIBLE;
   const signalCount = [...new Set(criteria.signals.map(fold))].filter(matches).length;

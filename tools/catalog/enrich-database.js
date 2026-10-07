@@ -190,6 +190,12 @@ function decadeKeywords(year) {
 // ─── Main enrichment function ─────────────────────────────────────────────────
 function enrichFilm(film) {
   const keywordsSet = new Set();
+  const evidence = new Map((film.keywordEvidence || []).map(entry => [entry.term.toLowerCase(), entry.source]));
+  const addKeyword = (term, source) => {
+    const keyword = term.toLowerCase();
+    keywordsSet.add(keyword);
+    if (evidence.get(keyword) !== 'film') evidence.set(keyword, source);
+  };
 
   // Keep existing keywords (from curated db or previous enrichment)
   for (const k of (film.keywords || [])) {
@@ -201,22 +207,22 @@ function enrichFilm(film) {
         && film.genres?.includes('War') && !REAL_WAR_FILM_SLUGS.has(film.slug)) {
       continue; // don't add war keywords to films that just have "guerra" in title
     }
-    keywordsSet.add(k.toLowerCase());
+    addKeyword(k, evidence.get(k.toLowerCase()) || 'legacy');
   }
 
   // Title
-  if (film.title) keywordsSet.add(film.title.toLowerCase());
+  if (film.title) addKeyword(film.title, 'derived');
   if (film.originalTitle && film.originalTitle !== film.title) {
-    keywordsSet.add(film.originalTitle.toLowerCase());
+    addKeyword(film.originalTitle, 'derived');
   }
 
   // Director
   if (film.director) {
     const dirLower = film.director.toLowerCase();
-    keywordsSet.add(dirLower);
+    addKeyword(dirLower, 'derived');
     for (const [key, extras] of Object.entries(DIRECTOR_KEYWORDS)) {
       if (dirLower.includes(key) || key.includes(dirLower.split(' ').slice(-1)[0])) {
-        extras.forEach(k => keywordsSet.add(k));
+        extras.forEach(k => addKeyword(k, 'director'));
         break;
       }
     }
@@ -228,11 +234,11 @@ function enrichFilm(film) {
     if (genreLower === 'war' && !REAL_WAR_FILM_SLUGS.has(film.slug)) continue;
     if (genreLower === 'animation' && ANIME_SLUGS.has(film.slug)) {
       // Add anime-specific keywords instead of generic animation ones
-      ['anime', 'animação japonesa', 'japão', 'japan', 'japonês', 'anime film'].forEach(k => keywordsSet.add(k));
+      ['anime', 'animação japonesa', 'japão', 'japan', 'japonês', 'anime film'].forEach(k => addKeyword(k, 'derived'));
       continue;
     }
     const extras = GENRE_KEYWORDS[genreLower];
-    if (extras) extras.forEach(k => keywordsSet.add(k));
+    if (extras) extras.forEach(k => addKeyword(k, 'genre'));
   }
 
   // Anime slug: force anime keywords
@@ -240,13 +246,13 @@ function enrichFilm(film) {
     ['anime', 'animação japonesa', 'japão', 'japan', 'japonês', 'anime film', 'studio ghibli'].forEach(k => {
       // Only add studio ghibli for actual ghibli films
       if (k === 'studio ghibli' && !['miyazaki', 'isao takahata'].some(d => (film.director || '').toLowerCase().includes(d))) return;
-      keywordsSet.add(k);
+      addKeyword(k, 'derived');
     });
   }
 
   // Real war film: force war keywords
   if (REAL_WAR_FILM_SLUGS.has(film.slug)) {
-    ['guerra', 'guerra bélica', 'war film', 'war movie', 'bélico', 'combate', 'soldado', 'batalha'].forEach(k => keywordsSet.add(k));
+    ['guerra', 'guerra bélica', 'war film', 'war movie', 'bélico', 'combate', 'soldado', 'batalha'].forEach(k => addKeyword(k, 'film'));
   }
 
   // Country keywords
@@ -254,27 +260,28 @@ function enrichFilm(film) {
     const countryLower = film.country.toLowerCase();
     for (const [key, extras] of Object.entries(COUNTRY_EXTRA_KEYWORDS)) {
       if (countryLower.includes(key) || key.includes(countryLower)) {
-        extras.forEach(k => keywordsSet.add(k));
+        extras.forEach(k => addKeyword(k, 'derived'));
         break;
       }
     }
   }
 
   // Runtime and decade
-  for (const k of runtimeKeywords(film.runtime)) keywordsSet.add(k);
-  for (const k of decadeKeywords(film.year)) keywordsSet.add(k);
+  if (film.runtimeKnown !== false && film.runtime > 0) for (const k of runtimeKeywords(film.runtime)) addKeyword(k, 'derived');
+  for (const k of decadeKeywords(film.year)) addKeyword(k, 'derived');
 
   // IMDb quality tier
   if (film.imdbRating) {
-    if (film.imdbRating >= 8.0) keywordsSet.add('aclamado');
-    if (film.imdbRating >= 8.5) { keywordsSet.add('obra-prima'); keywordsSet.add('masterpiece'); }
-    if (film.imdbRating >= 9.0) keywordsSet.add('cult');
-    if (film.imdbVotes >= 500000) keywordsSet.add('popular');
+    if (film.imdbRating >= 8.0) addKeyword('aclamado', 'derived');
+    if (film.imdbRating >= 8.5) { addKeyword('obra-prima', 'derived'); addKeyword('masterpiece', 'derived'); }
+    if (film.imdbRating >= 9.0) addKeyword('cult', 'derived');
+    if (film.imdbVotes >= 500000) addKeyword('popular', 'derived');
   }
 
   return {
     ...film,
     keywords: Array.from(keywordsSet).filter(k => k && k.length >= 2).slice(0, 30),
+    keywordEvidence: Array.from(keywordsSet).filter(k => k && k.length >= 2).slice(0, 30).map(term => ({ term, source: evidence.get(term) || 'legacy' })),
   };
 }
 

@@ -62,6 +62,7 @@
         <input type="text" id="customPromptInput" class="field min-h-11 pl-10 text-[15px]" placeholder="O que você quer ver hoje?" aria-label="Descreva o que você quer ver">
       </div>
       <div id="themesGrid" class="flex flex-wrap gap-2" role="group" aria-label="Climas"></div>
+      <div id="popupDiscoveryControls"></div>
 
       <details class="disclosure">
         <summary>Refinar</summary>
@@ -113,6 +114,7 @@
     </div>
     <h2 id="resultsTitle" class="mt-1 font-serif text-2xl leading-tight font-medium text-balance"></h2>
     <p id="curatorNote" class="mt-2 text-[13px] text-muted empty:hidden"></p>
+    <p id="popupInterpretation" class="mt-2 text-[12px] text-accent empty:hidden" role="status"></p>
     <div id="moviesContainer" class="mt-1" aria-live="polite"></div>
   </section>
 

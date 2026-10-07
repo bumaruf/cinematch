@@ -87,7 +87,7 @@ testWithCatalog('saved settings flow into the filters: minVotes', async () => {
   }
 });
 
-testWithCatalog('saved settings flow into the filters: avoidWatched, while watched films are still never shown', async () => {
+testWithCatalog('saved settings allow rewatching when avoidWatched is disabled', async () => {
   const profile: UserProfile = { username: 'audit', films: [{ title: 'Alien', slug: 'alien', year: 1979 }] };
   const avoiding = await createTestContext({ profile });
   const avoided = await generateRecommendations(avoiding.ctx, { customPrompt: 'Alien' });
@@ -97,8 +97,7 @@ testWithCatalog('saved settings flow into the filters: avoidWatched, while watch
   await allowing.ctx.settings.update({ avoidWatched: false });
   const allowed = await generateRecommendations(allowing.ctx, { customPrompt: 'Alien' });
   assert.doesNotMatch(allowed.curatorComment, /excluindo os assistidos/);
-  // The application layer is the last line of defense: watched films never reach the UI.
-  assert.ok(!allowed.recommendations.some((film) => film.letterboxdSlug === 'alien'));
+  assert.ok(allowed.recommendations.some((film) => film.letterboxdSlug === 'alien'));
 });
 
 testWithCatalog('per-request filters are applied on top of the saved settings', async () => {

@@ -6,6 +6,7 @@ import { createLetterboxdSync } from '../infrastructure/letterboxd/sync.ts';
 import { chromeKeyValueStore, type KeyValueStore } from '../infrastructure/storage/key-value.ts';
 import {
   dailyPickStore,
+  feedbackStore,
   historyStore,
   popupSessionStore,
   profileStore,
@@ -29,6 +30,7 @@ export function createContext(kv: KeyValueStore, sessionKv: KeyValueStore = kv):
     popupSession: popupSessionStore(sessionKv),
     saved: savedFilmsStore(kv),
     daily: dailyPickStore(kv),
+    feedback: feedbackStore(kv),
     // A fresh fetcher per batch looks up the open Letterboxd tab again.
     letterboxd: {
       syncBatch: (username, options) =>

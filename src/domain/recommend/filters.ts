@@ -14,17 +14,20 @@ export interface Constrainable {
   year?: number | string | null;
   runtime?: number | null;
   runtimeMinutes?: number | null;
+  runtimeKnown?: boolean;
 }
 
 /** Hard year and runtime constraints shared by every recommendation path. */
 export function passesConstraints(movie: Constrainable, filters: Filters = {}): boolean {
   const year = Number(movie.year);
   const runtime = Number(movie.runtimeMinutes ?? movie.runtime);
+  if ((filters.runtimeFilter || filters.maxRuntime || filters.minRuntime) && movie.runtimeKnown === false) return false;
   if (filters.minYear && (!year || year < Number(filters.minYear))) return false;
   if (filters.maxYear && (!year || year > Number(filters.maxYear))) return false;
   const range = filters.runtimeFilter ? RUNTIME_RANGES[filters.runtimeFilter] : undefined;
   if (range && (!Number.isFinite(runtime) || runtime < range[0] || runtime > range[1])) return false;
   if (typeof filters.maxRuntime === 'number' && (!runtime || runtime > filters.maxRuntime)) return false;
+  if (typeof filters.minRuntime === 'number' && (!runtime || runtime < filters.minRuntime)) return false;
   return true;
 }
 

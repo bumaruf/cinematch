@@ -32,7 +32,8 @@ testWithCatalog('listing saved films completes poster and metadata from the cata
     },
   });
   const [film] = await listSavedFilms(ctx);
-  assert.equal(film.posterPath, '/nNAeTmF4CtdSgMDplXTDPOpYzsX.jpg');
+  assert.ok(ctx.catalog().posterPath('tt0080684'));
+  assert.equal(film.posterPath, ctx.catalog().posterPath('tt0080684'));
   assert.ok(film.director);
   assert.ok(film.genres?.length);
   assert.ok(film.runtimeMinutes);

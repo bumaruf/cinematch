@@ -9,21 +9,24 @@ import { chromium } from 'playwright-core';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const dist = join(repo, 'dist');
 const shots = process.argv[2] ?? join(tmpdir(), 'cinematch-e2e');
 mkdirSync(shots, { recursive: true });
-const { EXPANDED_FILM_DATABASE: films } = await import(join(repo, 'src/data/films-dataset.js'));
+const { EXPANDED_FILM_DATABASE: films } = await import(pathToFileURL(join(repo, 'src/data/films-dataset.js')).href);
 
 const executablePath = process.env.CHROMIUM_PATH || chromium.executablePath();
 const context = await chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), 'cm-')), {
   executablePath,
+  channel: 'chromium',
+  ignoreDefaultArgs: ['--disable-extensions'],
   headless: true,
   args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`, '--headless=new'],
 });
 
+async function smoke() {
 const problems = [];
 const watch = (page, name) => {
   page.on('pageerror', (error) => problems.push(`${name} pageerror: ${error.message}`));
@@ -86,6 +89,19 @@ const list = await send('listSavedFilms');
 check('lista salvos', list.ok && list.data.length === 1 && list.data[0].title === film.title);
 const history = await send('listHistory');
 check('histórico registrado', history.ok && history.data.length === 3, history.ok ? `${history.data.length} sessões` : history.error);
+
+await send('recordFilmFeedback', { film, kind: 'not-for-me', username: imported.data.profile.username });
+const exactPrompt = `"${film.originalTitle || film.title}"`;
+const excludedFilm = await send('generateRecommendations', { customPrompt: exactPrompt });
+check('feedback respeitado na busca normal', excludedFilm.ok && excludedFilm.data.recommendations.every((movie) => movie.catalogSlug !== film.catalogSlug));
+await send('recordFilmFeedback', { film, kind: null, username: imported.data.profile.username });
+const restoredFilm = await send('generateRecommendations', { customPrompt: exactPrompt });
+check('desfazer restaura elegibilidade', restoredFilm.ok && restoredFilm.data.recommendations.some((movie) => movie.catalogSlug === film.catalogSlug));
+
+const simultaneous = theme.data.recommendations.slice(1, 3);
+await Promise.all(simultaneous.map(movie => send('toggleSavedFilm', movie)));
+check('salvos simultâneos não perdem gravações', (await send('listSavedFilms')).data.length === 1 + simultaneous.length);
+await Promise.all(simultaneous.map(movie => send('toggleSavedFilm', movie)));
 const settings = await send('updateSettings', { minVotes: 50000, avoidWatched: false });
 check('atualiza configurações', settings.ok && settings.data.minVotes === 50000 && settings.data.avoidWatched === false);
 const invalid = await dashboard.evaluate(() => chrome.runtime.sendMessage({ action: 'TEST_API_KEY', payload: {} }).catch((e) => `erro: ${e.message}`));
@@ -116,6 +132,46 @@ await popup.waitForTimeout(1500);
 check('popup gera recomendações', (await popup.locator('#moviesContainer article').count()) > 0, `${await popup.locator('#moviesContainer article').count()} cards`);
 await popup.screenshot({ path: `${shots}/popup.png` });
 
+await popup.click('#btnNewSearch');
+await popup.locator('#popupDiscoveryControls input[value="explore"]').check();
+check('popup sem escolha de watchlist ou salvos', (await popup.locator('#popupDiscoveryControls input[type="checkbox"]').count()) === 0);
+await popup.fill('#customPromptInput', exactPrompt);
+await popup.click('#btnGenerateCustom');
+await popup.waitForFunction(() => document.querySelector('#moviesContainer[aria-busy="false"] article .film-save[aria-pressed="true"]'));
+check('popup carrega estado salvo real', (await popup.locator('#moviesContainer .film-save').first().getAttribute('aria-pressed')) === 'true');
+await popup.locator('#moviesContainer summary').first().click();
+await popup.locator('#moviesContainer [data-feedback="later"]').first().click();
+await popup.waitForFunction(() => document.querySelector('#moviesContainer [role="status"]')?.textContent.includes('amanhã'));
+check('feedback visível e reversível no popup', await popup.locator('#moviesContainer [data-undo]').first().isVisible());
+await popup.locator('#moviesContainer [data-undo]').first().click();
+await popup.waitForFunction(() => document.querySelector('#moviesContainer [role="status"]')?.textContent === 'Feedback desfeito.');
+await popup.click('#btnNewSearch');
+await popup.fill('#customPromptInput', 'comédia dos anos 90 sem terror até 90 minutos');
+await popup.click('#btnGenerateCustom');
+await popup.waitForFunction(() => document.querySelector('#moviesContainer').getAttribute('aria-busy') === 'false' && document.querySelector('#popupInterpretation').textContent.includes('Sem terror'));
+check('popup explica o pedido interpretado', (await popup.textContent('#popupInterpretation')).includes('Até 90 min'));
+await popup.waitForTimeout(700);
+await popup.screenshot({ path: `${shots}/popup-interpretation.png` });
+
+await send('recordFilmFeedback', { film, kind: 'not-for-me', username: imported.data.profile.username });
+await dashboard.click('.nav-item[data-tab="dna"]');
+await dashboard.click('#dashFeedbackReview summary');
+await dashboard.waitForSelector('#dashFeedbackList button');
+check('painel permite revisar feedback depois de fechar a indicação', (await dashboard.textContent('#dashFeedbackList')).includes(film.title));
+await dashboard.locator('#dashFeedbackList button').first().click();
+await dashboard.waitForFunction(() => document.querySelector('#dashFeedbackList').textContent.includes('Nenhum filme oculto'));
+check('desfazer no painel restaura o filme', (await send('listFilmFeedback')).data.length === 0);
+
+await dashboard.click('.nav-item[data-tab="curator"]');
+await dashboard.locator('#dashDiscoveryControls input[value="explore"]').check();
+check('painel sem escolha de watchlist ou salvos', (await dashboard.locator('#dashDiscoveryControls input[type="checkbox"]').count()) === 0);
+await dashboard.fill('#dashCustomPrompt', exactPrompt);
+await dashboard.click('#dashBtnGenerate');
+await dashboard.waitForFunction(() => document.querySelector('#dashMoviesGrid[aria-busy="false"] article'));
+check('busca normal funciona no painel', (await dashboard.locator('#dashMoviesGrid article').first().textContent()).includes(film.title));
+await dashboard.waitForTimeout(700);
+await dashboard.screenshot({ path: `${shots}/dashboard-search.png` });
+
 const options = await context.newPage();
 watch(options, 'options');
 await options.goto(url('src/ui/pages/options/index.html'));
@@ -123,9 +179,11 @@ await options.waitForTimeout(800);
 check('opções refletem configurações', (await options.isChecked('#avoidWatched')) === false);
 await options.screenshot({ path: `${shots}/options.png` });
 
-await context.close();
 // Remote images (TMDB) may be unreachable in this sandbox; they are not app errors.
 const relevant = problems.filter((p) => !/ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED|Failed to load resource|net::ERR/.test(p));
 console.log(relevant.length ? `\nPROBLEMAS:\n${relevant.join('\n')}` : '\nSem erros de página, console ou worker.');
 console.log(`Screenshots: ${shots}`);
-process.exit(relevant.length ? 1 : 0);
+process.exitCode = relevant.length ? 1 : 0;
+}
+
+try { await smoke(); } finally { await context.close(); }

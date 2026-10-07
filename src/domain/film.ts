@@ -9,6 +9,11 @@ export interface CatalogFilm {
   runtime: number;
   /** Empty when the source only knew a placeholder such as "Internacional". */
   country: string;
+  /** ISO 639-1 code when known (for example "pt" or "en"). */
+  originalLanguage?: string;
+  /** Provenance of descriptive terms; genre synonyms are not facts about a film. */
+  keywordEvidence?: KeywordEvidence[];
+  runtimeKnown?: boolean;
   imdbRating: number;
   imdbVotes: number;
   imdbId: string;
@@ -16,6 +21,20 @@ export interface CatalogFilm {
   genres: string[];
   keywords: string[];
   pitch: string;
+}
+
+export interface KeywordEvidence {
+  term: string;
+  source: 'film' | 'genre' | 'director' | 'derived' | 'legacy';
+}
+
+export type DiscoveryMode = 'familiar' | 'explore' | 'surprise';
+export type FeedbackKind = 'later' | 'not-for-me' | 'watched';
+export interface FilmFeedback {
+  username: string;
+  film: FilmIdentity;
+  kind: FeedbackKind;
+  createdAt: string;
 }
 
 /** A film as it appears in a user's history (web sync, RSS or CSV import). */
@@ -36,6 +55,8 @@ export interface ProfileFilm {
   director?: string;
   genres?: string[];
   keywords?: string[];
+  keywordEvidence?: KeywordEvidence[];
+  pitch?: string;
   runtime?: number | null;
   country?: string;
 }
@@ -96,6 +117,7 @@ export interface Filters {
   maxYear?: number | null;
   runtimeFilter?: RuntimeFilter | '';
   maxRuntime?: number;
+  minRuntime?: number;
   nicheOnly?: boolean;
   /** Earlier recommendations, kept out of thematic browsing for variety. */
   excludeRecent?: FilmIdentity[];
@@ -114,7 +136,7 @@ export interface Recommendation {
   director: string;
   letterboxdSlug: string;
   catalogSlug: string;
-  /** A Letterboxd search URL: catalog slugs are not guaranteed to exist there. */
+  /** A film URL when the Letterboxd identity is known; otherwise a search URL. */
   letterboxdUrl: string;
   posterPath: string;
   pitch: string;
@@ -134,6 +156,8 @@ export interface RecommendationResult {
   recommendations: Recommendation[];
   /** True when earlier recommendations had to be reused to fill the list. */
   allowRecentFallback: boolean;
+  /** Conditions actually applied to the request, in pt-BR. */
+  interpretation?: string[];
 }
 
 export interface YearPhaseSummary {

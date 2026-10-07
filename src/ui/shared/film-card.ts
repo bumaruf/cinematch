@@ -1,6 +1,7 @@
 import { differentOriginalTitle, hydratePoster, letterboxdLink, trailerSearchUrl, type FilmLike } from './film.ts';
 import { html, joinHtml, render, type Markup } from './html.ts';
 import { ICONS } from './icons.ts';
+import { feedbackControls } from './feedback-controls.ts';
 
 export type FilmCardVariant = 'list' | 'poster';
 
@@ -11,6 +12,7 @@ export interface FilmCardOptions {
   saved?: boolean;
   /** Position in the list, for the staggered entrance. */
   index?: number;
+  feedbackUsername?: string;
 }
 
 const decimal = (value: number): string => value.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -44,7 +46,7 @@ function setSaved(button: HTMLButtonElement, saved: boolean, variant: FilmCardVa
 const POSTER_CLASSES = 'film-poster grid aspect-[2/3] place-items-center overflow-hidden bg-raised text-faint';
 
 /** The one film card used by every film list. */
-export function filmCard(film: FilmLike, { variant = 'list', onToggleSave, saved = false, index = 0 }: FilmCardOptions = {}): HTMLElement {
+export function filmCard(film: FilmLike, { variant = 'list', onToggleSave, saved = false, index = 0, feedbackUsername }: FilmCardOptions = {}): HTMLElement {
   const card = document.createElement('article');
   card.style.animationDelay = `${Math.min(index, 8) * 60}ms`;
   const link = letterboxdLink(film);
@@ -91,6 +93,7 @@ export function filmCard(film: FilmLike, { variant = 'list', onToggleSave, saved
   }
 
   const save = card.querySelector<HTMLButtonElement>('.film-save');
+  if (feedbackUsername) card.lastElementChild?.append(feedbackControls(film, feedbackUsername));
   if (save && onToggleSave) {
     setSaved(save, saved, variant);
     save.addEventListener('click', async () => {
@@ -100,7 +103,7 @@ export function filmCard(film: FilmLike, { variant = 'list', onToggleSave, saved
         setSaved(save, now, variant);
         // A short pop confirms the change without moving anything else.
         save.querySelector('svg')?.classList.add('animate-pop', 'motion-reduce:animate-none');
-      } finally {
+      } catch { /* The caller presents the error; keep the previous state. */ } finally {
         save.disabled = false;
       }
     });

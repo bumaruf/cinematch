@@ -1,7 +1,8 @@
 import { usernameKey } from '../../../domain/recommend/daily.ts';
 import { send } from '../../../messaging/client.ts';
 import { byId, hide, show } from '../../shared/dom.ts';
-import { hydratePoster, letterboxdLink, trailerSearchUrl } from '../../shared/film.ts';
+import { hydratePoster, letterboxdLink, savedMatcher, trailerSearchUrl } from '../../shared/film.ts';
+import { feedbackControls } from '../../shared/feedback-controls.ts';
 import { html, joinHtml, render } from '../../shared/html.ts';
 import { ICONS } from '../../shared/icons.ts';
 
@@ -17,6 +18,7 @@ export function setupDailyHero(currentUsername: () => string | null, onSavedChan
   const backdrop = byId<HTMLImageElement>('dashDailyBackdrop');
   const art = hero.querySelector<HTMLElement>('.daily-art')!;
   let loaded = false;
+  let generation = 0;
   let film: Awaited<ReturnType<typeof send<'getDailyPick'>>>['data']['film'] | null = null;
 
   const setSaved = (saved: boolean): void => {
@@ -25,6 +27,7 @@ export function setupDailyHero(currentUsername: () => string | null, onSavedChan
   };
 
   function clear(): void {
+    generation++;
     loaded = false;
     film = null;
     hide(hero);
@@ -37,10 +40,11 @@ export function setupDailyHero(currentUsername: () => string | null, onSavedChan
   async function load(): Promise<void> {
     const expected = currentUsername();
     if (!expected) return clear();
+    const requestId = ++generation;
     try {
-      const { data } = await send('getDailyPick', { username: expected });
+      const [{ data }, saved] = await Promise.all([send('getDailyPick', { username: expected }), send('listSavedFilms')]);
       // The profile may have changed while the pick was being prepared.
-      if (usernameKey(currentUsername()) !== usernameKey(expected)) return;
+      if (requestId !== generation || usernameKey(currentUsername()) !== usernameKey(expected)) return;
       film = data.film;
       title.textContent = film.title;
       const rating = film.imdbRating
@@ -60,10 +64,12 @@ export function setupDailyHero(currentUsername: () => string | null, onSavedChan
       trailer.setAttribute('aria-label', `Buscar trailer de ${film.title} no YouTube`);
       show(link);
       show(trailer);
-      setSaved(false);
+      setSaved(savedMatcher(saved)(film));
+      byId('dashDailyFeedback').replaceChildren(feedbackControls(film, expected));
       loaded = true;
       show(hero);
     } catch {
+      if (requestId !== generation) return;
       // Without a strong enough match there is simply no daily pick.
       clear();
     }

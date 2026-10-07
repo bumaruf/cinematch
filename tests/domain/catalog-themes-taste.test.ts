@@ -1,6 +1,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { normalizeGenres } from '../../src/domain/catalog/genres.ts';
+import { createCatalog } from '../../src/domain/catalog/catalog.ts';
 import { getThemeById, getThemeCriteria, searchThemes, THEMES_CATALOG } from '../../src/domain/themes/themes.ts';
 import { createTasteMatcher } from '../../src/domain/taste/taste-match.ts';
 import { loadCatalog } from '../../src/infrastructure/catalog.ts';
@@ -41,7 +42,9 @@ testWithCatalog('catalog indexes genres and normalized search fields without cha
 });
 
 test('catalog poster mapping includes The Empire Strikes Back', () => {
-  assert.equal(catalog.posterPath('tt0080684'), '/nNAeTmF4CtdSgMDplXTDPOpYzsX.jpg');
+  const indexed = createCatalog([], { tt0080684: '/empire.jpg' });
+  assert.equal(indexed.posterPath('tt0080684'), '/empire.jpg');
+  assert.equal(indexed.posterPath('missing'), '');
 });
 
 const tasteProfile = { ...emptyProfile, films: [{ title: 'The Dark Knight', slug: 'the-dark-knight', year: 2008, rating: 5 }] };

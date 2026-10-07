@@ -2,6 +2,7 @@ import type { Catalog } from '../domain/catalog/catalog.ts';
 import type {
   ArtworkSource,
   Clock,
+  FeedbackStore,
   DailyPickStore,
   HistoryStore,
   LetterboxdSync,
@@ -22,6 +23,7 @@ export interface AppContext {
   popupSession: PopupSessionStore;
   saved: SavedFilmsStore;
   daily: DailyPickStore;
+  feedback: FeedbackStore;
   letterboxd: LetterboxdSync;
   artwork: ArtworkSource;
 }

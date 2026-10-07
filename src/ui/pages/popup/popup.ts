@@ -4,7 +4,8 @@ import { THEMES_CATALOG } from '../../../domain/themes/themes.ts';
 import { onSyncProgress, send, syncProfileFully } from '../../../messaging/client.ts';
 import { byId, copyWithFeedback, hide, onReady, show } from '../../shared/dom.ts';
 import { recommendationsText } from '../../shared/export.ts';
-import type { FilmLike } from '../../shared/film.ts';
+import { savedMatcher, type FilmLike } from '../../shared/film.ts';
+import { setupDiscoveryControls } from '../../shared/discovery.ts';
 import { filmCard, filmSkeletons } from '../../shared/film-card.ts';
 import { readFilters } from '../../shared/filters.ts';
 import { html, render, safeUrl } from '../../shared/html.ts';
@@ -14,6 +15,7 @@ interface Results {
   title: string;
   note: string;
   films: Recommendation[];
+  interpretation?: string[];
 }
 
 onReady(async () => {
@@ -42,6 +44,7 @@ onReady(async () => {
     resultsNote: byId('curatorNote'),
     films: byId('moviesContainer'),
     copyAll: byId('btnCopyAll'),
+    interpretation: byId('popupInterpretation'),
   };
 
   let hasProfile = false;
@@ -49,6 +52,9 @@ onReady(async () => {
   let selectedThemeId: string | null = null;
   let current: Recommendation[] = [];
   let syncing = false;
+  let generating = false;
+  let generation = 0;
+  const discovery = setupDiscoveryControls(byId('popupDiscoveryControls'));
 
   const showError = (message: string): void => {
     el.errorMessage.textContent = message;
@@ -58,11 +64,13 @@ onReady(async () => {
   function view(state: 'home' | 'loading' | 'results'): void {
     show(el.home, state === 'home');
     show(el.results, state !== 'home');
+    el.films.setAttribute('aria-busy', String(state === 'loading'));
     el.copyAll.hidden = state === 'loading';
     if (state === 'loading') {
       // Placeholders in the shape of the results keep the layout still.
       el.resultsTitle.textContent = 'Buscando filmes…';
       el.resultsNote.textContent = '';
+      el.interpretation.textContent = '';
       el.films.replaceChildren(...filmSkeletons(3));
     }
     window.scrollTo({ top: 0 });
@@ -115,7 +123,7 @@ onReady(async () => {
   }
 
   function hasSearchIntent(): boolean {
-    return Boolean(selectedThemeId || el.prompt.value.trim());
+    return hasProfile;
   }
 
   function updateGenerateState(): void {
@@ -160,18 +168,24 @@ onReady(async () => {
     }
   };
 
-  function showResults({ title, note, films }: Results, persist = true): void {
+  async function showResults({ title, note, films, interpretation }: Results, persist = true): Promise<void> {
+    const expected = profileUsername;
+    const requestId = generation;
+    const saved = await send('listSavedFilms');
+    if (expected !== profileUsername || requestId !== generation) return;
+    const isSaved = savedMatcher(saved);
     current = films;
     el.resultsTitle.textContent = title;
     el.resultsNote.textContent = films.length ? note : '';
+    el.interpretation.textContent = interpretation?.length ? `Entendi: ${interpretation.join(' · ')}` : '';
     if (films.length === 0) {
-      render(el.films, html`<p class="py-6 text-muted">${note || 'Nenhum filme novo com esses critérios.'} Tente outro clima ou tire um filtro.</p>`);
+      render(el.films, html`<p class="py-6 text-muted">${note || 'Nenhum filme novo com esses critérios. Tente outro clima ou tire um filtro.'}</p>`);
     } else {
-      el.films.replaceChildren(...films.map((film, i) => filmCard(film, { onToggleSave: toggleSave, index: i })));
+      el.films.replaceChildren(...films.map((film, i) => filmCard(film, { onToggleSave: toggleSave, saved: isSaved(film), feedbackUsername: expected, index: i })));
     }
     view('results');
     if (persist && profileUsername) {
-      void send('savePopupSession', { username: profileUsername, view: 'results', prompt: '', result: { title, note, films } }).catch(() => {
+      void send('savePopupSession', { username: profileUsername, view: 'results', prompt: '', result: { title, note, films, interpretation } }).catch(() => {
         // Restoring the list is a convenience; the visible result remains usable.
       });
     }
@@ -179,33 +193,47 @@ onReady(async () => {
 
   async function generate(): Promise<void> {
     if (!hasProfile) return showError('Conecte seu perfil do Letterboxd primeiro.');
+    if (generating) return;
     const customPrompt = el.prompt.value.trim();
-    if (!customPrompt && !selectedThemeId) return;
+    generating = true;
+    const requestId = ++generation;
+    const username = profileUsername;
     hide(el.errorBanner);
     view('loading');
     try {
       const result = await send('generateRecommendations', {
         themeId: customPrompt ? null : selectedThemeId,
         customPrompt,
+        mode: discovery.mode(),
+        username,
         filters: readFilters({ decade: el.decade, runtime: el.runtime, nicheOnly: el.niche }),
       });
-      showResults({ title: result.themeName, note: result.notice, films: result.recommendations });
+      if (requestId !== generation) return;
+      await showResults({ title: result.themeName, note: result.notice, films: result.recommendations, interpretation: result.interpretation });
     } catch (error) {
       view('home');
       showError((error as Error).message);
+    } finally {
+      generating = false;
     }
   }
 
   async function surprise(): Promise<void> {
     if (!hasProfile) return showError('Conecte seu perfil do Letterboxd primeiro.');
+    if (generating) return;
+    generating = true;
+    const requestId = ++generation;
     hide(el.errorBanner);
     view('loading');
     try {
       const { data } = await send('getSurprisePick');
-      showResults({ title: 'Uma sugestão para você', note: '', films: [data.film] });
+      if (requestId !== generation) return;
+      await showResults({ title: 'Uma sugestão para você', note: '', films: [data.film] });
     } catch (error) {
       view('home');
       showError((error as Error).message);
+    } finally {
+      generating = false;
     }
   }
 
@@ -217,6 +245,10 @@ onReady(async () => {
   byId('btnGenerateCustom').addEventListener('click', () => void generate());
   byId('btnDailyRec').addEventListener('click', () => void surprise());
   byId('btnNewSearch').addEventListener('click', () => {
+    generation++;
+    selectedThemeId = null;
+    markSelected();
+    updateGenerateState();
     view('home');
     saveDraft();
     el.prompt.focus();
@@ -253,7 +285,7 @@ onReady(async () => {
       displayProfile(active);
       const session = await send('getPopupSession');
       if (session?.username.toLowerCase() === active.profile.username.toLowerCase()) {
-        if (session.view === 'results' && session.result) showResults(session.result, false);
+        if (session.view === 'results' && session.result) await showResults(session.result, false);
         else el.prompt.value = session.prompt;
       }
     } else profileState('empty');
