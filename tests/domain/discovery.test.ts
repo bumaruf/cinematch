@@ -68,7 +68,7 @@ test('genre and director expansions are not evidence of a cinematic atmosphere',
   const generated = film('generated', { genres: ['Sci-Fi'], year: 1995, keywords: ['distopia', 'robô', 'slow cinema', 'contemplativo'], keywordEvidence: [{ term: 'distopia', source: 'genre' }, { term: 'robô', source: 'genre' }, { term: 'slow cinema', source: 'director' }, { term: 'contemplativo', source: 'director' }] });
   expect(specificKeywords(generated)).toEqual([]);
   expect(themeEligibility(generated, getThemeCriteria('cyberpunk-neon-noir')).eligible).toBe(false);
-  const real = { ...generated, keywords: ['distopia', 'robô'], keywordEvidence: [{ term: 'distopia', source: 'film' as const }, { term: 'robô', source: 'film' as const }] };
+  const real = { ...generated, keywords: ['cyberpunk', 'robô'], keywordEvidence: [{ term: 'cyberpunk', source: 'film' as const }, { term: 'robô', source: 'film' as const }] };
   expect(themeEligibility(real, getThemeCriteria('cyberpunk-neon-noir')).eligible).toBe(true);
 });
 
@@ -101,15 +101,14 @@ test('many dislikes of one director do not multiply penalties without limit', ()
   expect(many.score).toBe(one.score);
 });
 
-test('modes preserve requirements and exploration avoids a six-film director monopoly', () => {
+test('automatic recommendations prioritize affinity and vary directors while preserving requirements', () => {
   const catalog = discoveryCatalog();
   const profile = { username: 'test', films: [{ title: 'seen', slug: 'seen', rating: 5 }] };
-  const familiar = recommend({ profile, mode: 'familiar' }, catalog, FIXED_NOW);
-  const explore = recommend({ profile, mode: 'explore' }, catalog, FIXED_NOW);
-  expect(familiar.recommendations[0].director).toBe('A');
-  expect(explore.recommendations.filter((item) => item.director === 'A').length).toBeLessThanOrEqual(2);
-  expect(explore.recommendations.some((item) => item.director.startsWith('B'))).toBe(true);
-  const constrained = recommend({ profile, mode: 'surprise', customPrompt: 'animação japonesa até 120 minutos' }, catalog, FIXED_NOW);
+  const result = recommend({ profile }, catalog, FIXED_NOW);
+  expect(result.recommendations[0].director).toBe('A');
+  expect(result.recommendations.filter((item) => item.director === 'A').length).toBeLessThanOrEqual(2);
+  expect(result.recommendations.some((item) => item.director.startsWith('B'))).toBe(true);
+  const constrained = recommend({ profile, customPrompt: 'animação japonesa até 120 minutos' }, catalog, FIXED_NOW);
   expect(constrained.recommendations.length).toBeGreaterThan(0);
   expect(constrained.recommendations.every((item) => item.genres.includes('Animation') && item.country === 'Japan')).toBe(true);
 });
@@ -118,18 +117,16 @@ test('different tastes change the same atmosphere instead of merely its explanat
   const catalog = discoveryCatalog();
   const a = { username: 'a', films: [{ title: 'seen', slug: 'seen', rating: 5 }] };
   const b = { username: 'b', films: [{ title: 'animation-0', slug: 'animation-0', rating: 5 }] };
-  const first = recommend({ profile: a, themeId: 'hidden-gems-underrated', mode: 'explore' }, catalog, FIXED_NOW);
-  const second = recommend({ profile: b, themeId: 'hidden-gems-underrated', mode: 'explore' }, catalog, FIXED_NOW);
+  const first = recommend({ profile: a, themeId: 'hidden-gems-underrated' }, catalog, FIXED_NOW);
+  const second = recommend({ profile: b, themeId: 'hidden-gems-underrated' }, catalog, FIXED_NOW);
   expect(first.recommendations.map((item) => item.letterboxdSlug)).not.toEqual(second.recommendations.map((item) => item.letterboxdSlug));
 });
 
-test('local feedback exclusions remain hard restrictions in every mode', () => {
+test('local feedback exclusions remain hard restrictions in automatic recommendations', () => {
   const catalog = discoveryCatalog();
-  for (const mode of ['familiar', 'explore', 'surprise'] as const) {
-    const result = recommend({ profile: null, mode, excludedFilms: [{ title: 'bridge-0', slug: 'bridge-0' }] }, catalog, FIXED_NOW);
-    expect(result.recommendations).not.toHaveLength(0);
-    expect(result.recommendations.some((film) => film.catalogSlug === 'bridge-0')).toBe(false);
-  }
+  const result = recommend({ profile: null, excludedFilms: [{ title: 'bridge-0', slug: 'bridge-0' }] }, catalog, FIXED_NOW);
+  expect(result.recommendations).not.toHaveLength(0);
+  expect(result.recommendations.some((film) => film.catalogSlug === 'bridge-0')).toBe(false);
 });
 
 test('explicit identities do not confuse similar titles, sequels or remakes', () => {

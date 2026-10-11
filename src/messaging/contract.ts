@@ -1,5 +1,6 @@
 import type { SavedFilmInput } from '../application/library.ts';
 import type { FeedbackInput } from '../application/feedback.ts';
+import type { EvaluationInput, getRecommendationEvaluationReport } from '../application/evaluation.ts';
 import type { HistoryEntry, PopupSession, SavedFilm, SyncProgress } from '../application/ports.ts';
 import type { ActiveProfile, CsvFile, ImportSummary, SyncResult } from '../application/profile.ts';
 import type { DailyPickResponse, RecommendationQuery } from '../application/recommendations.ts';
@@ -21,6 +22,9 @@ export interface Contract {
   toggleSavedFilm: { request: SavedFilmInput; response: { isSaved: boolean; totalSaved: number } };
   recordFilmFeedback: { request: FeedbackInput; response: void };
   listFilmFeedback: { request: void; response: FilmFeedback[] };
+  recordRecommendationEvaluation: { request: EvaluationInput; response: void };
+  getRecommendationEvaluationReport: { request: void; response: Awaited<ReturnType<typeof getRecommendationEvaluationReport>> };
+  clearRecommendationEvaluations: { request: void; response: void };
   listHistory: { request: void; response: HistoryEntry[] };
   getPopupSession: { request: void; response: PopupSession | null };
   savePopupSession: { request: PopupSession; response: void };
@@ -59,6 +63,9 @@ export const ACTIONS: readonly Action[] = [
   'toggleSavedFilm',
   'recordFilmFeedback',
   'listFilmFeedback',
+  'recordRecommendationEvaluation',
+  'getRecommendationEvaluationReport',
+  'clearRecommendationEvaluations',
   'listHistory',
   'getPopupSession',
   'savePopupSession',

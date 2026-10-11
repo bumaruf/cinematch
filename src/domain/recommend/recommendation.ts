@@ -11,6 +11,7 @@ export function letterboxdSearchUrl(film: { title: string; originalTitle?: strin
 
 export function toRecommendation(film: CatalogFilm, catalog: Catalog, affinityReason: string | null = null): Recommendation {
   return {
+    imdbId: film.imdbId,
     title: film.title,
     originalTitle: film.originalTitle || film.title,
     year: film.year,

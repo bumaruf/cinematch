@@ -1,4 +1,4 @@
-import type { DiscoveryMode, Filters, Recommendation, RecommendationResult, UserProfile } from '../domain/film.ts';
+import type { Filters, Recommendation, RecommendationResult, UserProfile } from '../domain/film.ts';
 import { analyzeProfile } from '../domain/profile/analyze.ts';
 import { createWatchedIndex, toWatchedEntry } from '../domain/profile/watched.ts';
 import { createFilmIdentityIndex } from '../domain/profile/identity.ts';
@@ -9,6 +9,7 @@ import type { AppContext } from './context.ts';
 import type { StoredDailyPick } from './ports.ts';
 import { GUEST_PROFILE } from './profile.ts';
 import { activeFeedback } from './feedback.ts';
+import { CURATION_VERSION } from '../domain/recommend/evaluation.ts';
 
 /** Batches of earlier recommendations kept out of new thematic results. */
 const RECENT_BATCHES = 20;
@@ -20,7 +21,6 @@ export interface RecommendationQuery {
   customPrompt?: string;
   /** Per-request filters; saved settings fill in the rest. */
   filters?: Pick<Filters, 'minYear' | 'maxYear' | 'runtimeFilter' | 'nicheOnly'>;
-  mode?: DiscoveryMode;
   username?: string;
 }
 
@@ -48,12 +48,10 @@ export async function generateRecommendations(ctx: AppContext, query: Recommenda
     .filter((movie) => movie?.title);
   const now = ctx.clock.now();
   const catalog = ctx.catalog();
-  if (query.mode && !['familiar', 'explore', 'surprise'].includes(query.mode)) throw new Error('Modo de descoberta inválido.');
   const excludedFilms = activeFeedback(await ctx.feedback.list(usernameKey(profile.username)), now).map((entry) => entry.film);
   const result = recommend(
     {
       profile,
-      mode: query.mode,
       excludedFilms,
       themeId: query.themeId ?? null,
       customPrompt: query.customPrompt ?? '',
@@ -74,10 +72,16 @@ export async function generateRecommendations(ctx: AppContext, query: Recommenda
     avoidWatched: settings.avoidWatched,
     ctx,
   });
-  const final = { ...result, recommendations };
+  const sessionId = `rec_${now.getTime()}_${ctx.identifiers.next()}`;
+  const final = { ...result, recommendations, evaluationSessionId: sessionId };
   if (query.username && usernameKey((await ctx.profiles.get())?.username ?? '') !== usernameKey(query.username)) throw new ProfileChangedError();
   await ctx.history.append({
-    id: `rec_${now.getTime()}`,
+    id: sessionId,
+    username: usernameKey(profile.username),
+    evaluationContext: { version: CURATION_VERSION, themeId: query.themeId ?? null, prompt: query.customPrompt ?? '',
+      filters: { ...settings, ...query.filters }, profileSize: profile.films.length,
+      ratedCount: profile.films.filter(film => typeof film.rating === 'number').length, catalogSize: catalog.info.total,
+      interpretation: final.interpretation ?? [] },
     timestamp: now.toISOString(),
     theme: final.themeName,
     customPrompt: query.customPrompt ?? '',

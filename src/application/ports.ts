@@ -1,4 +1,5 @@
 import type { DailyPick, FilmFeedback, ProfileFilm, Recommendation, Settings, UserProfile } from '../domain/film.ts';
+import type { EvaluationContext, RecommendationEvaluation } from '../domain/recommend/evaluation.ts';
 
 /** Source of the current time, so use cases stay deterministic in tests. */
 export interface Clock {
@@ -35,6 +36,8 @@ export interface SettingsStore {
 }
 
 export interface HistoryEntry {
+  username?: string;
+  evaluationContext?: EvaluationContext;
   id: string;
   timestamp: string;
   theme: string;
@@ -80,6 +83,13 @@ export interface SavedFilmsStore {
 export interface FeedbackStore {
   list(username: string): Promise<FilmFeedback[]>;
   update(transform: (entries: FilmFeedback[]) => FilmFeedback[]): Promise<FilmFeedback[]>;
+}
+
+export interface IdentifierSource { next(): string }
+
+export interface EvaluationStore {
+  list(username: string): Promise<RecommendationEvaluation[]>;
+  update(transform: (entries: RecommendationEvaluation[]) => RecommendationEvaluation[]): Promise<RecommendationEvaluation[]>;
 }
 
 export interface StoredDailyPick extends DailyPick {

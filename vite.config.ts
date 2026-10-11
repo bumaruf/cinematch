@@ -20,5 +20,7 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.{js,ts}'],
     environment: 'node',
+    // Leave headroom for desktop audio while catalog-heavy tests run.
+    maxWorkers: process.platform === 'win32' ? 2 : undefined,
   },
 });

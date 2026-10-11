@@ -5,7 +5,6 @@ import { onSyncProgress, send, syncProfileFully } from '../../../messaging/clien
 import { byId, copyWithFeedback, hide, onReady, show } from '../../shared/dom.ts';
 import { recommendationsText } from '../../shared/export.ts';
 import { savedMatcher, type FilmLike } from '../../shared/film.ts';
-import { setupDiscoveryControls } from '../../shared/discovery.ts';
 import { filmCard, filmSkeletons } from '../../shared/film-card.ts';
 import { readFilters } from '../../shared/filters.ts';
 import { html, render, safeUrl } from '../../shared/html.ts';
@@ -54,7 +53,6 @@ onReady(async () => {
   let syncing = false;
   let generating = false;
   let generation = 0;
-  const discovery = setupDiscoveryControls(byId('popupDiscoveryControls'));
 
   const showError = (message: string): void => {
     el.errorMessage.textContent = message;
@@ -179,7 +177,18 @@ onReady(async () => {
     el.resultsNote.textContent = films.length ? note : '';
     el.interpretation.textContent = interpretation?.length ? `Entendi: ${interpretation.join(' · ')}` : '';
     if (films.length === 0) {
-      render(el.films, html`<p class="py-6 text-muted">${note || 'Nenhum filme novo com esses critérios. Tente outro clima ou tire um filtro.'}</p>`);
+      render(el.films, html`<div class="py-6"><p class="mb-4 text-muted" role="status">${note || 'Nenhum filme novo com esses critérios. Tente outro clima ou tire um filtro.'}</p><button type="button" class="btn btn-secondary" data-general-recovery>Ver sugestões gerais</button><p class="mt-2 text-[12px] text-muted">Busca sem clima, texto ou filtros. Seus assistidos e feedback continuam sendo respeitados.</p></div>`);
+      el.films.querySelector<HTMLButtonElement>('[data-general-recovery]')!.addEventListener('click', async event => {
+        const button = event.currentTarget as HTMLButtonElement;
+        button.disabled = true;
+        try {
+          await send('updateSettings', { minVotes: 0 });
+          el.prompt.value = ''; selectedThemeId = null;
+          el.decade.value = ''; el.runtime.value = ''; el.niche.checked = false;
+          markSelected(); updateGenerateState();
+          await generate();
+        } catch (error) { button.disabled = false; showError((error as Error).message); }
+      });
     } else {
       el.films.replaceChildren(...films.map((film, i) => filmCard(film, { onToggleSave: toggleSave, saved: isSaved(film), feedbackUsername: expected, index: i })));
     }
@@ -204,7 +213,6 @@ onReady(async () => {
       const result = await send('generateRecommendations', {
         themeId: customPrompt ? null : selectedThemeId,
         customPrompt,
-        mode: discovery.mode(),
         username,
         filters: readFilters({ decade: el.decade, runtime: el.runtime, nicheOnly: el.niche }),
       });

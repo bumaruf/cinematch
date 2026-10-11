@@ -31,7 +31,7 @@ const timings = [1, 50, 200].map((count) => {
   const input: UserProfile = { username: 'latency', films: catalog.films.slice(0, count).map((film) => ({ title: film.title, slug: film.slug, year: film.year, rating: 4.5 })) };
   const samples: number[] = [];
   for (let i = 0; i < 3; i++) {
-    const start = performance.now(); recommend({ profile: input, mode: 'explore' }, catalog, now); samples.push(Math.round(performance.now() - start));
+    const start = performance.now(); recommend({ profile: input }, catalog, now); samples.push(Math.round(performance.now() - start));
   }
   return { films: count, samplesMs: samples, medianMs: [...samples].sort((a, b) => a - b)[1] };
 });

@@ -4,11 +4,11 @@ import { send } from '../../../messaging/client.ts';
 import { byId, copyWithFeedback, hide, show } from '../../shared/dom.ts';
 import { recommendationsText } from '../../shared/export.ts';
 import { savedMatcher, type FilmLike } from '../../shared/film.ts';
-import { setupDiscoveryControls } from '../../shared/discovery.ts';
 import { filmCard, filmSkeletons } from '../../shared/film-card.ts';
 import { readFilters } from '../../shared/filters.ts';
 import { html, render } from '../../shared/html.ts';
 import type { Notifier } from './state.ts';
+import { setupRecommendationEvaluation } from './evaluation.ts';
 
 type ThemeCollection = {
   title: string;
@@ -67,7 +67,7 @@ export function setupCurator({
     daily: byId('dashDailyRecHero'),
     interpretation: byId('dashInterpretation'),
   };
-  const discovery = setupDiscoveryControls(byId('dashDiscoveryControls'));
+  const evaluation = setupRecommendationEvaluation(notify, currentUsername);
   let selectedThemeId: string | null = null;
   let generating = false;
   let current: Recommendation[] = [];
@@ -96,6 +96,7 @@ export function setupCurator({
     const requestId = ++generation;
     const username = currentUsername() ?? 'convidado';
     generating = true;
+    evaluation.reset();
     el.generate.disabled = true;
     // Poster-shaped placeholders hold the grid while the worker searches.
     hide(el.daily);
@@ -111,19 +112,30 @@ export function setupCurator({
       const [result, saved] = await Promise.all([send('generateRecommendations', {
         themeId: customPrompt ? null : selectedThemeId,
         customPrompt,
-        mode: discovery.mode(),
         username,
         filters: readFilters({ decade: el.decade, runtime: el.runtime, nicheOnly: el.niche }),
       }), send('listSavedFilms')]);
       if (requestId !== generation || username !== (currentUsername() ?? 'convidado')) return;
       const isSaved = savedMatcher(saved);
       current = result.recommendations;
+      evaluation.show(result);
       el.resultsTitle.textContent = result.themeName;
       el.exportText.hidden = current.length === 0;
       el.note.textContent = current.length ? result.notice : '';
       el.interpretation.textContent = result.interpretation?.length ? `Entendi: ${result.interpretation.join(' · ')}` : '';
       if (current.length === 0) {
-        render(el.list, html`<p class="col-span-full py-6 text-muted">${result.notice || 'Nenhum filme com esses critérios. Tente outro clima ou tire um filtro.'}</p>`);
+        render(el.list, html`<div class="col-span-full py-6"><p class="mb-4 text-muted" role="status">${result.notice || 'Nenhum filme com esses critérios. Tente outro clima ou tire um filtro.'}</p><button type="button" class="btn btn-secondary" data-general-recovery>Ver sugestões gerais</button><p class="mt-2 text-[12px] text-muted">Busca sem clima, texto ou filtros. Seus assistidos e feedback continuam sendo respeitados.</p></div>`);
+        el.list.querySelector<HTMLButtonElement>('[data-general-recovery]')!.addEventListener('click', async event => {
+          const button = event.currentTarget as HTMLButtonElement;
+          button.disabled = true;
+          try {
+            await send('updateSettings', { minVotes: 0 });
+            el.prompt.value = ''; selectedThemeId = null;
+            el.decade.value = ''; el.runtime.value = ''; el.niche.checked = false;
+            markSelected();
+            await generate();
+          } catch (error) { button.disabled = false; notify.error((error as Error).message); }
+        });
       } else {
         el.list.replaceChildren(...current.map((film, index) => filmCard(film, { variant: 'poster', onToggleSave: toggleSave, saved: isSaved(film), feedbackUsername: username, index })));
       }
@@ -230,10 +242,12 @@ export function setupCurator({
   });
 
   return {
+    refreshEvaluation: evaluation.refresh,
     /** Hides results that belonged to the previous profile. */
     reset(): void {
       generation++;
       current = [];
+      evaluation.reset();
       hide(el.results);
     },
   };

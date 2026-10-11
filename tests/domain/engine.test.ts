@@ -210,25 +210,23 @@ test('slow cinema never includes action or sport films', () => {
   assert.ok(!result.recommendations.some((film) => ['warrior', 'american-sniper'].includes(film.letterboxdSlug)));
 });
 
-testWithCatalog('every atmosphere has a semantic contract before quality or profile affinity', () => {
+testWithCatalog.each(THEMES_CATALOG)('atmosphere $id has a semantic contract before quality or profile affinity', (theme) => {
   assert.equal(THEMES_CATALOG.length, 15);
-  for (const theme of THEMES_CATALOG) {
-    const selectedTheme = getThemeById(theme.id);
-    const criteria = getThemeCriteria(theme.id);
-    assert.ok(criteria, `${theme.id} needs an eligibility contract`);
+  const selectedTheme = getThemeById(theme.id);
+  const criteria = getThemeCriteria(theme.id);
+  assert.ok(criteria, `${theme.id} needs an eligibility contract`);
 
-    const result = run({ profile: emptyProfile, themeId: selectedTheme?.id, filters: { avoidWatched: false } });
-    assert.ok(result.recommendations.length > 0, `${theme.id} should retain curated candidates`);
+  const result = run({ profile: emptyProfile, themeId: selectedTheme?.id, filters: { avoidWatched: false } });
+  assert.ok(result.recommendations.length > 0, `${theme.id} should retain curated candidates`);
 
-    for (const recommendation of result.recommendations) {
-      const film = catalogFilm(recommendation.letterboxdSlug);
-      assert.ok(film, `${recommendation.title} must resolve to a catalog film`);
-      const genres = new Set((film.genres || []).map((genre) => genre.toLowerCase()));
-      const required: string[] = (criteria.requiredAnyGenres || []).map((genre) => genre.toLowerCase());
-      const excluded: string[] = (criteria.excludedAnyGenres || []).map((genre) => genre.toLowerCase());
-      assert.ok(!required.length || required.some((genre) => genres.has(genre)), `${recommendation.title} misses ${theme.id}'s required genre`);
-      assert.ok(!excluded.some((genre) => genres.has(genre)), `${recommendation.title} violates ${theme.id}'s excluded genres`);
-    }
+  for (const recommendation of result.recommendations) {
+    const film = catalogFilm(recommendation.letterboxdSlug);
+    assert.ok(film, `${recommendation.title} must resolve to a catalog film`);
+    const genres = new Set((film.genres || []).map((genre) => genre.toLowerCase()));
+    const required: string[] = (criteria.requiredAnyGenres || []).map((genre) => genre.toLowerCase());
+    const excluded: string[] = (criteria.excludedAnyGenres || []).map((genre) => genre.toLowerCase());
+    assert.ok(!required.length || required.some((genre) => genres.has(genre)), `${recommendation.title} misses ${theme.id}'s required genre`);
+    assert.ok(!excluded.some((genre) => genres.has(genre)), `${recommendation.title} violates ${theme.id}'s excluded genres`);
   }
 });
 
@@ -263,7 +261,7 @@ testWithCatalog('notice is empty for a normal result and explains an empty one',
 
   const none = run({ profile: emptyProfile, themeId: 'cyberpunk-neon-noir', filters: { minYear: 3000 } });
   assert.equal(none.recommendations.length, 0);
-  assert.match(none.notice, /Nenhum filme novo/);
+  assert.match(none.notice, /evidência suficiente/);
 });
 
 testWithCatalog('taste reasons write ratings with a decimal comma', () => {

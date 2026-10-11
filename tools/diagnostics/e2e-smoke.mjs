@@ -6,7 +6,7 @@
 //   CHROMIUM_PATH=/path/to/chrome   # which no longer loads unpacked extensions
 //                                   # from the command line)
 import { chromium } from 'playwright-core';
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -75,7 +75,7 @@ const search = await send('generateRecommendations', { themeId: null, customProm
 check('busca em texto', search.ok && search.data.recommendations.length > 0, search.ok ? search.data.recommendations.map((r) => `${r.title} (${r.year}, ${r.runtimeMinutes}min)`).join(', ') : search.error);
 
 const general = await send('generateRecommendations', {});
-check('curadoria geral sem tema nem busca', general.ok, general.ok ? `${general.data.recommendations.length} filmes` : general.error);
+check('curadoria geral sem tema nem busca', general.ok && general.data.recommendations.length > 0, general.ok ? `${general.data.recommendations.length} filmes` : general.error);
 
 const daily = await send('getDailyPick', { refresh: true });
 check('filme do dia', daily.ok && Boolean(daily.data.data.film.title), daily.ok ? `${daily.data.data.film.title} — ${daily.data.data.curatorReason}` : daily.error);
@@ -133,8 +133,12 @@ check('popup gera recomendações', (await popup.locator('#moviesContainer artic
 await popup.screenshot({ path: `${shots}/popup.png` });
 
 await popup.click('#btnNewSearch');
-await popup.locator('#popupDiscoveryControls input[value="explore"]').check();
-check('popup sem escolha de watchlist ou salvos', (await popup.locator('#popupDiscoveryControls input[type="checkbox"]').count()) === 0);
+check('popup sem seletor de modos de descoberta', (await popup.locator('#popupDiscoveryControls').count()) === 0);
+check('estilos do popup dimensionam o ícone de busca', await popup.locator('#customPromptInput').evaluate(input => {
+  const bounds = input.previousElementSibling.getBoundingClientRect();
+  return bounds.width > 0 && bounds.width <= 24 && bounds.height <= 24;
+}));
+await popup.screenshot({ path: `${shots}/popup-search.png` });
 await popup.fill('#customPromptInput', exactPrompt);
 await popup.click('#btnGenerateCustom');
 await popup.waitForFunction(() => document.querySelector('#moviesContainer[aria-busy="false"] article .film-save[aria-pressed="true"]'));
@@ -163,8 +167,11 @@ await dashboard.waitForFunction(() => document.querySelector('#dashFeedbackList'
 check('desfazer no painel restaura o filme', (await send('listFilmFeedback')).data.length === 0);
 
 await dashboard.click('.nav-item[data-tab="curator"]');
-await dashboard.locator('#dashDiscoveryControls input[value="explore"]').check();
-check('painel sem escolha de watchlist ou salvos', (await dashboard.locator('#dashDiscoveryControls input[type="checkbox"]').count()) === 0);
+check('painel sem seletor de modos de descoberta', (await dashboard.locator('#dashDiscoveryControls').count()) === 0);
+check('estilos do painel dimensionam o ícone de busca', await dashboard.locator('#dashCustomPrompt').evaluate(input => {
+  const bounds = input.previousElementSibling.getBoundingClientRect();
+  return bounds.width > 0 && bounds.width <= 24 && bounds.height <= 24;
+}));
 await dashboard.fill('#dashCustomPrompt', exactPrompt);
 await dashboard.click('#dashBtnGenerate');
 await dashboard.waitForFunction(() => document.querySelector('#dashMoviesGrid[aria-busy="false"] article'));
@@ -172,12 +179,100 @@ check('busca normal funciona no painel', (await dashboard.locator('#dashMoviesGr
 await dashboard.waitForTimeout(700);
 await dashboard.screenshot({ path: `${shots}/dashboard-search.png` });
 
+await dashboard.locator('#dashEvaluation summary').click();
+await dashboard.locator('#dashEvaluationForm input[name="basis"][value="seen"]').check();
+await dashboard.locator('#dashEvaluationForm input[name="fit"][value="yes"]').check();
+await dashboard.locator('#dashEvaluationForm input[name="interest"][value="maybe"]').check();
+await dashboard.fill('#evaluationComment', 'Combina com o pedido, mas prefiro algo novo hoje.');
+await dashboard.locator('#dashEvaluationForm button[type="submit"]').click();
+await dashboard.waitForFunction(() => document.querySelector('#evaluationStatus')?.textContent.includes('Avaliação salva'));
+const evaluation = await send('getRecommendationEvaluationReport');
+check('avaliação usa a indicação real e não exporta a identidade do perfil', evaluation.ok && evaluation.data.summary.films === 1 && evaluation.data.summary.seenFit.matched === 1 && !JSON.stringify(evaluation.data).includes(imported.data.profile.username));
+await dashboard.screenshot({ path: `${shots}/dashboard-evaluation.png` });
+await dashboard.reload();
+await dashboard.waitForTimeout(800);
+await dashboard.click('.nav-item[data-tab="dna"]');
+await dashboard.locator('#dashEvaluationReport summary').click();
+await dashboard.waitForFunction(() => document.querySelector('#dashEvaluationSummary')?.textContent.includes('1 avaliação em 1 lista'));
+const downloadPromise = dashboard.waitForEvent('download');
+await dashboard.click('#dashExportEvaluations');
+const download = await downloadPromise;
+check('avaliações persistem e podem ser exportadas', download.suggestedFilename().startsWith('cinematch-avaliacoes-'));
+await dashboard.click('#dashClearEvaluations');
+await dashboard.waitForFunction(() => document.querySelector('#dashEvaluationSummary')?.textContent.includes('Ainda não há avaliações'));
+check('apaga as avaliações do perfil', (await send('getRecommendationEvaluationReport')).data.summary.films === 0);
+
 const options = await context.newPage();
 watch(options, 'options');
 await options.goto(url('src/ui/pages/options/index.html'));
 await options.waitForTimeout(800);
 check('opções refletem configurações', (await options.isChecked('#avoidWatched')) === false);
 await options.screenshot({ path: `${shots}/options.png` });
+
+// Letterboxd's British title differs from the catalog's US release title.
+const regionalWatched = ['Date,Name,Year,Letterboxd URI',
+  ...picked.filter(f => f.imdbId !== 'tt0241527').map(f => `2026-01-01,${quote(f.originalTitle)},${f.year},https://letterboxd.com/film/${f.slug}/`),
+  `2026-01-01,${quote("Harry Potter and the Philosopher's Stone")},2001,https://letterboxd.com/film/harry-potter-and-the-philosophers-stone/`,
+].join('\n');
+const regional = await send('importCsvProfile', { files: [{ name: 'watched.csv', text: regionalWatched }, { name: 'ratings.csv', text: rated }] });
+check('importa o título regional usado pelo Letterboxd', regional.ok);
+await send('updateSettings', { minVotes: 250000, avoidWatched: false });
+const regionalQuery = { customPrompt: '"Harry Potter and the Sorcerer\'s Stone"' };
+const regionalAllowed = await send('generateRecommendations', regionalQuery);
+check('a mesma obra pode aparecer quando reassistir é permitido', regionalAllowed.ok && regionalAllowed.data.recommendations.some(f => f.imdbId === 'tt0241527'));
+await send('savePopupSession', { username: regional.data.profile.username, view: 'results', prompt: regionalQuery.customPrompt,
+  result: { title: regionalAllowed.data.themeName, note: regionalAllowed.data.notice, films: regionalAllowed.data.recommendations } });
+await send('updateSettings', { avoidWatched: true });
+const regionalBlocked = await send('generateRecommendations', regionalQuery);
+check('esconder assistidos bloqueia Philosopher’s Stone no catálogo Sorcerer’s Stone', regionalBlocked.ok && !regionalBlocked.data.recommendations.some(f => f.imdbId === 'tt0241527'));
+const regionalSession = await send('getPopupSession');
+check('lista antiga do popup respeita o bloqueio ativado depois', regionalSession.ok && !regionalSession.data.result.films.some(f => f.imdbId === 'tt0241527'));
+
+// A large history used to exhaust the few titles carrying explicit style tags.
+const frequent = [...films].sort((a, b) => b.imdbVotes - a.imdbVotes).slice(0, 1500);
+const bigWatched = ['Date,Name,Year,Letterboxd URI', ...frequent.map(f => `2026-01-01,${quote(f.originalTitle)},${f.year},https://letterboxd.com/film/${f.slug}/`)].join('\n');
+const large = await send('importCsvProfile', { files: [{ name: 'watched.csv', text: bigWatched }, { name: 'ratings.csv', text: rated }] });
+check('importa histórico grande para reproduzir listas vazias', large.ok && large.data.profile.films.length >= 1500);
+await send('updateSettings', { minVotes: 0, avoidWatched: true });
+const largeSeen = new Set(large.data.profile.films.map(f => f.slug));
+const { THEMES_CATALOG } = await import(pathToFileURL(join(repo, 'src/domain/themes/themes.ts')).href);
+const availability = [];
+for (const theme of THEMES_CATALOG) {
+  const result = await send('generateRecommendations', { themeId: theme.id });
+  availability.push({ theme: theme.id, count: result.data?.recommendations.length ?? 0 });
+  check(`${theme.shortTitle} com histórico grande`, result.ok && result.data.recommendations.length > 0 && result.data.recommendations.every(f => !largeSeen.has(f.catalogSlug)), `${result.data?.recommendations.length ?? 0} filmes`);
+}
+const automaticGeneral = await send('generateRecommendations', {});
+check('sugestões gerais automáticas com histórico grande', automaticGeneral.ok && automaticGeneral.data.recommendations.length > 0);
+const diagnostics = join(repo, 'e2e-screenshots');
+mkdirSync(diagnostics, { recursive: true });
+writeFileSync(join(diagnostics, 'recommendation-availability.json'), JSON.stringify({ watched: large.data.profile.films.length, availability, general: automaticGeneral.data?.recommendations.length ?? 0 }, null, 2));
+
+await dashboard.reload();
+await dashboard.waitForSelector('[data-theme-id="claustrophobic-single-location"]');
+await dashboard.click('[data-theme-id="claustrophobic-single-location"]');
+await dashboard.waitForFunction(() => document.querySelector('#dashMoviesGrid[aria-busy="false"] [data-theme-fit="related"]'));
+check('painel identifica sugestões próximas ao clima', (await dashboard.locator('#dashMoviesGrid article').count()) > 0);
+await dashboard.screenshot({ path: `${shots}/dashboard-nearby.png` });
+
+// The recovery is usable even when a popularity filter excluded the catalog.
+await send('updateSettings', { minVotes: 100000000 });
+await dashboard.fill('#dashCustomPrompt', 'zzzzzzimpossivel');
+await dashboard.click('#dashBtnGenerate');
+await dashboard.waitForSelector('#dashMoviesGrid [data-general-recovery]');
+await dashboard.click('#dashMoviesGrid [data-general-recovery]');
+await dashboard.waitForFunction(() => document.querySelector('#dashMoviesGrid[aria-busy="false"] article'));
+check('painel recupera uma busca vazia com sugestões gerais', (await send('getSettings')).data.minVotes === 0);
+
+await popup.reload();
+await popup.waitForSelector('#profileLoaded:not(.hidden)');
+if (await popup.locator('#btnNewSearch').isVisible()) await popup.click('#btnNewSearch');
+await popup.fill('#customPromptInput', 'zzzzzzimpossivel');
+await popup.click('#btnGenerateCustom');
+await popup.waitForSelector('#moviesContainer [data-general-recovery]');
+await popup.click('#moviesContainer [data-general-recovery]');
+await popup.waitForFunction(() => document.querySelector('#moviesContainer[aria-busy="false"] article'));
+check('popup recupera uma busca vazia com sugestões gerais', (await popup.locator('#moviesContainer article').count()) > 0);
 
 // Remote images (TMDB) may be unreachable in this sandbox; they are not app errors.
 const relevant = problems.filter((p) => !/ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED|Failed to load resource|net::ERR/.test(p));

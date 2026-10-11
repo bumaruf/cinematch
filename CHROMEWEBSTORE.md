@@ -1,6 +1,6 @@
 # Chrome Web Store — CineMatch for Letterboxd (unofficial)
 
-Atualizado: 2026-10-06. Rascunho local; esta rodada não foi publicada.
+Atualizado: 2026-10-10. Rascunho local; esta rodada não foi publicada.
 
 ## Listagem
 
@@ -12,9 +12,13 @@ Descrição detalhada:
 
 O CineMatch ajuda a escolher o próximo filme com base no seu perfil do Letterboxd.
 
-Explore 15 climas, peça gêneros, exclusões, país de produção, período e duração, e confira como seu pedido foi entendido. Escolha Familiar para priorizar afinidade, Explorar para abrir espaço a outros diretores ou Surpreender para reduzir o peso dos diretores conhecidos.
+Explore 15 climas, peça gêneros, exclusões, país de produção, período e duração, e confira como seu pedido foi entendido. Seu gosto orienta as sugestões automaticamente.
+
+Quando faltam opções com evidência específica do clima, a lista pode incluir sugestões identificadas como Próximo ao clima. Se a busca fica vazia, Ver sugestões gerais permite começar outra busca sem o pedido e os filtros, respeitando seus assistidos e feedback.
 
 Sincronize seu usuário ou importe os arquivos de histórico e avaliações do Letterboxd. Consulte seu perfil, as indicações do dia, as buscas anteriores e a coleção de salvos. Ajuste sugestões com Hoje não, Não combina comigo ou Já assisti; cada registro pode ser desfeito na indicação.
+
+No painel, avalie opcionalmente se uma indicação combina com o pedido e se desperta vontade de assistir. As respostas distinguem filmes vistos de expectativas pela sinopse. Você pode exportar ou apagar suas avaliações em Seu perfil.
 
 Seus dados ficam no navegador. O feedback não publica atividades no Letterboxd. A extensão não é afiliada ao Letterboxd, ao IMDb nem ao TMDB.
 
@@ -27,14 +31,14 @@ Propósito único: ajudar usuários do Letterboxd a escolher filmes com base em 
 | Arte | Arquivo | Estado |
 |---|---|---|
 | Ícone 128 × 128 | public/icons/icon128.png | Existente |
-| Painel e resultados | docs/screenshots/dashboard.png, docs/screenshots/resultados.png | Atualizar para os modos, critérios e feedback |
-| Popup | docs/screenshots/popup.png | Atualizar antes de enviar |
+| Painel e resultados | docs/screenshots/dashboard.png, docs/screenshots/resultados.png | Atualizar com a descoberta automática, critérios e feedback |
+| Popup | docs/screenshots/popup.png | Atualizar sem o seletor de modos antes de enviar |
 
 ## Justificativas de permissões
 
 | Permissão | Uso concreto |
 |---|---|
-| storage | Guardar perfil, configurações, salvos, histórico, feedback e progresso de sincronização no navegador. |
+| storage | Guardar perfil, configurações, salvos, histórico, feedback, avaliações opcionais da curadoria e progresso de sincronização no navegador. |
 | activeTab | Identificar o perfil do Letterboxd na aba ativa quando o usuário abre o popup. |
 | tabs | Encontrar uma aba aberta do Letterboxd e abrir o painel do CineMatch. |
 | scripting | Consultar o Letterboxd na aba aberta para completar a sincronização quando o site pede verificação. |
@@ -46,6 +50,8 @@ Nenhuma permissão foi acrescentada nesta rodada.
 ## Privacidade
 
 O produto processa informações do perfil, conteúdo do Letterboxd, filmes vistos, avaliações, salvos e feedback para gerar recomendações. O armazenamento é local; não há servidor do CineMatch ou serviço externo de recomendação. Consultas ao Letterboxd e carregamento de pôsteres usam esses serviços; buscas de filme ou trailer abrem links externos somente quando o usuário os aciona.
+
+O piloto opcional armazena pedidos, contexto das indicações e respostas no navegador. A exportação ocorre por ação do usuário, sem envio automático; exclui o identificador do perfil e seu histórico importado, mas inclui o pedido e os comentários fornecidos. Há um botão para apagar as avaliações do perfil ativo.
 
 Não há coleta de credenciais, pagamentos, saúde, localização, comunicações pessoais ou navegação fora do Letterboxd, nem telemetria. Os dados não são vendidos, usados para finalidades alheias à curadoria ou usados para crédito. Texto completo em docs/privacy.md.
 
@@ -59,4 +65,6 @@ O catálogo IMDb tem licença de uso pessoal e não comercial; o código GPL nã
 
 | Versão | Data | Mudanças | Estado |
 |---|---|---|---|
+| 1.0.0, alterações locais | 2026-10-10 | Remoção dos modos Familiar, Explorar e Surpreender; recomendação automática; correção do bloqueio de assistidos para títulos regionais e listas reabertas no popup | Rascunho local |
+| 1.0.0, alterações locais | 2026-10-07 | Avaliação opcional, revisão de metadados e climas; correção de listas vazias com proximidades identificadas e recuperação de busca | Rascunho local |
 | 1.0.0, alterações locais | 2026-10-06 | Interpretação de pedidos, personalização, modos de descoberta, feedback e correções de persistência; opção de watchlist removida | Rascunho local |

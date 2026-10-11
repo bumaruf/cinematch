@@ -11,7 +11,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EXPANDED_FILM_DATABASE } from '../../src/data/films-dataset.js';
-import { isGenericPitch, mergeTmdbMetadata, metadataFromTmdb, selectMovieResult } from './tmdb-enrichment.js';
+import { needsMetadataRefresh, mergeTmdbMetadata, metadataFromTmdb, selectMovieResult } from './tmdb-enrichment.js';
+import { THEMES_CATALOG, getThemeCriteria } from '../../src/domain/themes/themes.ts';
+import { normalizeCatalogFilm } from '../../src/domain/catalog/catalog.ts';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(dirname, '..', '..');
@@ -21,8 +23,9 @@ const checkpointPath = path.join(dirname, 'tmdb-checkpoint.json');
 const token = process.env.TMDB_READ_ACCESS_TOKEN || '';
 const limit = Number.parseInt(process.env.TMDB_BATCH_LIMIT || '', 10) || Infinity;
 const delayMs = Number.parseInt(process.env.TMDB_DELAY_MS || '', 10) || 110;
-const concurrency = Number.parseInt(process.env.TMDB_CONCURRENCY || '', 10) || 64;
+const concurrency = Number.parseInt(process.env.TMDB_CONCURRENCY || '', 10) || 4;
 const checkpointEvery = Number.parseInt(process.env.TMDB_CHECKPOINT_EVERY || '', 10) || 256;
+const evidenceOnly = process.env.TMDB_THEME_EVIDENCE === '1';
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -41,7 +44,8 @@ function readPosterMap() {
 
 function saveDataset(films) {
   const rows = films.map(film => `  ${JSON.stringify(film)}`).join(',\n');
-  fs.writeFileSync(datasetPath, `export const EXPANDED_FILM_DATABASE = [\n${rows}\n];\n`, 'utf8');
+  fs.writeFileSync(`${datasetPath}.tmp`, `export const EXPANDED_FILM_DATABASE = [\n${rows}\n];\n`, 'utf8');
+  fs.renameSync(`${datasetPath}.tmp`, datasetPath);
 }
 
 function savePosters(posters) {
@@ -53,13 +57,15 @@ function savePosters(posters) {
     ');',
     ''
   ].join('\n');
-  fs.writeFileSync(posterPath, source, 'utf8');
+  fs.writeFileSync(`${posterPath}.tmp`, source, 'utf8');
+  fs.renameSync(`${posterPath}.tmp`, posterPath);
 }
 
 function saveProgress(films, posters, checkpoint) {
   saveDataset(films);
   savePosters(posters);
-  fs.writeFileSync(checkpointPath, JSON.stringify(checkpoint, null, 2), 'utf8');
+  fs.writeFileSync(`${checkpointPath}.tmp`, JSON.stringify(checkpoint, null, 2), 'utf8');
+  fs.renameSync(`${checkpointPath}.tmp`, checkpointPath);
 }
 
 async function tmdb(endpoint, params = {}, { allowNotFound = false } = {}) {
@@ -78,12 +84,12 @@ async function tmdb(endpoint, params = {}, { allowNotFound = false } = {}) {
   throw new Error('TMDB indisponível após quatro tentativas.');
 }
 
-async function fetchMetadata(imdbId) {
-  const found = await tmdb(`/find/${encodeURIComponent(imdbId)}`, { external_source: 'imdb_id', language: 'pt-BR' });
-  const result = selectMovieResult(found);
+async function fetchMetadata(imdbId, knownTmdbId) {
+  const result = knownTmdbId ? { id: knownTmdbId } : selectMovieResult(await tmdb(`/find/${encodeURIComponent(imdbId)}`, { external_source: 'imdb_id', language: 'pt-BR' }));
   if (!result) return { tmdbId: null, posterPath: null, pitch: '', country: '', originalLanguage: '' };
   await sleep(delayMs);
-  const detailsPt = await tmdb(`/movie/${result.id}`, { language: 'pt-BR' }, { allowNotFound: true });
+  const detailsPt = await tmdb(`/movie/${result.id}`, { language: 'pt-BR', append_to_response: 'keywords' }, { allowNotFound: true });
+  if (detailsPt?.imdb_id && detailsPt.imdb_id !== imdbId) throw new Error(`Identidade TMDB divergente para ${imdbId}. Catálogo preservado.`);
   let detailsEn = null;
   if (detailsPt && !String(detailsPt.overview || '').trim()) {
     await sleep(delayMs);
@@ -96,6 +102,9 @@ async function main() {
   if (!token) throw new Error('TMDB_READ_ACCESS_TOKEN não configurado.');
 
   const films = EXPANDED_FILM_DATABASE.map(film => ({ ...film }));
+  const backupDir = path.join(root, 'e2e-screenshots', 'catalog-backups');
+  fs.mkdirSync(backupDir, { recursive: true });
+  fs.copyFileSync(datasetPath, path.join(backupDir, `films-before-tmdb-${Date.now()}.js`));
   const posters = readPosterMap();
   const checkpoint = readJson(checkpointPath);
   const byImdbId = new Map(films.map((film, index) => [film.imdbId, index]));
@@ -106,9 +115,20 @@ async function main() {
     if (!Object.hasOwn(posters, imdbId)) posters[imdbId] = metadata.posterPath ?? null;
   }
 
+  // Select a bounded review sample per climate. Legacy labels only nominate
+  // candidates for verification; only returned film-specific terms are trusted.
+  const evidenceIds = new Set(THEMES_CATALOG.filter(theme => theme.id !== 'hidden-gems-underrated').flatMap(theme => {
+    const criteria = getThemeCriteria(theme.id);
+    return films.filter(film => {
+      const genres = normalizeCatalogFilm(film).genres;
+      return film.themes?.includes(theme.id) && (!criteria?.requiredAnyGenres?.length || criteria.requiredAnyGenres.some(genre => genres.includes(genre))) &&
+        !criteria?.excludedAnyGenres?.some(genre => genres.includes(genre));
+    }).sort((a, b) => b.imdbVotes - a.imdbVotes).slice(0, 30).map(film => film.imdbId);
+  }));
   const pending = films.filter(film => {
-    const needsMetadata = isGenericPitch(film.pitch) || !film.country || film.country === 'Internacional' || !film.originalLanguage;
-    return !Object.hasOwn(checkpoint, film.imdbId) && (needsMetadata || !Object.hasOwn(posters, film.imdbId));
+    if (evidenceOnly) return evidenceIds.has(film.imdbId) && checkpoint[film.imdbId]?.evidenceVersion !== 1;
+    return needsMetadataRefresh(film, checkpoint[film.imdbId], process.env.TMDB_RETRY_INCOMPLETE === '1') ||
+      (!Object.hasOwn(checkpoint, film.imdbId) && !Object.hasOwn(posters, film.imdbId));
   }).slice(0, limit);
 
   console.log(`Catálogo: ${films.length} filmes · checkpoint: ${Object.keys(checkpoint).length} · processando: ${pending.length}`);
@@ -117,10 +137,10 @@ async function main() {
 
   for (let offset = 0; offset < pending.length; offset += concurrency) {
     const batch = pending.slice(offset, offset + concurrency);
-    const results = await Promise.all(batch.map(async film => ({ film, metadata: await fetchMetadata(film.imdbId) })));
+    const results = await Promise.all(batch.map(async film => ({ film, metadata: await fetchMetadata(film.imdbId, checkpoint[film.imdbId]?.tmdbId) })));
     for (const { film, metadata } of results) {
-      checkpoint[film.imdbId] = metadata;
-      posters[film.imdbId] = metadata.posterPath;
+      checkpoint[film.imdbId] = { ...metadata, schemaVersion: 2, evidenceVersion: 1, checkedAt: new Date().toISOString() };
+      if (metadata.posterPath || !Object.hasOwn(posters, film.imdbId)) posters[film.imdbId] = metadata.posterPath;
       const filmIndex = byImdbId.get(film.imdbId);
       films[filmIndex] = mergeTmdbMetadata(films[filmIndex], metadata);
       metadata.tmdbId ? matched++ : unmatched++;

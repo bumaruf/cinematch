@@ -52,7 +52,8 @@ test('each generation is appended to the history, which keeps at most 30 entries
   const result = await generateRecommendations(ctx, { themeId: 'cyberpunk-neon-noir' });
   const history = await ctx.history.list();
   assert.equal(history.length, 30);
-  assert.equal(history[0].id, `rec_${FIXED_NOW.getTime()}`);
+  assert.equal(history[0].id, result.evaluationSessionId);
+  assert.ok(history[0].id.startsWith(`rec_${FIXED_NOW.getTime()}_`));
   assert.equal(history[0].timestamp, FIXED_NOW.toISOString());
   assert.equal(history[0].theme, result.themeName);
   assert.equal(history[0].customPrompt, '');
@@ -98,6 +99,18 @@ testWithCatalog('saved settings allow rewatching when avoidWatched is disabled',
   const allowed = await generateRecommendations(allowing.ctx, { customPrompt: 'Alien' });
   assert.doesNotMatch(allowed.curatorComment, /excluindo os assistidos/);
   assert.ok(allowed.recommendations.some((film) => film.letterboxdSlug === 'alien'));
+});
+
+testWithCatalog('saved watched blocking recognizes the Letterboxd regional title of Harry Potter', async () => {
+  const profile: UserProfile = { username: 'audit', films: [{ title: "Harry Potter and the Philosopher's Stone", year: 2001, slug: 'harry-potter-and-the-philosophers-stone', rating: 3 }] };
+  const { ctx } = await createTestContext({ profile });
+  await ctx.settings.update({ minVotes: 250000, avoidWatched: false });
+  const query = { customPrompt: '"Harry Potter and the Sorcerer\'s Stone"' };
+  const allowed = await generateRecommendations(ctx, query);
+  assert.ok(allowed.recommendations.some(film => film.imdbId === 'tt0241527'));
+  await ctx.settings.update({ avoidWatched: true });
+  const blocked = await generateRecommendations(ctx, query);
+  assert.ok(!blocked.recommendations.some(film => film.imdbId === 'tt0241527'));
 });
 
 testWithCatalog('per-request filters are applied on top of the saved settings', async () => {

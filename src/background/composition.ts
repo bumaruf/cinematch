@@ -7,6 +7,7 @@ import { chromeKeyValueStore, type KeyValueStore } from '../infrastructure/stora
 import {
   dailyPickStore,
   feedbackStore,
+  evaluationStore,
   historyStore,
   popupSessionStore,
   profileStore,
@@ -24,6 +25,7 @@ export function createContext(kv: KeyValueStore, sessionKv: KeyValueStore = kv):
   return {
     catalog: loadCatalog,
     clock,
+    identifiers: { next: () => crypto.randomUUID() },
     profiles: profileStore(kv, clock.now),
     settings: settingsStore(kv),
     history: historyStore(kv),
@@ -31,6 +33,7 @@ export function createContext(kv: KeyValueStore, sessionKv: KeyValueStore = kv):
     saved: savedFilmsStore(kv),
     daily: dailyPickStore(kv),
     feedback: feedbackStore(kv),
+    evaluations: evaluationStore(kv),
     // A fresh fetcher per batch looks up the open Letterboxd tab again.
     letterboxd: {
       syncBatch: (username, options) =>

@@ -6,6 +6,7 @@ import { memoryKeyValueStore } from '../src/infrastructure/storage/key-value.ts'
 import {
   dailyPickStore,
   feedbackStore,
+  evaluationStore,
   historyStore,
   popupSessionStore,
   profileStore,
@@ -60,9 +61,11 @@ export async function createTestContext(options: TestContextOptions = {}) {
   const nowOption = options.now ?? FIXED_NOW;
   const now = typeof nowOption === 'function' ? nowOption : () => nowOption;
   const clock = { now };
+  let identifier = 0;
   const ctx: AppContext = {
     catalog: loadCatalog,
     clock,
+    identifiers: { next: () => `test_${++identifier}` },
     profiles: profileStore(kv, clock.now),
     settings: settingsStore(kv),
     history: historyStore(kv),
@@ -70,6 +73,7 @@ export async function createTestContext(options: TestContextOptions = {}) {
     saved: savedFilmsStore(kv),
     daily: dailyPickStore(kv),
     feedback: feedbackStore(kv),
+    evaluations: evaluationStore(kv),
     letterboxd: options.letterboxd ?? fakeLetterboxd(),
     artwork: options.artwork ?? fakeArtwork,
   };

@@ -3,6 +3,8 @@ import type {
   ArtworkSource,
   Clock,
   FeedbackStore,
+  EvaluationStore,
+  IdentifierSource,
   DailyPickStore,
   HistoryStore,
   LetterboxdSync,
@@ -17,6 +19,7 @@ export interface AppContext {
   /** Indexed on first use: building it costs a few hundred milliseconds. */
   catalog(): Catalog;
   clock: Clock;
+  identifiers: IdentifierSource;
   profiles: ProfileStore;
   settings: SettingsStore;
   history: HistoryStore;
@@ -24,6 +27,7 @@ export interface AppContext {
   saved: SavedFilmsStore;
   daily: DailyPickStore;
   feedback: FeedbackStore;
+  evaluations: EvaluationStore;
   letterboxd: LetterboxdSync;
   artwork: ArtworkSource;
 }
