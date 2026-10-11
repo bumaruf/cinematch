@@ -52,6 +52,7 @@ onReady(async () => {
   }
 
   state.subscribe((active) => {
+    void curator.refreshEvaluation();
     if (!active) return;
     renderDna(active);
     void daily.load();

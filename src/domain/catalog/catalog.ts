@@ -1,6 +1,8 @@
 import type { CatalogFilm, EnrichedFilm, FilmIdentity, ProfileFilm } from '../film.ts';
 import { fold, normalizeSlug, normalizeTitle } from '../text.ts';
 import { normalizeGenres } from './genres.ts';
+import { FILM_IDENTITY_ALIASES } from './identity-aliases.ts';
+import { REVIEWED_THEME_EVIDENCE } from '../themes/reviewed-evidence.ts';
 
 export interface CatalogInfo {
   total: number;
@@ -64,7 +66,7 @@ function uniqueMatch(candidates: readonly CatalogFilm[], year: unknown): Catalog
 export function normalizeCatalogFilm(film: RawCatalogFilm): CatalogFilm {
   return {
     ...film,
-    genres: normalizeGenres(film.genres),
+    genres: normalizeGenres([...film.genres, ...(REVIEWED_THEME_EVIDENCE[film.imdbId]?.additionalGenres ?? [])]),
     country: film.country === 'Internacional' ? '' : film.country,
   };
 }
@@ -72,6 +74,7 @@ export function normalizeCatalogFilm(film: RawCatalogFilm): CatalogFilm {
 export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: PosterPaths = {}): Catalog {
   const films = rawFilms.map(normalizeCatalogFilm);
   const bySlug = new Map(films.map((film) => [film.slug, film]));
+  const byImdbId = new Map(films.filter(film => film.imdbId).map(film => [fold(film.imdbId), film]));
   const byNormalizedSlug = new Map<string, CatalogFilm[]>();
   const byTitle = new Map<string, CatalogFilm[]>();
   const byYear = new Map<number, CatalogFilm[]>();
@@ -80,9 +83,13 @@ export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: Post
   const searchDocuments = new WeakMap<CatalogFilm, CatalogSearchDocument>();
   for (const [position, film] of films.entries()) {
     catalogPosition.set(film, position);
-    addTo(byNormalizedSlug, normalizeSlug(film.slug), film);
+    const reviewed = FILM_IDENTITY_ALIASES[film.imdbId];
+    const aliases = reviewed?.year === film.year ? reviewed : undefined;
+    for (const slug of new Set([film.slug, ...(aliases?.slugs ?? [])].map(normalizeSlug))) {
+      addTo(byNormalizedSlug, slug, film);
+    }
     addTo(byYear, film.year, film);
-    for (const title of new Set([film.title, film.originalTitle].filter(Boolean).map(normalizeTitle))) {
+    for (const title of new Set([film.title, film.originalTitle, ...(aliases?.titles ?? [])].filter(Boolean).map(normalizeTitle))) {
       addTo(byTitle, title, film);
     }
     for (const genre of new Set(film.genres.map(fold))) addTo(byGenre, genre, film);
@@ -102,6 +109,7 @@ export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: Post
   };
 
   function resolve(film: FilmIdentity): Resolution {
+    if (film.imdbId) return { film: byImdbId.get(fold(film.imdbId)) ?? null, ambiguous: false };
     const rawSlug = film.catalogSlug || film.slug || film.letterboxdSlug || '';
     const direct = bySlug.get(rawSlug) ?? uniqueMatch(byNormalizedSlug.get(normalizeSlug(rawSlug)) ?? [], film.year);
     if (direct) return { film: direct, ambiguous: false };
@@ -122,7 +130,7 @@ export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: Post
         [candidate.title, candidate.originalTitle]
           .filter(Boolean)
           .map(normalizeTitle)
-          .some((alias) => alias.includes(title) || title.includes(alias)),
+          .some((alias) => alias.length >= 8 && (alias.includes(title) || title.includes(alias))),
       );
       if (aliases.length === 1) return { film: aliases[0], ambiguous: false };
       if (aliases.length > 1) return { film: null, ambiguous: true };
@@ -134,6 +142,7 @@ export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: Post
     const { film: metadata, ambiguous } = resolve(film);
     return {
       ...film,
+      ...(metadata?.imdbId ? { imdbId: metadata.imdbId } : {}),
       catalogSlug: metadata?.slug ?? '',
       catalogTitleAmbiguous: ambiguous,
       director: film.director || metadata?.director || '',

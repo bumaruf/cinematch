@@ -14,6 +14,8 @@ export interface CatalogFilm {
   /** Provenance of descriptive terms; genre synonyms are not facts about a film. */
   keywordEvidence?: KeywordEvidence[];
   runtimeKnown?: boolean;
+  /** Sources verified for individual fields, without inventing missing values. */
+  metadataSources?: { runtime?: 'imdb' | 'tmdb'; country?: 'tmdb' };
   imdbRating: number;
   imdbVotes: number;
   imdbId: string;
@@ -28,7 +30,6 @@ export interface KeywordEvidence {
   source: 'film' | 'genre' | 'director' | 'derived' | 'legacy';
 }
 
-export type DiscoveryMode = 'familiar' | 'explore' | 'surprise';
 export type FeedbackKind = 'later' | 'not-for-me' | 'watched';
 export interface FilmFeedback {
   username: string;
@@ -40,6 +41,7 @@ export interface FilmFeedback {
 /** A film as it appears in a user's history (web sync, RSS or CSV import). */
 export interface ProfileFilm {
   title: string;
+  imdbId?: string;
   slug?: string;
   year?: number | null;
   rating?: number | null;
@@ -92,6 +94,7 @@ export interface UserProfile {
 
 /** What is needed to decide whether two records are the same film. */
 export interface FilmIdentity {
+  imdbId?: string;
   title?: string;
   originalTitle?: string;
   year?: number | string | null;
@@ -130,6 +133,10 @@ export interface Settings {
 }
 
 export interface Recommendation {
+  /** Stable identity; older stored recommendations may not have it. */
+  imdbId?: string;
+  /** An adjacent atmosphere, explicitly distinguished from the exact contract. */
+  themeFit?: 'related';
   title: string;
   originalTitle: string;
   year: number;
@@ -149,6 +156,8 @@ export interface Recommendation {
 }
 
 export interface RecommendationResult {
+  /** Persisted recommendation batch that can be evaluated by its owner. */
+  evaluationSessionId?: string;
   themeName: string;
   curatorComment: string;
   /** Only what the viewer should know about this result (a widened search, no match); else ''. */

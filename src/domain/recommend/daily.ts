@@ -9,7 +9,7 @@ import { slugKey } from '../text.ts';
 import { toRecommendation } from './recommendation.ts';
 
 /** Bump when the selection rules change, to invalidate cached picks. */
-export const DAILY_MATCHING_VERSION = 4;
+export const DAILY_MATCHING_VERSION = 6;
 export const DAILY_TIME_ZONE = 'America/Sao_Paulo';
 export const GUEST_USERNAME = 'convidado';
 

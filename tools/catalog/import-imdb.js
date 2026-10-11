@@ -293,6 +293,7 @@ async function run() {
       slug: slug,
       runtime: movie.runtime,
       runtimeKnown: movie.runtimeKnown,
+      metadataSources: { ...existing?.metadataSources, runtime: 'imdb' },
       country: existing?.country || 'Internacional',
       originalLanguage: existing?.originalLanguage || '',
       imdbRating: movie.rating,

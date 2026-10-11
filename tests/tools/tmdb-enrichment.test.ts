@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { isGenericPitch, mergeTmdbMetadata, metadataFromTmdb, selectMovieResult } from '../../tools/catalog/tmdb-enrichment.js';
+import { isGenericPitch, needsMetadataRefresh, mergeTmdbMetadata, metadataFromTmdb, selectMovieResult } from '../../tools/catalog/tmdb-enrichment.js';
 
 describe('TMDB catalog enrichment', () => {
   test('selects a movie and normalizes all supported metadata', () => {
@@ -34,5 +34,21 @@ describe('TMDB catalog enrichment', () => {
     expect(metadata.country).toBe('Brazil, France, Portugal');
     expect(mergeTmdbMetadata({ runtime: 100, runtimeKnown: false }, metadata)).toMatchObject({ runtime: 82, runtimeKnown: true });
     expect(mergeTmdbMetadata({ runtime: 105, runtimeKnown: true }, metadata)).toMatchObject({ runtime: 105, runtimeKnown: true });
+  });
+
+  test('old incomplete checkpoints can be refreshed and new misses require an explicit retry', () => {
+    const film = { pitch: 'Uma sinopse real e suficientemente longa para o catálogo.', country: 'Internacional', originalLanguage: 'pt', runtime: 90 };
+    expect(needsMetadataRefresh(film, { tmdbId: 1 })).toBe(true);
+    expect(needsMetadataRefresh(film, { tmdbId: 1, schemaVersion: 2 })).toBe(false);
+    expect(needsMetadataRefresh(film, { tmdbId: 1, schemaVersion: 2 }, true)).toBe(true);
+    expect(needsMetadataRefresh({ ...film, country: 'Brazil', runtimeKnown: false }, undefined)).toBe(true);
+    expect(mergeTmdbMetadata({ ...film, country: 'Brazil' }, { country: 'Brazil' })).toMatchObject({ metadataSources: { country: 'tmdb' } });
+  });
+
+  test('TMDB keywords retain film-specific provenance without promoting old generated terms', () => {
+    const metadata = metadataFromTmdb({ id: 1 }, { keywords: { keywords: [{ name: 'slow cinema' }] } }, null);
+    const merged = mergeTmdbMetadata({ keywords: ['rural'], keywordEvidence: [{ term: 'rural', source: 'director' }] }, metadata);
+    expect(merged.keywords).toEqual(['rural', 'slow cinema']);
+    expect(merged.keywordEvidence).toEqual([{ term: 'rural', source: 'director' }, { term: 'slow cinema', source: 'film' }]);
   });
 });

@@ -2,6 +2,7 @@ import type {
   DailyPickEntry,
   DailyPickStore,
   FeedbackStore,
+  EvaluationStore,
   HistoryEntry,
   HistoryStore,
   PopupSession,
@@ -14,6 +15,7 @@ import type {
   SyncCheckpointStore,
 } from '../../application/ports.ts';
 import type { FilmFeedback, Settings, UserProfile } from '../../domain/film.ts';
+import type { RecommendationEvaluation } from '../../domain/recommend/evaluation.ts';
 import type { KeyValueStore } from './key-value.ts';
 
 // Key names are persisted in users' browsers: renaming one loses their data.
@@ -28,6 +30,7 @@ export const KEYS = {
   daily: 'lb_curator_daily_recs',
   settings: 'lb_curator_settings',
   feedback: 'lb_curator_film_feedback',
+  evaluations: 'lb_curator_recommendation_evaluations',
   /** Retired integration: kept for cleanup without renaming persisted keys. */
   watchlist: 'lb_curator_letterboxd_watchlist',
 } as const;
@@ -154,6 +157,16 @@ export function feedbackStore(kv: KeyValueStore): FeedbackStore {
       return (Array.isArray(entries) ? entries : []).filter((entry) => entry.username === username.trim().toLowerCase());
     },
     update: (transform) => kv.update<FilmFeedback[]>(KEYS.feedback, (entries) => transform(Array.isArray(entries) ? entries : [])),
+  };
+}
+
+export function evaluationStore(kv: KeyValueStore): EvaluationStore {
+  return {
+    list: async username => {
+      const entries = await kv.get<RecommendationEvaluation[]>(KEYS.evaluations);
+      return (Array.isArray(entries) ? entries : []).filter(entry => entry.username === username);
+    },
+    update: transform => kv.update<RecommendationEvaluation[]>(KEYS.evaluations, entries => transform(Array.isArray(entries) ? entries : [])),
   };
 }
 

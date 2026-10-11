@@ -2,6 +2,14 @@
 
 Implementação iniciada em 6 de outubro de 2026 e preparada para revisão em pull request. As alterações que já estavam no projeto foram preservadas, inclusive a expansão do catálogo e seu enriquecimento. O dataset de filmes gerado localmente continua fora do versionamento.
 
+A rodada seguinte, de 7 de outubro, está documentada em
+[Avaliação e revisão da curadoria](curation-validation.md). As medições abaixo
+descrevem a primeira rodada e permanecem como registro histórico.
+
+Em 10 de outubro, os modos Familiar, Explorar e Surpreender foram removidos a
+pedido do mantenedor. A recomendação atual é automática; a descrição dos modos
+abaixo documenta apenas o comportamento daquela primeira rodada.
+
 ## O que mudou e por quê
 
 **Pedidos viraram critérios verificáveis.** Gêneros, exclusões, país de produção, intervalo de anos e duração são separados dos termos que precisam aparecer nos títulos ou metadados. “Comédia dos anos 90 sem terror até 90 minutos” exige comédia, exclui terror, limita o período a 1990–1999 e a duração a 90 minutos. A interface mostra os critérios aplicados. Uma busca só com exclusões também funciona. “Policial” usa o gênero Crime. Coproduções são reconhecidas mesmo com nomes em idiomas diferentes. Aspas permitem buscar títulos ambíguos, como “Brazil” ou “1984”. O título original exato ganha prioridade no ranking.

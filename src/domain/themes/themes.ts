@@ -12,6 +12,12 @@ export interface ThemeCriteria {
   minSignals: number;
   signals: string[];
   excludedSignals?: string[];
+  /** Every group needs evidence; an incidental plot word cannot prove a style. */
+  requiredSignalGroups?: string[][];
+  /** Contextual alternatives used only for clearly labelled nearby suggestions. */
+  relatedSignalGroups?: string[][];
+  relatedExcludedGenres?: string[];
+  relatedExcludedSignals?: string[];
   minYear?: number;
   maxImdbVotes?: number;
   minImdbRating?: number;
@@ -43,27 +49,39 @@ export const THEME_CATEGORIES: readonly ThemeCategory[] = [
 // candidates, but must never bypass these hard cinematic constraints.
 export const THEME_CRITERIA: Readonly<Record<string, ThemeCriteria>> = Object.freeze({
   'cyberpunk-neon-noir': {
+    relatedSignalGroups: [['futuro', 'futurista', 'futuristic', 'distopia', 'dystopia', 'dystopian'], ['android', 'androide', 'androides', 'cyborg', 'ciborgue', 'robo', 'robos', 'robot', 'robots', 'hacker', 'inteligencia artificial', 'artificial intelligence', 'tecnologia']],
+    relatedExcludedGenres: ['Horror'],
+    relatedExcludedSignals: ['space opera', 'spacecraft', 'sonda espacial'],
+    requiredSignalGroups: [['cyberpunk', 'neo noir', 'tech noir', 'neon'], ['cyberpunk', 'hacker', 'replicant', 'replicante', 'android', 'androide', 'robo', 'robot', 'realidade virtual', 'virtual reality', 'inteligencia artificial']],
     requiredAnyGenres: ['Sci-Fi'], excludedAnyGenres: ['Adventure', 'Fantasy'], minSignals: 1,
     signals: ['cyberpunk', 'neo-noir', 'neo noir', 'dystopia', 'distopia', 'neon', 'android', 'robot', 'replicant', 'virtual reality', 'realidade virtual', 'hacker', 'inteligencia artificial', 'megacity']
   },
   'slow-cinema-contemplative': {
+    relatedSignalGroups: [['cotidiano', 'rotina', 'routine', 'daily life', 'dia a dia', 'intimista', 'silencio', 'silence'], ['familia', 'family', 'vida', 'life', 'solidao', 'loneliness', 'rural', 'aldeia', 'village']],
+    relatedExcludedGenres: ['Crime', 'Thriller', 'Horror', 'Music', 'Documentary'],
+    requiredSignalGroups: [['slow cinema', 'contemplativo', 'contemplative', 'planos longos', 'long takes', 'plano longo', 'long take', 'ritmo lento']],
     requiredAnyGenres: ['Drama'], excludedAnyGenres: ['Action', 'Adventure', 'Fantasy', 'War', 'Sport'], minSignals: 1,
     signals: ['slow cinema', 'contemplative', 'contemplativo', 'long take', 'plano longo', 'solitude', 'solidao', 'meditative', 'meditativo', 'rural', 'cotidiano', 'intimista']
   },
   'mindfuck-broken-reality': {
+    requiredSignalGroups: [['mindfuck', 'nao linear', 'non linear', 'nonlinear timeline', 'realidade alternativa', 'alternate reality', 'simulated reality', 'perda de memoria', 'memory loss', 'amnesia', 'narrador nao confiavel', 'unreliable narrator', 'hallucination', 'alucinacao', 'dissociacao', 'dissociation', 'time loop', 'loop temporal', 'paradoxo temporal', 'sonho e realidade']],
     requiredAnyGenres: ['Thriller', 'Mystery', 'Sci-Fi'], minSignals: 1,
     excludedSignals: ['superhero', 'super-heroi', 'super heroi', 'batman', 'marvel', 'dc comics'],
     signals: ['mindfuck', 'non-linear', 'nao linear', 'surreal', 'alternate reality', 'realidade alternativa', 'memory loss', 'perda de memoria', 'dream', 'sonho', 'unreliable narrator', 'narrador nao confiavel', 'hallucination', 'alucinacao', 'dissociation', 'dissociacao', 'time loop', 'paradox', 'paradoxo']
   },
   'existential-urban-melancholy': {
-    requiredAnyGenres: ['Drama', 'Romance'], excludedAnyGenres: ['Adventure', 'Fantasy', 'War'], minSignals: 1,
+    excludedSignals: ['rural village', 'vila rural', 'aldeia rural'],
+    requiredSignalGroups: [['urban', 'urbano', 'urbana', 'metropole', 'cidade', 'city', 'hong kong', 'tokyo', 'toquio'], ['alienacao', 'alienation', 'loneliness', 'solidao', 'isolation', 'isolamento', 'desencontros']],
+    requiredAnyGenres: ['Drama', 'Romance'], excludedAnyGenres: ['Action', 'Adventure', 'Fantasy', 'War', 'Horror', 'Thriller'], minSignals: 1,
     signals: ['urban alienation', 'alienacao urbana', 'metropole', 'loneliness', 'solidao', 'isolation', 'isolamento', 'wanderer', 'vagando', 'madrugada', 'nocturnal', 'nocturno']
   },
   'cozy-bittersweet-coming-of-age': {
+    requiredSignalGroups: [['coming of age', 'amadurecimento', 'adolescente', 'adolescentes', 'adolescencia', 'adolescent', 'teenager', 'teenagers', 'juventude', 'youth']],
     requiredAnyGenres: ['Drama', 'Comedy', 'Romance', 'Animation'], excludedAnyGenres: ['Action', 'War', 'Crime', 'Horror'], minSignals: 1,
     signals: ['coming of age', 'youth', 'juventude', 'adolescent', 'teen', 'school', 'escola', 'friendship', 'amizade', 'childhood', 'infancia', 'summer', 'verao']
   },
   'psychological-slow-burn-horror': {
+    requiredSignalGroups: [['slow burn', 'slow-burn', 'atmospheric', 'atmosferico', 'atmosferica', 'folk horror', 'terror psicologico', 'psychological horror', 'gothic', 'gotico']],
     requiredAnyGenres: ['Horror'], excludedAnyGenres: ['Action', 'Adventure'], minSignals: 1,
     excludedSignals: ['slasher', 'zombie', 'zumbi', 'monster', 'monstro', 'grindhouse', 'gore'],
     signals: ['slow-burn', 'slow burn', 'paranoia', 'gothic', 'gotico', 'supernatural', 'sobrenatural', 'folk horror', 'dread', 'occult', 'oculto', 'atmospheric', 'atmosferico']
@@ -73,39 +91,56 @@ export const THEME_CRITERIA: Readonly<Record<string, ThemeCriteria>> = Object.fr
     signals: ['underrated', 'hidden gem', 'independent', 'independente', 'cult', 'underseen']
   },
   'acid-satire-dark-comedy': {
+    requiredSignalGroups: [['satire', 'satira', 'satirico', 'satirica', 'dark comedy', 'humor negro', 'social critique', 'critica social']],
     requiredAnyGenres: ['Comedy'], minSignals: 1,
     signals: ['satire', 'satira', 'dark comedy', 'humor negro', 'social critique', 'critica social', 'cynical', 'cinico', 'absurd', 'class struggle', 'sociedade']
   },
   'philosophical-hard-scifi': {
+    requiredSignalGroups: [['philosophical', 'philosophy', 'filosofico', 'filosofica', 'existencial', 'existential', 'etica', 'ethics', 'consciencia', 'consciousness', 'paradoxo temporal', 'time paradox', 'humanidade', 'humanity']],
     requiredAnyGenres: ['Sci-Fi'], excludedAnyGenres: ['Animation', 'Adventure', 'Fantasy', 'Action', 'Comedy'], minSignals: 1,
     excludedSignals: ['superhero', 'super-heroi', 'super heroi', 'justice league', 'batman', 'superman', 'marvel'],
     signals: ['philosophical', 'filosofico', 'cosmic', 'cosmos', 'artificial intelligence', 'inteligencia artificial', 'language', 'linguagem', 'time paradox', 'paradoxo temporal', 'alien', 'extraterrestre', 'scientific', 'cientifico']
   },
   'paranoia-70s-conspiracy-thriller': {
+    requiredSignalGroups: [['paranoia', 'conspiracy', 'conspiracao', 'surveillance', 'vigilancia', 'wiretap', 'escuta telefonica', 'espionagem', 'espionage']],
     requiredAnyGenres: ['Thriller', 'Mystery', 'Crime'], minSignals: 1,
     signals: ['paranoia', 'conspiracy', 'conspiracao', 'surveillance', 'vigilancia', 'political', 'politico', 'investigation', 'investigacao', 'government', 'governo', 'espionage', 'espionagem', 'wiretap', 'escuta']
   },
   'dreamlike-magical-realism': {
-    requiredAnyGenres: ['Fantasy', 'Drama', 'Romance'], excludedAnyGenres: ['Action', 'Adventure', 'Sci-Fi', 'Horror'], minSignals: 1,
+    relatedSignalGroups: [['magia', 'magico', 'magica', 'magic', 'sonho', 'dream', 'imaginacao', 'fantasia'], ['realidade', 'familia', 'vida', 'cotidiano', 'real world', 'life', 'surreal', 'poetico']],
+    relatedExcludedSignals: ['sonho de', 'dream of'],
+    requiredSignalGroups: [['magical realism', 'magic realism', 'realismo magico', 'dreamlike', 'dream world', 'surrealismo', 'surrealist', 'surreal fantasy', 'onirico', 'onirica', 'oniric', 'sonho e realidade']],
+    requiredAnyGenres: ['Fantasy', 'Drama', 'Romance'], excludedAnyGenres: ['Action', 'Sci-Fi', 'Horror'], minSignals: 1,
     signals: ['magical realism', 'realismo magico', 'dreamlike', 'dream', 'sonho', 'surreal', 'oniric', 'ethereal', 'fantasy', 'fantasia', 'poetic', 'poetico']
   },
   'claustrophobic-single-location': {
+    relatedSignalGroups: [['caixao', 'coffin', 'apartamento', 'apartment', 'elevador', 'elevator', 'bunker', 'quarto', 'room', 'cabine telefonica', 'phone booth', 'submarino', 'submarine', 'carro', 'car'], ['preso', 'presa', 'confinado', 'confined', 'trapped', 'locked', 'refens', 'refem', 'hostage', 'escape', 'escapar', 'sobreviver', 'survival', 'tensao']],
+    relatedExcludedGenres: ['Action', 'Adventure', 'War'],
+    requiredSignalGroups: [['single location', 'one location', 'unico cenario', 'um so cenario', 'unico local', 'bottle movie']],
     requiredAnyGenres: ['Thriller', 'Horror', 'Drama', 'Mystery'], excludedAnyGenres: ['Romance'], minSignals: 1,
     signals: ['single location', 'one location', 'claustrophobia', 'claustrofobia', 'confined', 'confinado', 'locked', 'trapped', 'bunker', 'prison', 'prisao', 'elevator', 'elevador']
   },
   'poetic-romance-fleeting-encounters': {
+    requiredSignalGroups: [['fleeting', 'brief encounter', 'one night', 'uma noite', 'unrequited', 'nao correspondido', 'desencontro', 'desencontros', 'despedida', 'longing', 'yearning', 'poucas horas']],
     requiredAnyGenres: ['Romance'], excludedAnyGenres: ['Action', 'Adventure', 'Crime', 'War', 'Western'], minSignals: 1,
     signals: ['fleeting', 'brief encounter', 'one night', 'despedida', 'longing', 'yearning', 'unrequited', 'desencontro', 'encounter', 'encontro', 'conversation', 'viagem']
   },
   'gritty-90s-crime-neo-realism': {
+    requiredSignalGroups: [['gritty', 'realismo cru', 'raw', 'marginal', 'slum', 'favela', 'hood', 'gangue', 'gang']],
     requiredAnyGenres: ['Crime'], excludedAnyGenres: ['Fantasy', 'Adventure', 'Action', 'Comedy', 'Sport'], minYear: 1980, minSignals: 1,
     signals: ['gritty', 'raw', 'urban', 'gang', 'gangue', 'marginal', 'slum', 'favela', 'hood', 'survival', 'sobrevivencia']
   },
   'whimsical-cozy-comfort': {
+    relatedSignalGroups: [['bondade', 'gentileza', 'cozinha', 'culinaria', 'cozinheiro', 'cooking', 'food'], ['amizade', 'amigos', 'family', 'familia', 'amor', 'encontro']],
+    relatedExcludedSignals: ['luto', 'tragedia', 'assassinato', 'murder', 'violencia'],
+    requiredSignalGroups: [['cozy', 'comfort', 'comforting', 'heartwarming', 'feel good', 'reconfortante', 'acolhedor', 'gentileza', 'kindness', 'bondade', 'pequenos gestos', 'humor delicado']],
     requiredAnyGenres: ['Comedy', 'Animation', 'Family', 'Romance', 'Drama'], excludedAnyGenres: ['Action', 'Crime', 'War', 'Horror', 'Thriller'], minSignals: 1,
     signals: ['cozy', 'comfort', 'heartwarming', 'feel-good', 'family', 'familia', 'friendship', 'amizade', 'food', 'comida', 'cooking', 'cozinha', 'kindness', 'gentileza']
   }
 });
+
+const CRITERIA_IDS = new Map(Object.entries(THEME_CRITERIA).map(([id, criteria]) => [criteria, id]));
+export function criteriaThemeId(criteria: ThemeCriteria): string | undefined { return CRITERIA_IDS.get(criteria); }
 
 export const THEMES_CATALOG: readonly Theme[] = [
   {

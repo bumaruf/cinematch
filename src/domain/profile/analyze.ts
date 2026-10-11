@@ -109,6 +109,7 @@ export function analyzeProfile(profile: UserProfile | null | undefined, catalog:
     const year = film.year ? Number.parseInt(String(film.year), 10) : null;
     const slug = slugKey(film.slug);
     watchedList.push({
+      imdbId: film.imdbId,
       title,
       year,
       slug,

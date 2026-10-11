@@ -23,6 +23,12 @@ function rating(film: FilmLike): Markup | '' {
     : '';
 }
 
+function themeFit(film: FilmLike): Markup | '' {
+  return film.themeFit === 'related'
+    ? html`<p class="text-[12px] text-muted" data-theme-fit="related">Próximo ao clima</p>`
+    : '';
+}
+
 function meta(film: FilmLike): Markup {
   const original = differentOriginalTitle(film);
   const parts = [film.runtimeMinutes ? `${film.runtimeMinutes} min` : '', film.director ?? '', film.country ?? '', original ? `Título original: ${original}` : ''];
@@ -64,6 +70,7 @@ export function filmCard(film: FilmLike, { variant = 'list', onToggleSave, saved
         </div>
         <div class="flex flex-col gap-1">
           <h3 class="font-serif text-[19px] leading-tight font-medium text-balance">${film.title}</h3>
+          ${themeFit(film)}
           <p class="flex flex-wrap items-center gap-x-3 text-[13px] text-muted">${film.year ? html`<span>${film.year}</span>` : ''}${rating(film)}${meta(film)}</p>
           ${film.affinityReason ? html`<p class="mt-1 border-l-2 border-accent/60 pl-2.5 text-[13px] leading-snug">${film.affinityReason}</p>` : ''}
           ${film.pitch ? html`<p class="mt-1 line-clamp-3 text-[13px] leading-relaxed text-muted">${film.pitch}</p>` : ''}
@@ -80,6 +87,7 @@ export function filmCard(film: FilmLike, { variant = 'list', onToggleSave, saved
         <a href="${link}" target="_blank" rel="noreferrer" class="${POSTER_CLASSES} self-start rounded-md shadow-md shadow-black/30 ring-1 ring-white/5" aria-label="Abrir ${film.title} no Letterboxd">${fallback}</a>
         <div class="flex min-w-0 flex-col gap-1">
           <h3 class="font-serif text-[19px] leading-tight font-medium text-balance">${film.title} ${film.year ? html`<span class="font-normal text-faint">${film.year}</span>` : ''}</h3>
+          ${themeFit(film)}
           <p class="flex flex-wrap items-center gap-x-3 text-[12.5px] text-muted">${rating(film)}${meta(film)}</p>
           ${film.affinityReason ? html`<p class="mt-1 border-l-2 border-accent/60 pl-2.5 text-[13px] leading-snug">${film.affinityReason}</p>` : ''}
           ${film.pitch ? html`<p class="mt-0.5 line-clamp-3 text-[13px] leading-relaxed text-muted">${film.pitch}</p>` : ''}

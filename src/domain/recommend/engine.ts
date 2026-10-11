@@ -1,5 +1,5 @@
 import type { Catalog } from '../catalog/catalog.ts';
-import type { CatalogFilm, DiscoveryMode, FilmIdentity, Filters, RecommendationResult, UserProfile } from '../film.ts';
+import type { CatalogFilm, FilmIdentity, Filters, RecommendationResult, UserProfile } from '../film.ts';
 import { analyzeProfile } from '../profile/analyze.ts';
 import { createFilmIdentityIndex } from '../profile/identity.ts';
 import { catalogIdentity, createWatchedIndex, toWatchedEntry } from '../profile/watched.ts';
@@ -9,7 +9,7 @@ import { getThemeById, getThemeCriteria } from '../themes/themes.ts';
 import { passesConstraints } from './filters.ts';
 import { fuzzyMatchInText, isSpecificKeyword, parseSearchQuery, passesQuery, type SearchQuery } from './query.ts';
 import { toRecommendation } from './recommendation.ts';
-import { matchesThemePacing, themeEligibility } from './theme-eligibility.ts';
+import { matchesThemePacing, relatedThemeEligibility, themeEligibility } from './theme-eligibility.ts';
 
 export const MAX_RECOMMENDATIONS = 6;
 
@@ -18,25 +18,22 @@ export interface RecommendationRequest {
   themeId?: string | null;
   customPrompt?: string;
   filters?: Filters;
-  mode?: DiscoveryMode;
   excludedFilms?: readonly FilmIdentity[];
 }
 
-type FallbackMode = 'recent' | 'expanded' | 'expanded-recent' | null;
+type FallbackMode = 'recent' | null;
 
 interface Ranked {
   film: CatalogFilm;
   keys: number[];
+  themeFit?: 'related';
 }
 
 const FALLBACK_COMMENTS: Record<Exclude<FallbackMode, null>, string> = {
   recent: 'Não havia opções inéditas nesse recorte; incluí sugestões anteriores que você ainda não marcou como assistidas.',
-  expanded: 'Seu histórico esgotou o recorte estrito; ampliei a seleção preservando os gêneros e exclusões deste clima.',
-  'expanded-recent':
-    'Seu histórico esgotou o recorte estrito; ampliei a seleção e incluí sugestões anteriores que você ainda não marcou como assistidas.',
 };
 
-const EMPTY_NOTICE = 'Nenhum filme novo encontrado: você já assistiu às opções compatíveis com este clima e seus filtros atuais.';
+const EMPTY_NOTICE = 'Não encontrei opções com evidência suficiente para este pedido e seus filtros. Tente outro clima ou ajuste um filtro.';
 
 const byKeys = (a: Ranked, b: Ranked): number => {
   for (let i = 0; i < a.keys.length; i++) {
@@ -56,7 +53,6 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
   const themeId = request.themeId ?? null;
   const criteria = getThemeCriteria(themeId);
   const profile = request.profile;
-  const mode = request.mode ?? 'familiar';
   const blocked = createFilmIdentityIndex(request.excludedFilms ?? []);
 
   const analyzed = analyzeProfile(profile, catalog, now);
@@ -93,8 +89,7 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
   };
   const affinityBonus = (film: CatalogFilm): number => {
     const taste = matchTaste(film);
-    return taste.score * (mode === 'familiar' ? 0.7 : mode === 'explore' ? 0.5 : 0.18) +
-      (mode !== 'familiar' && taste.hasPreferences && !taste.sameDirector ? 8 : 0);
+    return taste.score * 0.7;
   };
 
   let ranked: Ranked[];
@@ -111,46 +106,60 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
         return eligibility.eligible ? [{ film, signalCount: eligibility.signalCount }] : [];
       });
     const strictCandidates = eligible(strict);
-    let expandedCandidates: { film: CatalogFilm; signalCount: number }[] | null = null;
-    const expanded = (): { film: CatalogFilm; signalCount: number }[] => (expandedCandidates ??= strict > 0 ? eligible(0) : strictCandidates);
-    const collect = (candidates: readonly { film: CatalogFilm; signalCount: number }[], { allowRecent = false } = {}): Ranked[] =>
+    const collect = (candidates: readonly { film: CatalogFilm; signalCount: number }[], { allowRecent = false, related = false } = {}): Ranked[] =>
       candidates.flatMap(({ film, signalCount }) => {
         if (!passesFilters(film, { allowRecent })) return [];
         const semantic = Math.min(2, signalCount) * 6;
-        return [{ film, keys: [semantic + affinityBonus(film) + qualityBonus(film), signalCount, film.imdbRating || 0] }];
+        return [{ film, ...(related ? { themeFit: 'related' as const } : {}), keys: [semantic + affinityBonus(film) + qualityBonus(film), signalCount, film.imdbRating || 0] }];
       });
-    // Reusing an unwatched earlier suggestion beats an empty theme; after
-    // that, broaden the descriptive signal but keep the genre contract.
+    // Reuse a compatible earlier suggestion, but never weaken the theme promise.
     ranked = collect(strictCandidates);
     if (ranked.length === 0) {
       ranked = collect(strictCandidates, { allowRecent: true });
       if (ranked.length > 0) fallback = 'recent';
     }
-    if (ranked.length === 0 && strict > 0) {
-      ranked = collect(expanded());
-      if (ranked.length > 0) fallback = 'expanded';
-    }
-    if (ranked.length === 0 && strict > 0) {
-      ranked = collect(expanded(), { allowRecent: true });
-      if (ranked.length > 0) fallback = 'expanded-recent';
-    }
     ranked.sort(byKeys);
+    if (ranked.length < MAX_RECOMMENDATIONS) {
+      const exactIds = new Set(strictCandidates.map(candidate => candidate.film.slug));
+      const related = themePool.flatMap(film => {
+        if (exactIds.has(film.slug) || !matchesThemePacing(film, themeId)) return [];
+        const evidence = relatedThemeEligibility(film, criteria);
+        return evidence.eligible ? [{ film, signalCount: evidence.signalCount }] : [];
+      });
+      let nearby = collect(related, { related: true }).sort(byKeys);
+      if (!ranked.length && !nearby.length) {
+        nearby = collect(related, { related: true, allowRecent: true }).sort(byKeys);
+        if (nearby.length) fallback = 'recent';
+      }
+      ranked.push(...nearby);
+    }
   } else {
-    ranked = catalog.films.flatMap((film) => {
-      if (!passesFilters(film)) return [];
+    const general = (allowRecent = false): Ranked[] => catalog.films.flatMap((film) => {
+      if (!passesFilters(film, { allowRecent })) return [];
       const personal = matchTaste(film);
-      if (mode === 'familiar' && personal.hasPreferences && !personal.eligible) return [];
-      return [{ film, keys: [affinityBonus(film) + qualityBonus(film), film.imdbRating || 0] }];
+      return [{ film, keys: [personal.eligible ? 1 : 0, affinityBonus(film) + qualityBonus(film), film.imdbRating || 0] }];
     });
+    ranked = general();
+    if (!ranked.length) {
+      ranked = general(true);
+      if (ranked.length) fallback = 'recent';
+    }
     ranked.sort(byKeys);
   }
 
-  const recommendations = selectDiverse(ranked, MAX_RECOMMENDATIONS).map(({ film }) => {
+  const prioritizeAffinity = !query.tokens.length && !themeId;
+  const preferred = ranked.filter(candidate => prioritizeAffinity ? matchTaste(candidate.film).eligible : !candidate.themeFit);
+  const preferredIds = new Set(preferred.map(candidate => candidate.film.slug));
+  const selected = selectDiverse(preferred, MAX_RECOMMENDATIONS);
+  selected.push(...selectDiverse(ranked.filter(candidate => !preferredIds.has(candidate.film.slug)), MAX_RECOMMENDATIONS - selected.length, selected));
+  const recommendations = selected.map(({ film, themeFit }) => {
     const taste = matchTaste(film);
-    return toRecommendation(film, catalog, taste.eligible ? taste.reason : null);
+    return { ...toRecommendation(film, catalog, taste.eligible ? taste.reason : null), ...(themeFit ? { themeFit } : {}) };
   });
   const mapped = analyzed.totalLoggedFilms || analyzed.totalAnalyzed;
-  const fallbackComment = fallback ? FALLBACK_COMMENTS[fallback] : '';
+  const nearbyCount = recommendations.filter(film => film.themeFit === 'related').length;
+  const nearbyComment = nearbyCount ? `${nearbyCount} ${nearbyCount === 1 ? 'sugestão próxima' : 'sugestões próximas'} ao clima, com contexto compatível e sem confirmação de todos os detalhes de estilo.` : '';
+  const fallbackComment = [fallback ? FALLBACK_COMMENTS[fallback] : '', nearbyComment].filter(Boolean).join(' ');
   return {
     themeName: query.clean ? `Busca: "${prompt}"` : (getThemeById(themeId)?.title ?? 'Recomendação especial'),
     curatorComment:
@@ -159,16 +168,21 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
         : EMPTY_NOTICE,
     notice: recommendations.length === 0 ? EMPTY_NOTICE : fallbackComment,
     recommendations,
-    allowRecentFallback: fallback === 'recent' || fallback === 'expanded-recent',
+    allowRecentFallback: fallback === 'recent',
     interpretation: query.interpretation,
   };
 }
 
 /** Prefer at most two films from one director when the pool offers alternatives. */
-function selectDiverse(ranked: Ranked[], limit: number): Ranked[] {
+function selectDiverse(ranked: Ranked[], limit: number, preceding: readonly Ranked[] = []): Ranked[] {
+  if (limit <= 0) return [];
   const selected: Ranked[] = [];
   const deferred: Ranked[] = [];
   const directors = new Map<string, number>();
+  for (const candidate of preceding) {
+    const director = fold(candidate.film.director);
+    directors.set(director, (directors.get(director) ?? 0) + 1);
+  }
   for (const candidate of ranked) {
     const director = fold(candidate.film.director);
     if (director && (directors.get(director) ?? 0) >= 2) { deferred.push(candidate); continue; }

@@ -32,13 +32,18 @@ Regras puras, sem efeitos colaterais, testáveis sem mocks.
   `RecommendationResult`, `DailyPick`, `Filters`, `Settings`).
 - `text.ts`: a única implementação de normalização de texto, título e slug.
 - `catalog/`: índice do catálogo (`resolve`, `enrich`, pôsteres) montado a
-  partir dos dados, recebido por injeção, sem import global do dataset.
+  partir dos dados, recebido por injeção, sem import global do dataset. A
+  resolução prioriza IMDb ID e indexa nomes regionais revisados em
+  `identity-aliases.ts`, vinculados a um filme e ano, sem inferir equivalências
+  pelo nome de uma franquia. Dados antigos sem IMDb ID continuam aceitos.
 - `profile/`: análise de perfil, índice de filmes assistidos, fase do ano,
   importação de CSV (parse e merge).
 - `taste/`: afinidade de gosto.
 - `recommend/`: filtros, motor local (dividido em busca, tema e geral),
-  recomendação do dia e montagem do DTO `Recommendation`.
-- `themes/`: catálogo de atmosferas e busca.
+  recomendação do dia, montagem do DTO `Recommendation`, validação e resumo
+  das avaliações opcionais da curadoria.
+- `themes/`: catálogo de atmosferas, contratos de evidência e anotações
+  editoriais com fontes, ligadas ao identificador de um único filme.
 
 O tempo entra como parâmetro (`now: Date`). Textos exibidos ao usuário que
 nascem de regras (justificativas, comentários do curador, erros de validação)
@@ -52,10 +57,14 @@ suas dependências:
 - `profile.ts`: `getActiveProfile`, `syncProfile`, `importCsvProfile`,
   `clearProfile`, `repairLegacyCsvProfile` (migração, roda no `onInstalled`).
 - `recommendations.ts`: `generateRecommendations`, `getDailyPick`.
+- `evaluation.ts`: registrar uma resposta para um filme efetivamente indicado,
+  exportar o relatório do perfil ativo e apagar suas avaliações.
 - `library.ts`: filmes salvos, histórico, configurações e pôsteres.
 - `ports.ts`: interfaces que a infraestrutura implementa (`ProfileStore`,
   `SettingsStore`, `HistoryStore`, `SavedFilmsStore`, `DailyPickStore`,
-  `SyncCheckpointStore`, `LetterboxdSync`, `ArtworkSource`, `Clock`).
+  `SyncCheckpointStore`, `EvaluationStore`, `LetterboxdSync`, `ArtworkSource`,
+  `Clock`, `IdentifierSource`). O identificador de uma lista não depende apenas
+  do relógio: duas buscas no mesmo milissegundo continuam distintas.
 - `context.ts`: `AppContext`, o conjunto de portas que cada caso de uso recebe.
 
 Efeitos colaterais recorrentes, como "perfil trocado → limpar checkpoint e
@@ -94,7 +103,7 @@ Adaptadores das portas:
   skeletons usados por popup, painel e salvos.
 
 A UI nunca acessa o storage nem o catálogo diretamente. Como consequência, o
-catálogo de filmes (cerca de 25 MB na seleção expandida atual) fica só no bundle do service worker, e as páginas
+catálogo de filmes (cerca de 27 MB na seleção expandida atual) fica só no bundle do service worker, e as páginas
 abrem sem carregá-lo.
 
 ## Dados e ferramentas
@@ -104,4 +113,8 @@ abrem sem carregá-lo.
   `tools/catalog`.
 - `tools/catalog`: pipeline que gera os dados. O catálogo de filmes vem dos
   datasets não comerciais do IMDb e não é versionado; `npm run catalog:stub`
-  cria um vazio para compilar e testar.
+  cria um vazio para compilar e testar. `catalog:verify` compara durações por
+  IMDb ID sem substituir a seleção do catálogo; o enriquecimento TMDB pode
+  acrescentar palavras-chave específicas com a origem preservada.
+- `tools/diagnostics/theme-quality.ts`: verifica os contratos dos resultados
+  dos 15 climas. Essa auditoria não substitui julgamentos reais de espectadores.

@@ -22,6 +22,7 @@ export function foldWords(value: unknown): string {
  */
 export function normalizeTitle(value: unknown): string {
   return fold(value)
+    .replace(/[‘’ʼ]/g, "'")
     .replace(/^(the|a|an|o|os|as|um|uma|le|la|les|der|die|das)\s+/i, '')
     .replace(/[:\-–—.,'"!?()[\]{}_/]/g, ' ')
     .replace(/\b(vol|volume|pt|part|parte)\s*([0-9ivx]+)\b/gi, '$2')

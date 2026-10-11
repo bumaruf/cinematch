@@ -1,6 +1,9 @@
 import type { Settings } from '../domain/film.ts';
 import { letterboxdSearchUrl } from '../domain/recommend/recommendation.ts';
 import { createFilmIdentityIndex } from '../domain/profile/identity.ts';
+import { analyzeProfile } from '../domain/profile/analyze.ts';
+import { createWatchedIndex } from '../domain/profile/watched.ts';
+import { usernameKey } from '../domain/recommend/daily.ts';
 import type { AppContext } from './context.ts';
 import type { HistoryEntry, PopupSession, SavedFilm } from './ports.ts';
 
@@ -52,7 +55,15 @@ export async function listHistory(ctx: AppContext): Promise<HistoryEntry[]> {
 }
 
 export async function getPopupSession(ctx: AppContext): Promise<PopupSession | null> {
-  return ctx.popupSession.get();
+  const session = await ctx.popupSession.get();
+  if (session?.view !== 'results' || !session.result) return session;
+  const [profile, settings] = await Promise.all([ctx.profiles.get(), ctx.settings.get()]);
+  if (!settings.avoidWatched || !profile || usernameKey(profile.username) !== usernameKey(session.username)) return session;
+  const watched = createWatchedIndex(analyzeProfile(profile, ctx.catalog(), ctx.clock.now()).watchedList);
+  const films = session.result.films.filter(film => !watched.has(film));
+  if (films.length === session.result.films.length) return session;
+  return { ...session, result: { ...session.result, films,
+    note: films.length ? 'A lista foi atualizada para esconder os filmes já assistidos.' : 'Os filmes desta lista já constam no seu histórico. Faça uma nova busca.' } };
 }
 
 export async function savePopupSession(ctx: AppContext, session: PopupSession): Promise<void> {

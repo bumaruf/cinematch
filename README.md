@@ -12,10 +12,16 @@ local (25 mil filmes no catálogo expandido atual) e não envia seu perfil a nen
   de gêneros e sinais temáticos.
 - **Busca em linguagem natural:** gêneros e exclusões, país de produção, período e duração,
   como "comédia dos anos 90 sem terror até 90 minutos", com os critérios interpretados na tela.
-- **Familiar, Explorar e Surpreender:** diferentes pesos de afinidade e descoberta,
-  respeitando os filtros e o clima escolhido.
+- **Recomendações automáticas:** seu gosto orienta as sugestões, respeitando
+  os filtros e o clima escolhido, sem precisar escolher um modo de descoberta.
+- **Sugestões próximas:** quando faltam opções específicas do clima, alternativas
+  com contexto compatível são identificadas nos cards. Buscas vazias oferecem
+  uma nova busca geral sem o pedido e os filtros.
 - **Feedback local:** Hoje não (até amanhã), Não combina comigo e Já assisti,
   com Desfazer. Esses registros valem para o perfil ativo.
+- **Avaliação opcional da curadoria:** no painel, registre adequação ao pedido
+  e vontade de assistir, distinguindo filmes vistos de expectativas pela sinopse.
+  Exporte ou apague as respostas em Seu perfil.
 - **Filme do dia:** uma indicação diária determinística, baseada no que você
   avaliou bem.
 - **Seu perfil, histórico e lista de salvos** no painel.
@@ -50,6 +56,7 @@ npm run e2e        # carrega dist/ no Chromium e testa as telas (requer o catál
 npm run package    # gera cinematch-v<versão>.zip para a Chrome Web Store (requer o catálogo)
 npm run icons      # regera a logo da interface e os ícones a partir de assets/brand
 npm run diagnostics:recommendations # compara gostos com os mesmos assistidos e mede latência
+npm run diagnostics:themes # confere contratos dos climas e gera relatório local
 ```
 
 Para instalar, abra `chrome://extensions`, ative o **modo do desenvolvedor**,
@@ -85,7 +92,7 @@ docs/              arquitetura e screenshots
 ```
 
 A UI conversa com o service worker só pelo contrato de `src/messaging`. Por isso
-o catálogo (cerca de 25 MB no catálogo expandido atual) fica apenas no bundle do service worker, e as páginas abrem
+o catálogo (cerca de 27 MB no catálogo expandido atual) fica apenas no bundle do service worker, e as páginas abrem
 sem carregá-lo.
 
 ## Sincronização com o Letterboxd
@@ -114,11 +121,24 @@ npm run catalog:enrich    # termos temáticos
 npm run catalog:pitches   # sinopses em português via TMDB (TMDB_API_KEY)
 npm run catalog:posters   # pôsteres via TMDB (TMDB_READ_ACCESS_TOKEN)
 npm run catalog:tmdb      # completa sinopses, países, idioma e duração via TMDB
+npm run catalog:verify    # audita durações por IMDb ID; acrescente -- --apply para gravar
 npm run catalog:dedup
 ```
 
 Os mapas de pôsteres (`src/data/poster-catalog.js`) são versionados; o
 catálogo e o checkpoint de sinopses, não.
+
+`catalog:verify` consulta o dataset oficial `title.basics.tsv.gz` em streaming.
+`IMDB_BASICS_PATH` permite usar uma cópia local TSV ou gzip. O comando mantém a
+seleção atual e só aplica a revisão com `--apply`, após conferir a cobertura dos
+identificadores. Backups e relatórios ficam em `e2e-screenshots/`, fora do Git.
+
+Com `TMDB_READ_ACCESS_TOKEN` configurado no ambiente, `catalog:tmdb` retoma o
+checkpoint e preserva os valores já conhecidos. `TMDB_THEME_EVIDENCE=1` seleciona
+até 30 candidatos por clima para consultar palavras-chave dos próprios filmes;
+rótulos antigos apenas escolhem o que consultar. `TMDB_BATCH_LIMIT` limita a
+rodada e `TMDB_RETRY_INCOMPLETE=1` revisita registros incompletos já consultados.
+O script não grava a credencial no catálogo ou no checkpoint.
 
 ### Fontes e atribuição
 
@@ -129,7 +149,7 @@ catálogo e o checkpoint de sinopses, não.
 
 ## Dados e privacidade
 
-Perfil, preferências, histórico, filmes salvos e feedback ficam em `chrome.storage.local`.
+Perfil, preferências, histórico, filmes salvos, feedback e avaliações da curadoria ficam em `chrome.storage.local`.
 Hoje não expira na virada do dia em São Paulo. Já assisti é uma marcação local;
 não modifica o histórico sincronizado nem publica uma atividade no Letterboxd.
 A extensão acessa apenas o Letterboxd (sincronização e pôsteres) e o CDN de
@@ -139,8 +159,14 @@ aceitam somente HTTP/HTTPS.
 As palavras-chave novas registram sua origem (filme, gênero, diretor ou derivação).
 Termos de gênero ou estilo herdados automaticamente não comprovam um clima ou uma
 afinidade forte. Catálogos antigos recebem tratamento conservador; sinopses e dados
-ausentes ainda limitam a precisão. Durações desconhecidas deixam de receber o
-valor fictício de 100 minutos nas próximas importações; o catálogo existente não é reescrito.
+ausentes ainda limitam a precisão. Durações desconhecidas não recebem o valor
+fictício de 100 minutos. A revisão local de 7 de outubro conferiu os 25 mil
+identificadores; restam 45 durações e 860 países desconhecidos após o enriquecimento.
+
+O método, os resultados e o roteiro para avaliar com seu perfil estão em
+[docs/curation-validation.md](docs/curation-validation.md). Respostas humanas
+ainda são necessárias para medir os acertos; testes automáticos conferem regras
+e funcionamento, sem comprovar satisfação com a curadoria.
 
 Use aspas para buscar um título que também seja um país ou um ano, como
 `"Brazil"` ou `"1984"`. Feedback antigo pode ser revisto em **Seu perfil → Revisar feedback de sugestões**.

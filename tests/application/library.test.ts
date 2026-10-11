@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { getFilmArtwork, getPopupSession, getSettings, listSavedFilms, savePopupSession, toggleSavedFilm, updateSettings } from '../../src/application/library.ts';
 import { DEFAULT_SETTINGS, KEYS } from '../../src/infrastructure/storage/stores.ts';
 import { createTestContext, FIXED_NOW, testWithCatalog } from '../helpers.ts';
+import { createCatalog } from '../../src/domain/catalog/catalog.ts';
+import { toRecommendation } from '../../src/domain/recommend/recommendation.ts';
+import { film } from '../fixtures/catalog.ts';
 
 test('favoritar um filme salva nos bookmarks e favoritar de novo remove', async () => {
   const { ctx } = await createTestContext();
@@ -67,4 +70,20 @@ test('the popup session keeps the current list for this browser session', async 
   await savePopupSession(ctx, draft);
   assert.deepEqual(await getPopupSession(ctx), draft);
   await assert.rejects(savePopupSession(ctx, { ...session, result: { ...session.result, title: '' } }), /Resultado inválido/);
+});
+
+test('restoring an old popup list applies the current watched setting and regional identities', async () => {
+  const { ctx } = await createTestContext({ profile: { username: 'test', films: [{ title: "Harry Potter and the Philosopher's Stone", year: 2001, slug: 'harry-potter-and-the-philosophers-stone' }] } });
+  const catalog = createCatalog([film('potter', { imdbId: 'tt0241527', title: 'Harry Potter e a Pedra Filosofal', year: 2001 }), film('new')]);
+  ctx.catalog = () => catalog;
+  const movies = catalog.films.map(movie => toRecommendation(movie, catalog));
+  // Entries saved before this fix did not carry IMDb identity.
+  delete movies[0].imdbId;
+  const session = { username: 'test', view: 'results' as const, prompt: '', result: { title: 'Anterior', note: '', films: movies } };
+  await ctx.settings.update({ avoidWatched: false });
+  await savePopupSession(ctx, session);
+  assert.equal((await getPopupSession(ctx))?.result?.films.length, 2);
+  await updateSettings(ctx, { avoidWatched: true });
+  assert.deepEqual((await getPopupSession(ctx))?.result?.films.map(movie => movie.catalogSlug), ['new']);
+  assert.equal((await ctx.popupSession.get())?.result?.films.length, 2, 'the original list is preserved');
 });
