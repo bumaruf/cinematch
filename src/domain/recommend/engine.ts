@@ -6,7 +6,7 @@ import { catalogIdentity, createWatchedIndex, toWatchedEntry } from '../profile/
 import { createTasteMatcher } from '../taste/taste-match.ts';
 import { containsPhrase, fold, foldWords } from '../text.ts';
 import { getThemeById, getThemeCriteria } from '../themes/themes.ts';
-import { passesConstraints } from './filters.ts';
+import { constraintConflict, passesConstraints } from './filters.ts';
 import { fuzzyMatchInText, isSpecificKeyword, parseSearchQuery, passesQuery, type SearchQuery } from './query.ts';
 import { toRecommendation } from './recommendation.ts';
 import { matchesThemePacing, relatedThemeEligibility, themeEligibility } from './theme-eligibility.ts';
@@ -53,6 +53,12 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
   const themeId = request.themeId ?? null;
   const criteria = getThemeCriteria(themeId);
   const profile = request.profile;
+  const query = parseSearchQuery(prompt);
+  const conflict = query.issues[0] ?? constraintConflict(filters, query.constraints);
+  if (conflict) return {
+    themeName: query.clean ? `Busca: "${prompt}"` : (getThemeById(themeId)?.title ?? 'Recomendação especial'),
+    curatorComment: conflict, notice: conflict, recommendations: [], allowRecentFallback: false, interpretation: query.interpretation,
+  };
   const blocked = createFilmIdentityIndex(request.excludedFilms ?? []);
 
   const analyzed = analyzeProfile(profile, catalog, now);
@@ -62,7 +68,6 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
   const recent = createWatchedIndex(
     (filters.excludeRecent ?? []).filter((item) => item?.title).map((item) => ({ ...toWatchedEntry(item), catalogSlug: '' })),
   );
-  const query = parseSearchQuery(prompt);
 
   const passesFilters = (film: CatalogFilm, { allowRecent = false } = {}): boolean => {
     const identity = catalogIdentity(film);

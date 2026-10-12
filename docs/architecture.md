@@ -42,6 +42,9 @@ Regras puras, sem efeitos colaterais, testáveis sem mocks.
 - `recommend/`: filtros, motor local (dividido em busca, tema e geral),
   recomendação do dia, montagem do DTO `Recommendation`, validação e resumo
   das avaliações opcionais da curadoria.
+  A interpretação de texto separa limites de ano/duração (`query-constraints.ts`)
+  das cláusulas de gênero/país (`query-requirements.ts`). `query.ts` coordena a
+  extração e a busca lexical. Contradições retornam avisos pelo DTO existente.
 - `themes/`: catálogo de atmosferas, contratos de evidência e anotações
   editoriais com fontes, ligadas ao identificador de um único filme.
 

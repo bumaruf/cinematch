@@ -1,6 +1,6 @@
 # Chrome Web Store — CineMatch for Letterboxd (unofficial)
 
-Atualizado: 2026-10-10. Rascunho local; esta rodada não foi publicada.
+Atualizado: 2026-10-12. Rascunho local; esta rodada não foi publicada na loja.
 
 ## Listagem
 
@@ -12,7 +12,7 @@ Descrição detalhada:
 
 O CineMatch ajuda a escolher o próximo filme com base no seu perfil do Letterboxd.
 
-Explore 15 climas, peça gêneros, exclusões, país de produção, período e duração, e confira como seu pedido foi entendido. Seu gosto orienta as sugestões automaticamente.
+Explore 15 climas, peça gêneros, exclusões, país de produção, período e duração, e confira como seu pedido foi entendido. Combine alternativas como “suspense ou ficção científica, sem terror, até 1h40”. Pedidos contraditórios mostram o que precisa ser ajustado. Seu gosto orienta as sugestões automaticamente.
 
 Quando faltam opções com evidência específica do clima, a lista pode incluir sugestões identificadas como Próximo ao clima. Se a busca fica vazia, Ver sugestões gerais permite começar outra busca sem o pedido e os filtros, respeitando seus assistidos e feedback.
 
@@ -65,6 +65,7 @@ O catálogo IMDb tem licença de uso pessoal e não comercial; o código GPL nã
 
 | Versão | Data | Mudanças | Estado |
 |---|---|---|---|
+| 1.0.0, alterações locais | 2026-10-12 | Alternativas de gêneros e países, negações locais, intervalos de duração e explicação de conflitos entre texto e filtros | Rascunho local |
 | 1.0.0, alterações locais | 2026-10-12 | Ampliação das evidências de Um único cenário e Cinema lento; revisão das lacunas de metadados e auditoria de cobertura por popularidade | Rascunho local |
 | 1.0.0, alterações locais | 2026-10-10 | Remoção dos modos Familiar, Explorar e Surpreender; recomendação automática; correção do bloqueio de assistidos para títulos regionais e listas reabertas no popup | Rascunho local |
 | 1.0.0, alterações locais | 2026-10-07 | Avaliação opcional, revisão de metadados e climas; correção de listas vazias com proximidades identificadas e recuperação de busca | Rascunho local |

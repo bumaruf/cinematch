@@ -10,8 +10,10 @@ local (25 mil filmes no catálogo expandido atual) e não envia seu perfil a nen
 
 - **Recomendações por clima:** 15 atmosferas curadas, cada uma com um contrato
   de gêneros e sinais temáticos.
-- **Busca em linguagem natural:** gêneros e exclusões, país de produção, período e duração,
-  como "comédia dos anos 90 sem terror até 90 minutos", com os critérios interpretados na tela.
+- **Busca em linguagem natural:** gêneros e países com alternativas e exclusões,
+  período e duração, como "suspense ou ficção científica, sem terror, até 1h40".
+  A tela mostra os critérios aplicados e explica conflitos entre texto e filtros.
+  [Exemplos e limites da interpretação](docs/search-understanding.md).
 - **Recomendações automáticas:** seu gosto orienta as sugestões, respeitando
   os filtros e o clima escolhido, sem precisar escolher um modo de descoberta.
 - **Sugestões próximas:** quando faltam opções específicas do clima, alternativas
