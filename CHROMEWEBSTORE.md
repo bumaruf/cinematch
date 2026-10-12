@@ -65,6 +65,7 @@ O catálogo IMDb tem licença de uso pessoal e não comercial; o código GPL nã
 
 | Versão | Data | Mudanças | Estado |
 |---|---|---|---|
+| 1.0.0, alterações locais | 2026-10-12 | Ampliação das evidências de Um único cenário e Cinema lento; revisão das lacunas de metadados e auditoria de cobertura por popularidade | Rascunho local |
 | 1.0.0, alterações locais | 2026-10-10 | Remoção dos modos Familiar, Explorar e Surpreender; recomendação automática; correção do bloqueio de assistidos para títulos regionais e listas reabertas no popup | Rascunho local |
 | 1.0.0, alterações locais | 2026-10-07 | Avaliação opcional, revisão de metadados e climas; correção de listas vazias com proximidades identificadas e recuperação de busca | Rascunho local |
 | 1.0.0, alterações locais | 2026-10-06 | Interpretação de pedidos, personalização, modos de descoberta, feedback e correções de persistência; opção de watchlist removida | Rascunho local |

@@ -1,5 +1,10 @@
 # Avaliação e revisão da curadoria
 
+A ampliação posterior dos dois climas com menor cobertura e a nova consulta
+dos metadados estão documentadas em
+[Ampliação de cobertura e revisão de metadados](curation-coverage.md), de 12
+de outubro. Os números abaixo permanecem como registro da rodada anterior.
+
 Rodada local de 7 de outubro de 2026, começando pelo perfil do mantenedor.
 Abrange três frentes: preparar a avaliação real, refinar os climas subjetivos e
 conferir os metadados usados pelos filtros. A implementação está pronta para o
