@@ -56,7 +56,7 @@ npm run e2e        # carrega dist/ no Chromium e testa as telas (requer o catál
 npm run package    # gera cinematch-v<versão>.zip para a Chrome Web Store (requer o catálogo)
 npm run icons      # regera a logo da interface e os ícones a partir de assets/brand
 npm run diagnostics:recommendations # compara gostos com os mesmos assistidos e mede latência
-npm run diagnostics:themes # confere contratos dos climas e gera relatório local
+npm run diagnostics:themes # confere contratos e cobertura por mínimo de votos
 ```
 
 Para instalar, abra `chrome://extensions`, ative o **modo do desenvolvedor**,
@@ -167,6 +167,10 @@ O método, os resultados e o roteiro para avaliar com seu perfil estão em
 [docs/curation-validation.md](docs/curation-validation.md). Respostas humanas
 ainda são necessárias para medir os acertos; testes automáticos conferem regras
 e funcionamento, sem comprovar satisfação com a curadoria.
+
+A ampliação das evidências de Cinema lento e Um único cenário, seus limites
+de popularidade e a revisão posterior dos dados estão em
+[docs/curation-coverage.md](docs/curation-coverage.md).
 
 Use aspas para buscar um título que também seja um país ou um ano, como
 `"Brazil"` ou `"1984"`. Feedback antigo pode ser revisto em **Seu perfil → Revisar feedback de sugestões**.

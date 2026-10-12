@@ -40,3 +40,28 @@ test('film-specific plot and mood tags still need the promised cinematic trait',
   const magical = film('magical', { genres: ['Adventure', 'Drama', 'Fantasy'], keywordEvidence: [{ term: 'magic realism', source: 'film' }] });
   expect(themeEligibility(magical, getThemeCriteria('dreamlike-magical-realism')).eligible).toBe(true);
 });
+
+test('reviewed long takes in a single-location thriller do not imply contemplative pacing', () => {
+  const rope = film('rope', { imdbId: 'tt0040746', director: 'Alfred Hitchcock', genres: ['Crime', 'Drama', 'Mystery'] });
+  expect(themeEligibility(rope, getThemeCriteria('claustrophobic-single-location')).eligible).toBe(true);
+  expect(themeEligibility(rope, getThemeCriteria('slow-cinema-contemplative')).eligible).toBe(false);
+  const otherHitchcock = film('another-film', { director: 'Alfred Hitchcock' });
+  expect(themeEligibility(otherHitchcock, getThemeCriteria('claustrophobic-single-location')).eligible).toBe(false);
+});
+
+test('expanded reviewed candidates remain subject to watched, genre and duration filters', () => {
+  const buried = film('buried', { imdbId: 'tt1462758', runtime: 95, year: 2010 });
+  const tape = film('tape', { imdbId: 'tt0275719', runtime: 86, year: 2001 });
+  const catalog = createCatalog([buried, tape]);
+  const request = { profile: null, themeId: 'claustrophobic-single-location' };
+  const now = new Date('2026-10-12T15:00:00Z');
+  expect(new Set(recommend(request, catalog, now).recommendations.map(f => f.catalogSlug))).toEqual(new Set(['buried', 'tape']));
+  const profile = { username: 'test', films: [{ title: 'buried', imdbId: 'tt1462758', year: 2010, rating: 4 }] };
+  expect(recommend({ ...request, profile, filters: { maxRuntime: 90 } }, catalog, now).recommendations.map(f => f.catalogSlug)).toEqual(['tape']);
+  const unknownRuntime = createCatalog([{ ...tape, runtimeKnown: false }]);
+  expect(recommend({ ...request, filters: { maxRuntime: 90 } }, unknownRuntime, now).recommendations).toEqual([]);
+  expect(themeEligibility({ ...tape, genres: ['Romance'] }, getThemeCriteria(request.themeId)).eligible).toBe(false);
+  const oldJoy = film('old-joy', { imdbId: 'tt0468526' });
+  expect(themeEligibility(oldJoy, getThemeCriteria('slow-cinema-contemplative')).eligible).toBe(true);
+  expect(themeEligibility({ ...oldJoy, genres: ['Action', 'Drama'] }, getThemeCriteria('slow-cinema-contemplative')).eligible).toBe(false);
+});

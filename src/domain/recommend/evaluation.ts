@@ -1,6 +1,6 @@
 import type { Filters } from '../film.ts';
 
-export const CURATION_VERSION = '2026-10-10.2';
+export const CURATION_VERSION = '2026-10-12.1';
 export type EvaluationBasis = 'seen' | 'familiar' | 'synopsis';
 export type EvaluationFit = 'yes' | 'partly' | 'no' | 'unknown';
 export type EvaluationInterest = 'yes' | 'maybe' | 'no';
