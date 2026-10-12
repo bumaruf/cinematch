@@ -157,6 +157,35 @@ check('popup explica o pedido interpretado', (await popup.textContent('#popupInt
 await popup.waitForTimeout(700);
 await popup.screenshot({ path: `${shots}/popup-interpretation.png` });
 
+const settingsBeforeComposed = (await send('getSettings')).data;
+await send('updateSettings', { avoidWatched: true });
+await popup.click('#btnNewSearch');
+await popup.fill('#customPromptInput', 'suspense ou ficção científica, sem terror, até 1h40');
+await popup.click('#btnGenerateCustom');
+await popup.waitForFunction(() => document.querySelector('#moviesContainer[aria-busy="false"] article') && document.querySelector('#popupInterpretation').textContent.includes('suspense ou ficção científica'));
+check('popup mostra alternativas e duração composta', (await popup.textContent('#popupInterpretation')).includes('Até 100 min'));
+const composed = (await send('listHistory')).data[0];
+check('busca composta respeita os filtros no navegador', composed.movies.length > 0 && composed.movies.every(movie =>
+  (movie.genres.includes('Thriller') || movie.genres.includes('Sci-Fi')) && !movie.genres.includes('Horror') && movie.runtimeMinutes <= 100 && !watchedSlugs.has(movie.catalogSlug)));
+await popup.screenshot({ path: `${shots}/popup-composed-search.png` });
+await send('updateSettings', { avoidWatched: settingsBeforeComposed.avoidWatched });
+
+const settingsBeforeConflict = (await send('getSettings')).data;
+await popup.click('#btnNewSearch');
+await popup.fill('#customPromptInput', 'drama mais de 120 min até 90 min');
+await popup.click('#btnGenerateCustom');
+await popup.waitForFunction(() => document.querySelector('#moviesContainer[aria-busy="false"] [role="status"]')?.textContent.includes('limites de duração não se cruzam'));
+check('popup explica contradição sem mudar as configurações', JSON.stringify((await send('getSettings')).data) === JSON.stringify(settingsBeforeConflict));
+await popup.screenshot({ path: `${shots}/popup-search-conflict.png` });
+
+await dashboard.bringToFront();
+await dashboard.click('.nav-item[data-tab="curator"]');
+await dashboard.fill('#dashCustomPrompt', 'terror sem terror');
+await dashboard.click('#dashBtnGenerate');
+await dashboard.waitForFunction(() => document.querySelector('#dashMoviesGrid[aria-busy="false"] [role="status"]')?.textContent.includes('exige e exclui'));
+check('painel explica critérios que se contradizem', (await dashboard.locator('#dashMoviesGrid article').count()) === 0);
+await dashboard.screenshot({ path: `${shots}/dashboard-search-conflict.png` });
+
 await send('recordFilmFeedback', { film, kind: 'not-for-me', username: imported.data.profile.username });
 await dashboard.click('.nav-item[data-tab="dna"]');
 await dashboard.click('#dashFeedbackReview summary');

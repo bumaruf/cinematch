@@ -10,6 +10,17 @@ const RUNTIME_RANGES: Record<RuntimeFilter, [number, number]> = {
   'over-150': [150, Infinity],
 };
 
+/** Explain an empty intersection before searching, including form + text bounds. */
+export function constraintConflict(...filters: Filters[]): string | null {
+  const minYear = Math.max(...filters.map(filter => filter.minYear ?? -Infinity));
+  const maxYear = Math.min(...filters.map(filter => filter.maxYear ?? Infinity));
+  if (minYear > maxYear) return 'Os períodos pedidos não se cruzam. Revise os anos no texto e no filtro de época.';
+  const minRuntime = Math.max(1, ...filters.flatMap(filter => [filter.minRuntime ?? 1, filter.runtimeFilter ? RUNTIME_RANGES[filter.runtimeFilter][0] : 1]));
+  const maxRuntime = Math.min(...filters.flatMap(filter => [filter.maxRuntime ?? Infinity, filter.runtimeFilter ? RUNTIME_RANGES[filter.runtimeFilter][1] : Infinity]));
+  if (minRuntime > maxRuntime) return 'Os limites de duração não se cruzam. Revise a duração no texto e no filtro de duração.';
+  return null;
+}
+
 export interface Constrainable {
   year?: number | string | null;
   runtime?: number | null;
