@@ -29,8 +29,8 @@ export interface ImportSummary extends ActiveProfile {
 
 export const GUEST_PROFILE: UserProfile = { username: 'Convidado', displayName: 'Cinéfilo', films: [], favorites: [] };
 
-function describe(ctx: AppContext, profile: UserProfile): ActiveProfile {
-  const catalog = ctx.catalog();
+async function describe(ctx: AppContext, profile: UserProfile): Promise<ActiveProfile> {
+  const catalog = await ctx.catalog();
   return {
     profile,
     analyzed: analyzeProfile(profile, catalog, ctx.clock.now()),
@@ -60,7 +60,7 @@ export async function syncProfile(
   await ctx.profiles.save(result.profile);
   await ctx.popupSession.clear();
   await ctx.letterboxd.clearProgress();
-  return { pending: false, ...describe(ctx, result.profile) };
+  return { pending: false, ...await describe(ctx, result.profile) };
 }
 
 /** Imports Letterboxd CSV exports into the current profile (or a new one). */
@@ -69,12 +69,12 @@ export async function importCsvProfile(ctx: AppContext, files: CsvFile[]): Promi
   const incoming: ProfileFilm[] = files.flatMap((file) => parseProfileCsv(file.text, file.name));
   const previous = await ctx.profiles.get();
   const base: UserProfile = previous ?? { username: 'Usuário', displayName: 'Cinéfilo', films: [], favorites: [] };
-  const result = importProfileSnapshot(ctx.catalog(), base, incoming, ctx.clock.now());
+  const result = importProfileSnapshot(await ctx.catalog(), base, incoming, ctx.clock.now());
   await ctx.profiles.replace(result.profile, previous, 'import');
   await ctx.popupSession.clear();
   await ctx.letterboxd.clearProgress();
   return {
-    ...describe(ctx, result.profile),
+    ...await describe(ctx, result.profile),
     authoritative: result.authoritative,
     addedCount: result.addedCount,
     updatedRatingCount: result.updatedRatingCount,
@@ -93,7 +93,7 @@ export async function clearProfile(ctx: AppContext): Promise<void> {
 export async function repairLegacyCsvProfile(ctx: AppContext): Promise<boolean> {
   const profile = await ctx.profiles.get();
   if (!needsCsvRepair(profile)) return false;
-  const repaired = mergeProfileFilms(ctx.catalog(), profile.films);
+  const repaired = mergeProfileFilms(await ctx.catalog(), profile.films);
   await ctx.profiles.replace(
     {
       ...profile,

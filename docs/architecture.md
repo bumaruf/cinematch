@@ -69,6 +69,8 @@ suas dependências:
   `Clock`, `IdentifierSource`). O identificador de uma lista não depende apenas
   do relógio: duas buscas no mesmo milissegundo continuam distintas.
 - `context.ts`: `AppContext`, o conjunto de portas que cada caso de uso recebe.
+  `catalog()` retorna uma Promise; os casos de uso aguardam os dados apenas
+  quando precisam resolver identidades ou gerar indicações.
 
 Efeitos colaterais recorrentes, como "perfil trocado → limpar checkpoint e
 últimas recomendações", vivem num só caso de uso.
@@ -83,6 +85,10 @@ Adaptadores das portas:
 - `letterboxd/`: cliente HTTP (erros tipados, sem `SKIP_404:` em string),
   parser de HTML/RSS e busca paginada com checkpoint.
 - `artwork.ts`: pôster via `og:image`, com cache limitado.
+- `catalog-resource.ts`: lê o catálogo comprimido dentro do pacote, descomprime
+  e cria os índices na primeira demanda. Pedidos simultâneos compartilham uma
+  Promise; falhas permitem uma nova tentativa. O cache dura até o worker parar.
+- `catalog.ts`: adaptador síncrono reservado a testes e diagnósticos Node.
 
 ## Mensagens (`src/messaging`)
 
@@ -105,15 +111,20 @@ Adaptadores das portas:
 - `shared/film-card.ts`: o card de filme (variantes lista e pôster) e os
   skeletons usados por popup, painel e salvos.
 
-A UI nunca acessa o storage nem o catálogo diretamente. Como consequência, o
-catálogo de filmes (cerca de 27 MB na seleção expandida atual) fica só no bundle do service worker, e as páginas
-abrem sem carregá-lo.
+A UI nunca acessa o storage nem o catálogo diretamente. O catálogo fica em um
+arquivo local comprimido, separado do JavaScript. Nem as páginas nem a
+inicialização do worker carregam os dados. Os listeners de mensagens continuam
+registrados de forma síncrona, antes de qualquer leitura do catálogo.
 
 ## Dados e ferramentas
 
 - `src/data`: dados gerados (`films-dataset.js`, `poster-catalog.js`) e seus
-  `.d.ts`. Só `infrastructure/catalog.ts` os importa. Não edite à mão; use
-  `tools/catalog`.
+  `.d.ts`. No código de runtime, só `infrastructure/catalog.ts` os importa,
+  para o adaptador Node. Não edite à mão; use `tools/catalog`.
+- `tools/build/catalog-asset.ts`: plugin do Vite que empacota os mesmos filmes e
+  pôsteres em JSON gzip, com hash no nome. A composição recebe a URL do asset;
+  não usa `import()` dinâmico no service worker Manifest V3. No desenvolvimento,
+  o Vite serve o recurso local e atualiza os dados quando suas fontes mudam.
 - `tools/catalog`: pipeline que gera os dados. O catálogo de filmes vem dos
   datasets não comerciais do IMDb e não é versionado; `npm run catalog:stub`
   cria um vazio para compilar e testar. `catalog:verify` compara durações por
@@ -121,3 +132,7 @@ abrem sem carregá-lo.
   acrescentar palavras-chave específicas com a origem preservada.
 - `tools/diagnostics/theme-quality.ts`: verifica os contratos dos resultados
   dos 15 climas. Essa auditoria não substitui julgamentos reais de espectadores.
+- `tools/diagnostics/performance.ts`: mede o motor com relógio fixo e permite
+  comparar os resultados completos entre versões. `catalog-package.ts` verifica
+  que o pacote preserva todos os dados e mantém o catálogo fora dos scripts.
+  Método e resultados em [performance.md](performance.md).

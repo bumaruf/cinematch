@@ -54,12 +54,27 @@ export function createWatchedIndex(entries: readonly WatchedEntry[]): WatchedInd
   const bySlug = new Map<string, WatchedEntry[]>();
   const byYear = new Map<number, WatchedEntry[]>();
   const unknownYear: WatchedEntry[] = [];
+  // Different known IMDb IDs can never match by title. Keep legacy entries in
+  // a separate index so a catalog candidate only scans unresolved identities.
+  const unidentified = entries.filter(entry => !entry.imdbId);
+  const unidentifiedByYear = new Map<number, WatchedEntry[]>();
+  const unidentifiedUnknownYear: WatchedEntry[] = [];
+  const normalizedCatalogSlugs = new Map(entries.map(entry => [entry, normalizeSlug(entry.catalogSlug)]));
+  const append = <K>(index: Map<K, WatchedEntry[]>, key: K, entry: WatchedEntry): void => {
+    const group = index.get(key);
+    if (group) group.push(entry);
+    else index.set(key, [entry]);
+  };
   for (const entry of entries) {
     for (const slug of new Set([entry.slug, entry.catalogSlug].filter(Boolean).map(normalizeSlug))) {
-      bySlug.set(slug, [...(bySlug.get(slug) ?? []), entry]);
+      append(bySlug, slug, entry);
     }
     if (!entry.year) unknownYear.push(entry);
-    else byYear.set(entry.year, [...(byYear.get(entry.year) ?? []), entry]);
+    else append(byYear, entry.year, entry);
+    if (!entry.imdbId) {
+      if (!entry.year) unidentifiedUnknownYear.push(entry);
+      else append(unidentifiedByYear, entry.year, entry);
+    }
   }
 
   function has(candidate: FilmIdentity): boolean {
@@ -68,6 +83,7 @@ export function createWatchedIndex(entries: readonly WatchedEntry[]): WatchedInd
     const idsCompatible = (entry: WatchedEntry): boolean => !imdbId || !entry.imdbId || imdbId === fold(entry.imdbId);
     const slug = slugKey(candidate.letterboxdSlug || candidate.slug);
     const catalogSlug = slugKey(candidate.catalogSlug);
+    const normalizedCatalogSlug = normalizeSlug(catalogSlug);
     const year = candidate.year ? Number.parseInt(String(candidate.year), 10) : null;
     const slugs = [slug, catalogSlug].filter(Boolean);
 
@@ -84,9 +100,11 @@ export function createWatchedIndex(entries: readonly WatchedEntry[]): WatchedInd
 
     const title = normalizeTitle(candidate.title);
     const originalTitle = normalizeTitle(candidate.originalTitle);
+    const years = imdbId ? unidentifiedByYear : byYear;
+    const undated = imdbId ? unidentifiedUnknownYear : unknownYear;
     const pool = year
-      ? [...(byYear.get(year - 1) ?? []), ...(byYear.get(year) ?? []), ...(byYear.get(year + 1) ?? []), ...unknownYear]
-      : entries;
+      ? [...(years.get(year - 1) ?? []), ...(years.get(year) ?? []), ...(years.get(year + 1) ?? []), ...undated]
+      : imdbId ? unidentified : entries;
 
     for (const watched of pool) {
       if (!idsCompatible(watched)) continue;
@@ -94,7 +112,7 @@ export function createWatchedIndex(entries: readonly WatchedEntry[]): WatchedInd
       if (watched.catalogTitleAmbiguous) continue;
       // With unambiguous catalog identities on both sides, different slugs
       // are different films even if their Brazilian titles collide.
-      if (catalogSlug && watched.catalogSlug && normalizeSlug(catalogSlug) !== normalizeSlug(watched.catalogSlug)) continue;
+      if (catalogSlug && watched.catalogSlug && normalizedCatalogSlug !== normalizedCatalogSlugs.get(watched)) continue;
       const watchedTitle = watched.normalizedTitle;
       if (!watchedTitle) continue;
 

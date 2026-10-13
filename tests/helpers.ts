@@ -63,7 +63,7 @@ export async function createTestContext(options: TestContextOptions = {}) {
   const clock = { now };
   let identifier = 0;
   const ctx: AppContext = {
-    catalog: loadCatalog,
+    catalog: async () => loadCatalog(),
     clock,
     identifiers: { next: () => `test_${++identifier}` },
     profiles: profileStore(kv, clock.now),

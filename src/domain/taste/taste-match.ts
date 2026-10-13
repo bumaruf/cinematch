@@ -12,7 +12,7 @@ export interface TasteMatch {
 }
 export type TasteCandidate = EvidenceFilm & { country?: string };
 export type TasteMatcher = (film: TasteCandidate) => TasteMatch;
-interface Signal extends EnrichedFilm { tags: Set<string>; weight: number }
+interface Signal extends EnrichedFilm { tags: Set<string>; weight: number; directorKey: string; genreKeys: string[] }
 
 /** Indexed evidence keeps work proportional to relevant signals, not history size. */
 export function createTasteMatcher(profile: Partial<UserProfile>, catalog: Catalog): TasteMatcher {
@@ -35,7 +35,8 @@ export function createTasteMatcher(profile: Partial<UserProfile>, catalog: Catal
     return tag.length >= 5 && frequency >= 2 && frequency <= Math.max(2, catalog.films.length * 0.01);
   }));
   const liked: Signal[] = [...records.values()].filter((film) => film.isFavorite || (film.rating ?? 0) >= cutoff)
-    .map((film) => ({ ...film, tags: tagsOf(film), weight: film.isFavorite ? 1.25 : 1 + Math.max(0, (film.rating ?? cutoff) - cutoff) * 0.15 }));
+    .map((film) => ({ ...film, tags: tagsOf(film), directorKey: fold(film.director), genreKeys: film.genres.map(fold),
+      weight: film.isFavorite ? 1.25 : 1 + Math.max(0, (film.rating ?? cutoff) - cutoff) * 0.15 }));
   if (liked.length === 0) return () => ({ eligible: false, score: 0, reason: '', hasPreferences: false, sameDirector: false });
   const disliked = [...records.values()].filter((film) => !film.isFavorite && typeof film.rating === 'number' && film.rating <= 2)
     .map((film) => ({ ...film, tags: tagsOf(film) }));
@@ -45,10 +46,10 @@ export function createTasteMatcher(profile: Partial<UserProfile>, catalog: Catal
   let totalWeight = 0;
   for (const signal of liked) {
     totalWeight += signal.weight;
-    const director = fold(signal.director);
+    const director = signal.directorKey;
     if (director) { const group = directors.get(director) ?? new Set(); group.add(signal); directors.set(director, group); }
     for (const tag of signal.tags) { const group = tags.get(tag) ?? new Set(); group.add(signal); tags.set(tag, group); }
-    for (const genre of signal.genres) genreWeight.set(fold(genre), (genreWeight.get(fold(genre)) ?? 0) + signal.weight / Math.max(1, signal.genres.length));
+    for (const genre of signal.genreKeys) genreWeight.set(genre, (genreWeight.get(genre) ?? 0) + signal.weight / Math.max(1, signal.genres.length));
   }
   const negativeDirectors = new Set(disliked.map((film) => fold(film.director)).filter(Boolean));
   const negativeTags = new Set(disliked.flatMap((film) => [...film.tags]));
@@ -63,8 +64,8 @@ export function createTasteMatcher(profile: Partial<UserProfile>, catalog: Catal
     let best = { score: 0, reason: '', sameDirector: false };
     for (const signal of relevant) {
       const shared = [...signal.tags].filter((tag) => candidateTags.has(tag));
-      const sameDirector = Boolean(director && director === fold(signal.director));
-      const overlap = signal.genres.filter((genre) => genres.has(fold(genre))).length;
+      const sameDirector = Boolean(director && director === signal.directorKey);
+      const overlap = signal.genreKeys.filter((genre) => genres.has(genre)).length;
       if (!sameDirector && !(shared.length >= 2 && overlap >= 1)) continue;
       const score = (sameDirector ? 42 : 28) + Math.min(12, shared.length * 4) + Math.min(6, overlap * 2) + (signal.isFavorite ? 8 : (signal.rating ?? 0) >= 4.5 ? 4 : 0);
       if (score > best.score) best = { score, sameDirector,

@@ -4,7 +4,7 @@ import { createCatalog, type Catalog } from '../domain/catalog/catalog.ts';
 
 let catalog: Catalog | null = null;
 
-/** The bundled catalog, indexed on first use. */
+/** Synchronous adapter for Node diagnostics and tests; not imported by the worker. */
 export function loadCatalog(): Catalog {
   catalog ??= createCatalog(EXPANDED_FILM_DATABASE, POSTER_PATHS_BY_IMDB_ID);
   return catalog;

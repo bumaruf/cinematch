@@ -62,3 +62,17 @@ test('a short unrelated title cannot resolve a longer unknown film title by subs
   const small = createCatalog([film('o', { title: 'O', originalTitle: 'O', year: 2001 })]);
   expect(small.resolve({ title: 'Another movie', year: 2001 }).film).toBeNull();
 });
+
+test('known candidates still match legacy entries with absent IMDb identity, including undated and misspelled titles', () => {
+  const watched = createWatchedIndex([
+    toWatchedEntry({ title: 'An Unknown Movie', year: 2001 }),
+    toWatchedEntry({ title: 'Another Unresolved Movie' }),
+    toWatchedEntry({ title: 'Identical title', year: 2001, imdbId: 'tt-other' }),
+  ]);
+  expect(watched.has({ title: 'An Unknown Movi', year: 2001, imdbId: 'tt-new' })).toBe(true);
+  expect(watched.has({ title: 'Another Unresolved Movie', year: 2001, imdbId: 'tt-new' })).toBe(true);
+  expect(watched.has({ title: 'Identical title', year: 2001, imdbId: 'tt-new' })).toBe(false);
+  expect(watched.has({ title: 'An Unknown Movie', year: 2030, imdbId: 'tt-new' })).toBe(false);
+  expect(watched.has({ title: 'An Unknown Movie', imdbId: 'tt-new' })).toBe(true);
+  expect(watched.has({ title: 'Identical title', year: 2001 })).toBe(true);
+});
