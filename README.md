@@ -59,6 +59,8 @@ npm run package    # gera cinematch-v<versão>.zip para a Chrome Web Store (requ
 npm run icons      # regera a logo da interface e os ícones a partir de assets/brand
 npm run diagnostics:recommendations # compara gostos com os mesmos assistidos e mede latência
 npm run diagnostics:themes # confere contratos e cobertura por mínimo de votos
+npm run diagnostics:performance # mede o motor com perfil sintético e relógio fixo
+npm run diagnostics:package # verifica integridade e tamanho do catálogo no dist/ já gerado
 ```
 
 Para instalar, abra `chrome://extensions`, ative o **modo do desenvolvedor**,
@@ -74,6 +76,11 @@ catálogo real e rodam localmente.
 
 O código segue camadas com uma regra de dependência verificada por
 `tests/architecture.test.ts`. Detalhes em [docs/architecture.md](docs/architecture.md).
+
+O catálogo é um recurso local comprimido, carregado quando uma operação precisa
+dos filmes. Configurações e histórico podem responder sem carregar esses dados.
+As medições e os comandos para comparar versões estão em
+[docs/performance.md](docs/performance.md).
 
 ```
 src/

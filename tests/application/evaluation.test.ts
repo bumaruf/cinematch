@@ -8,7 +8,7 @@ import type { FilmAssessment } from '../../src/domain/recommend/evaluation.ts';
 
 async function setup() {
   const { ctx } = await createTestContext({ profile: { username: 'real-person', films: [], filmCountKnown: true } });
-  ctx.catalog = () => createCatalog([film('one'), film('two')]);
+  ctx.catalog = async () => createCatalog([film('one'), film('two')]);
   const result = await generateRecommendations(ctx, {});
   const input = { username: 'real-person', sessionId: result.evaluationSessionId!, assessment: {
     catalogSlug: 'one', basis: 'seen', fit: 'yes', interest: 'no', issue: '', comment: 'Combina, mas não quero rever.',

@@ -1,5 +1,6 @@
 import type { AppContext } from '../application/context.ts';
-import { loadCatalog } from '../infrastructure/catalog.ts';
+import { createPackagedCatalogLoader } from '../infrastructure/catalog-resource.ts';
+import catalogUrl from 'virtual:cinematch-catalog-url';
 import { letterboxdArtwork } from '../infrastructure/letterboxd/artwork.ts';
 import { tabAwareFetcher } from '../infrastructure/letterboxd/http.ts';
 import { createLetterboxdSync } from '../infrastructure/letterboxd/sync.ts';
@@ -23,7 +24,7 @@ export function createContext(kv: KeyValueStore, sessionKv: KeyValueStore = kv):
   const clock = { now: () => new Date() };
   const checkpoints = syncCheckpointStore(kv);
   return {
-    catalog: loadCatalog,
+    catalog: createPackagedCatalogLoader(catalogUrl),
     clock,
     identifiers: { next: () => crypto.randomUUID() },
     profiles: profileStore(kv, clock.now),

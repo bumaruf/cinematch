@@ -7,7 +7,7 @@ import { createTestContext, FIXED_NOW } from '../helpers.ts';
 
 async function context() {
   const { ctx } = await createTestContext({ profile: { username: 'test', films: [{ title: 'seen', slug: 'seen', rating: 5 }] } });
-  ctx.catalog = discoveryCatalog;
+  ctx.catalog = async () => discoveryCatalog();
   return ctx;
 }
 

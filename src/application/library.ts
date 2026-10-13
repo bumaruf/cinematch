@@ -30,8 +30,10 @@ export async function toggleSavedFilm(ctx: AppContext, film: SavedFilmInput): Pr
  * versions may lack poster, genres or a link.
  */
 export async function listSavedFilms(ctx: AppContext): Promise<SavedFilm[]> {
-  const catalog = ctx.catalog();
-  return (await ctx.saved.list()).map((film) => {
+  const saved = await ctx.saved.list();
+  if (!saved.length) return [];
+  const catalog = await ctx.catalog();
+  return saved.map((film) => {
     const match = catalog.resolve({ ...film, slug: film.letterboxdSlug || film.slug }).film;
     return {
       ...film,
@@ -59,7 +61,7 @@ export async function getPopupSession(ctx: AppContext): Promise<PopupSession | n
   if (session?.view !== 'results' || !session.result) return session;
   const [profile, settings] = await Promise.all([ctx.profiles.get(), ctx.settings.get()]);
   if (!settings.avoidWatched || !profile || usernameKey(profile.username) !== usernameKey(session.username)) return session;
-  const watched = createWatchedIndex(analyzeProfile(profile, ctx.catalog(), ctx.clock.now()).watchedList);
+  const watched = createWatchedIndex(analyzeProfile(profile, await ctx.catalog(), ctx.clock.now()).watchedList);
   const films = session.result.films.filter(film => !watched.has(film));
   if (films.length === session.result.films.length) return session;
   return { ...session, result: { ...session.result, films,

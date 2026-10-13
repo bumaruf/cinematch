@@ -20,7 +20,7 @@ export async function recordFilmFeedback(ctx: AppContext, { film, kind, username
   const profile = await ctx.profiles.get();
   const username = usernameKey(profile?.username);
   if (expected && usernameKey(expected) !== username) throw new Error('O perfil foi alterado. Tente novamente.');
-  const metadata = ctx.catalog().resolve({ ...film, slug: film.catalogSlug || film.letterboxdSlug || film.slug }).film;
+  const metadata = (await ctx.catalog()).resolve({ ...film, slug: film.catalogSlug || film.letterboxdSlug || film.slug }).film;
   const identity: FilmIdentity = metadata ? catalogIdentity(metadata) : { title: film.title, year: film.year, slug: film.letterboxdSlug || film.slug };
   const target = createFilmIdentityIndex([identity]);
   const now = ctx.clock.now();

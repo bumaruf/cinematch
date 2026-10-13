@@ -35,8 +35,8 @@ testWithCatalog('listing saved films completes poster and metadata from the cata
     },
   });
   const [film] = await listSavedFilms(ctx);
-  assert.ok(ctx.catalog().posterPath('tt0080684'));
-  assert.equal(film.posterPath, ctx.catalog().posterPath('tt0080684'));
+  assert.ok((await ctx.catalog()).posterPath('tt0080684'));
+  assert.equal(film.posterPath, (await ctx.catalog()).posterPath('tt0080684'));
   assert.ok(film.director);
   assert.ok(film.genres?.length);
   assert.ok(film.runtimeMinutes);
@@ -75,7 +75,7 @@ test('the popup session keeps the current list for this browser session', async 
 test('restoring an old popup list applies the current watched setting and regional identities', async () => {
   const { ctx } = await createTestContext({ profile: { username: 'test', films: [{ title: "Harry Potter and the Philosopher's Stone", year: 2001, slug: 'harry-potter-and-the-philosophers-stone' }] } });
   const catalog = createCatalog([film('potter', { imdbId: 'tt0241527', title: 'Harry Potter e a Pedra Filosofal', year: 2001 }), film('new')]);
-  ctx.catalog = () => catalog;
+  ctx.catalog = async () => catalog;
   const movies = catalog.films.map(movie => toRecommendation(movie, catalog));
   // Entries saved before this fix did not carry IMDb identity.
   delete movies[0].imdbId;

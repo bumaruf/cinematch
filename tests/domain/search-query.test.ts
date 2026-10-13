@@ -189,7 +189,7 @@ test.each(['suspense ou', 'drama sem'])('incomplete operators request a correcti
 
 test('the application persists the applied OR interpretation and conflict result', async () => {
   const { ctx } = await createTestContext();
-  ctx.catalog = () => createCatalog([film('thriller', { genres: ['Thriller'] }), film('scifi', { genres: ['Sci-Fi'] })]);
+  ctx.catalog = async () => createCatalog([film('thriller', { genres: ['Thriller'] }), film('scifi', { genres: ['Sci-Fi'] })]);
   const prompt = 'suspense ou ficção científica, até 1h40';
   const found = await generateRecommendations(ctx, { customPrompt: prompt });
   expect(ids(found)).toEqual(['scifi', 'thriller']);

@@ -1,4 +1,5 @@
 import type { Filters, Recommendation, RecommendationResult, UserProfile } from '../domain/film.ts';
+import type { Catalog } from '../domain/catalog/catalog.ts';
 import { analyzeProfile } from '../domain/profile/analyze.ts';
 import { createWatchedIndex, toWatchedEntry } from '../domain/profile/watched.ts';
 import { createFilmIdentityIndex } from '../domain/profile/identity.ts';
@@ -47,7 +48,7 @@ export async function generateRecommendations(ctx: AppContext, query: Recommenda
     .flatMap((entry) => (Array.isArray(entry.movies) ? entry.movies : []))
     .filter((movie) => movie?.title);
   const now = ctx.clock.now();
-  const catalog = ctx.catalog();
+  const catalog = await ctx.catalog();
   const excludedFilms = activeFeedback(await ctx.feedback.list(usernameKey(profile.username)), now).map((entry) => entry.film);
   const result = recommend(
     {
@@ -70,7 +71,7 @@ export async function generateRecommendations(ctx: AppContext, query: Recommenda
   const recommendations = dropRepeated(result.recommendations, profile, excludeRecent, {
     allowRecent: Boolean(query.customPrompt) || result.allowRecentFallback,
     avoidWatched: settings.avoidWatched,
-    ctx,
+    catalog, now,
   });
   const sessionId = `rec_${now.getTime()}_${ctx.identifiers.next()}`;
   const final = { ...result, recommendations, evaluationSessionId: sessionId };
@@ -98,9 +99,9 @@ function dropRepeated(
   recommendations: Recommendation[],
   profile: UserProfile,
   recent: Recommendation[],
-  { allowRecent, avoidWatched, ctx }: { allowRecent: boolean; avoidWatched: boolean; ctx: AppContext },
+  { allowRecent, avoidWatched, catalog, now }: { allowRecent: boolean; avoidWatched: boolean; catalog: Catalog; now: Date },
 ): Recommendation[] {
-  const watched = createWatchedIndex(analyzeProfile(profile, ctx.catalog(), ctx.clock.now()).watchedList);
+  const watched = createWatchedIndex(analyzeProfile(profile, catalog, now).watchedList);
   const recentIndex = createWatchedIndex(recent.map((movie) => ({ ...toWatchedEntry(movie), catalogSlug: '' })));
   const emitted = new Set<string>();
   return recommendations.filter((movie) => {
@@ -157,7 +158,7 @@ export async function getDailyPick(ctx: AppContext, options: { refresh?: boolean
     .slice(0, RECENT_DAILY_PICKS)
     .map((entry) => entry.data?.film?.letterboxdSlug)
     .filter(Boolean);
-  const pick = pickDaily(profile, ctx.catalog(), { date: today, now, excludedSlugs, excludedFilms });
+  const pick = pickDaily(profile, await ctx.catalog(), { date: today, now, excludedSlugs, excludedFilms });
   const data: StoredDailyPick = { ...pick, profileKey: key, profileUsername: username, kind: 'daily' };
   await ctx.daily.add({ username, date: today, data });
   return { username, profileKey: key, data };
@@ -181,7 +182,7 @@ export async function getSurprisePick(ctx: AppContext, options: { username?: str
     .slice(0, RECENT_DAILY_PICKS)
     .map((entry) => entry.data?.film?.letterboxdSlug)
     .filter(Boolean)];
-  const pick = pickDaily(profile, ctx.catalog(), { date: today, now, excludedSlugs, excludedFilms });
+  const pick = pickDaily(profile, await ctx.catalog(), { date: today, now, excludedSlugs, excludedFilms });
   const data: StoredDailyPick = { ...pick, profileKey: key, profileUsername: username, kind: 'surprise' };
   await ctx.daily.add({ username, date: today, data });
   return { username: daily.username, profileKey: key, data };

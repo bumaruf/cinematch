@@ -16,8 +16,8 @@ import type {
 
 /** Everything a use case may depend on, wired by the background worker. */
 export interface AppContext {
-  /** Indexed on first use: building it costs a few hundred milliseconds. */
-  catalog(): Catalog;
+  /** Loads and indexes packaged data on first use; shared for this worker's lifetime. */
+  catalog(): Promise<Catalog>;
   clock: Clock;
   identifiers: IdentifierSource;
   profiles: ProfileStore;
