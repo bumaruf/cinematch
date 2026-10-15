@@ -7,7 +7,7 @@ import { html, joinHtml, render } from '../../shared/html.ts';
 import type { Notifier } from './state.ts';
 
 const choices = (name: string, options: readonly [string, string][]) => joinHtml(options.map(([value, label]) =>
-  html`<label class="flex min-h-11 cursor-pointer items-center gap-2 rounded-chip border border-line px-3 py-2 text-[13px] has-checked:border-accent has-checked:text-accent"><input class="accent-accent" type="radio" name="${name}" value="${value}" required><span>${label}</span></label>`));
+  html`<label class="flex min-h-11 cursor-pointer items-center gap-2 rounded-chip border border-line px-3 py-2 text-[13px] has-checked:border-brand has-checked:text-brand"><input class="accent-brand" type="radio" name="${name}" value="${value}" required><span>${label}</span></label>`));
 
 /** An optional pilot, using real suggestions and the active profile. */
 export function setupRecommendationEvaluation(notify: Notifier, currentUsername: () => string | null) {
@@ -51,7 +51,7 @@ export function setupRecommendationEvaluation(notify: Notifier, currentUsername:
         <fieldset><legend class="mb-2 text-[13px] font-semibold">Você teria vontade de assistir?</legend><div class="flex flex-wrap gap-2">${choices('interest', [['yes', 'Sim'], ['maybe', 'Talvez'], ['no', 'Não']])}</div></fieldset>
         <div><label for="evaluationIssue" class="mb-2 block text-[13px] font-semibold">Principal problema, se houver</label><select id="evaluationIssue" name="issue" class="field w-full"><option value="">Nenhum problema identificado</option><option value="climate">Clima diferente do prometido</option><option value="taste">Não combina com meu gosto</option><option value="request">Pedido interpretado errado</option><option value="metadata">Dados do filme incorretos</option><option value="watched">Eu já tinha assistido</option><option value="other">Outro</option></select></div>
         <div><label for="evaluationComment" class="mb-2 block text-[13px] font-semibold">O que fez você pensar isso? (opcional)</label><textarea id="evaluationComment" name="comment" class="field min-h-24 w-full" maxlength="500" rows="3" aria-describedby="evaluationPrivacy"></textarea><p id="evaluationPrivacy" class="mt-2 text-[12px] text-muted">Até 500 caracteres. A exportação inclui o pedido, os filmes e estas respostas; evite informações pessoais no comentário.</p></div>
-        <button class="btn btn-primary" type="submit">Salvar avaliação</button><p id="evaluationStatus" class="text-[13px] text-accent" role="status"></p>
+        <button class="btn btn-primary" type="submit">Salvar avaliação</button><p id="evaluationStatus" class="text-[13px] text-brand" role="status"></p>
       </form></details>`);
     const form = panel.querySelector<HTMLFormElement>('#dashEvaluationForm')!;
     const status = form.querySelector<HTMLElement>('#evaluationStatus')!;

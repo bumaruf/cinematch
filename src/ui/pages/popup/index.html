@@ -30,7 +30,7 @@
   <main id="homeView">
     <section id="profileSection" class="border-b border-line px-4 pt-1 pb-4 has-[#profileEmpty:not(.hidden)]:border-b-0" aria-label="Perfil">
       <div id="profileLoading" class="flex items-center gap-3 text-[13px] text-muted hidden" role="status">
-        <div class="size-5 animate-spin rounded-full border-2 border-line-strong border-t-accent"></div>
+        <div class="size-5 animate-spin rounded-full border-2 border-line-strong border-t-brand"></div>
         <span id="syncProgressText">Sincronizando…</span>
       </div>
 
@@ -40,7 +40,7 @@
           <input type="text" id="usernameInput" class="field" placeholder="ex.: seu_usuario" autocomplete="off" spellcheck="false">
           <button id="btnSyncProfile" class="btn btn-primary min-h-10" type="submit">Conectar</button>
         </div>
-        <p class="mt-3 text-[13px] text-muted">Perfil privado ou sem internet? <button id="btnImportCsv" class="cursor-pointer text-ink underline underline-offset-2 hover:text-accent" type="button">Importe o CSV do Letterboxd</button></p>
+        <p class="mt-3 text-[13px] text-muted">Perfil privado ou sem internet? <button id="btnImportCsv" class="cursor-pointer text-ink underline underline-offset-2 hover:text-brand" type="button">Importe o CSV do Letterboxd</button></p>
       </form>
 
       <div id="profileLoaded" class="flex items-center gap-3 hidden">
@@ -113,7 +113,7 @@
     </div>
     <h2 id="resultsTitle" class="mt-1 font-serif text-2xl leading-tight font-medium text-balance"></h2>
     <p id="curatorNote" class="mt-2 text-[13px] text-muted empty:hidden"></p>
-    <p id="popupInterpretation" class="mt-2 text-[12px] text-accent empty:hidden" role="status"></p>
+    <p id="popupInterpretation" class="mt-2 text-[12px] text-brand empty:hidden" role="status"></p>
     <div id="moviesContainer" class="mt-1" aria-live="polite"></div>
   </section>
 

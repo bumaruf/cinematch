@@ -18,10 +18,19 @@
   --color-ink: #eeebe5;
   --color-muted: #a5a9b0;
   --color-faint: #767b83;
+  /* Brand palette, from assets/brand. Gold (the icon's star): the main action
+     and ratings. Teal (the film reel): selection, focus, links and taste.
+     Coral (the "match" wordmark): small brand accents only, never actions.
+     Teal is lifted from the logo's #278f8a for contrast on dark surfaces. */
   --color-accent: #e8b54f;
   --color-accent-strong: #f5c96f;
   --color-on-accent: #1d1705;
-  --color-danger: #ea8573;
+  --color-brand: #3aa7a0;
+  --color-brand-strong: #4bb5ad;
+  --color-on-brand: #06201e;
+  --color-coral: #e98978;
+  /* A clear red, so destructive actions never read as the coral brand. */
+  --color-danger: #f25c54;
 
   --font-sans: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif;
   --font-serif: 'Newsreader Variable', Georgia, serif;
@@ -69,12 +78,12 @@ body {
   }
 
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-accent;
+    @apply outline-2 outline-offset-2 outline-brand;
   }
 
   input,
   select {
-    accent-color: var(--color-accent);
+    accent-color: var(--color-brand);
   }
 
   [hidden],
@@ -105,11 +114,11 @@ body {
   }
 
   .field {
-    @apply min-h-10 w-full rounded-lg border border-line-strong bg-bg px-3 text-ink placeholder:text-faint focus-visible:border-accent focus-visible:outline-offset-0;
+    @apply min-h-10 w-full rounded-lg border border-line-strong bg-bg px-3 text-ink placeholder:text-faint focus-visible:border-brand focus-visible:outline-offset-0;
   }
 
   .chip {
-    @apply inline-flex min-h-8 cursor-pointer items-center rounded-full border border-line px-3 whitespace-nowrap text-muted transition-colors hover:border-line-strong hover:text-ink pressed:border-accent pressed:bg-accent/10 pressed:text-ink;
+    @apply inline-flex min-h-8 cursor-pointer items-center rounded-full border border-line px-3 whitespace-nowrap text-muted transition-colors hover:border-line-strong hover:text-ink pressed:border-brand pressed:bg-brand/10 pressed:text-ink;
   }
 
   .nav-item {

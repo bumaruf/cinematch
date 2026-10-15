@@ -65,14 +65,14 @@ export function filmCard(film: FilmLike, { variant = 'list', onToggleSave, saved
       card,
       html`
         <div class="relative">
-          <a href="${link}" target="_blank" rel="noreferrer" class="${POSTER_CLASSES} rounded-card shadow-lg shadow-black/30 ring-1 ring-white/5 transition duration-300 group-hover:-translate-y-1 group-hover:ring-accent/40 motion-reduce:transition-none" aria-label="Abrir ${film.title} no Letterboxd">${fallback}</a>
+          <a href="${link}" target="_blank" rel="noreferrer" class="${POSTER_CLASSES} rounded-card shadow-lg shadow-black/30 ring-1 ring-white/5 transition duration-300 group-hover:-translate-y-1 group-hover:ring-brand/40 motion-reduce:transition-none" aria-label="Abrir ${film.title} no Letterboxd">${fallback}</a>
           ${onToggleSave ? saveButton(variant) : ''}
         </div>
         <div class="flex flex-col gap-1">
           <h3 class="font-serif text-[19px] leading-tight font-medium text-balance">${film.title}</h3>
           ${themeFit(film)}
           <p class="flex flex-wrap items-center gap-x-3 text-[13px] text-muted">${film.year ? html`<span>${film.year}</span>` : ''}${rating(film)}${meta(film)}</p>
-          ${film.affinityReason ? html`<p class="mt-1 border-l-2 border-accent/60 pl-2.5 text-[13px] leading-snug">${film.affinityReason}</p>` : ''}
+          ${film.affinityReason ? html`<p class="mt-1 border-l-2 border-brand/60 pl-2.5 text-[13px] leading-snug">${film.affinityReason}</p>` : ''}
           ${film.pitch ? html`<p class="mt-1 line-clamp-3 text-[13px] leading-relaxed text-muted">${film.pitch}</p>` : ''}
           <div class="mt-1 flex flex-wrap gap-1">
             <a class="btn btn-quiet min-h-8 gap-1.5 px-2 text-[13px] [&_svg]:size-4" href="${trailer}" target="_blank" rel="noreferrer" aria-label="Buscar trailer de ${film.title} no YouTube">${ICONS.play}Trailer</a>
@@ -89,7 +89,7 @@ export function filmCard(film: FilmLike, { variant = 'list', onToggleSave, saved
           <h3 class="font-serif text-[19px] leading-tight font-medium text-balance">${film.title} ${film.year ? html`<span class="font-normal text-faint">${film.year}</span>` : ''}</h3>
           ${themeFit(film)}
           <p class="flex flex-wrap items-center gap-x-3 text-[12.5px] text-muted">${rating(film)}${meta(film)}</p>
-          ${film.affinityReason ? html`<p class="mt-1 border-l-2 border-accent/60 pl-2.5 text-[13px] leading-snug">${film.affinityReason}</p>` : ''}
+          ${film.affinityReason ? html`<p class="mt-1 border-l-2 border-brand/60 pl-2.5 text-[13px] leading-snug">${film.affinityReason}</p>` : ''}
           ${film.pitch ? html`<p class="mt-0.5 line-clamp-3 text-[13px] leading-relaxed text-muted">${film.pitch}</p>` : ''}
           <div class="mt-1 -ml-2 flex flex-wrap gap-1">
             <a class="btn btn-quiet min-h-8 gap-1.5 px-2 text-[13px] [&_svg]:size-4" href="${link}" target="_blank" rel="noreferrer">${ICONS.external}Letterboxd</a>
