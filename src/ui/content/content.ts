@@ -118,8 +118,8 @@ function injectBadge(): void {
     try {
       if (username) {
         try {
-          const active = await send('getActiveProfile');
-          const activeName = active?.profile.films.length ? active.profile.username : '';
+          const active = await send('getProfileSummary');
+          const activeName = active?.profile.filmCount ? active.profile.username : '';
           if (!activeName) {
             // Nothing to lose yet: the member being viewed becomes the profile.
             label.textContent = 'Atualizando histórico…';

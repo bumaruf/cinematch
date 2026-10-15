@@ -19,10 +19,13 @@ export interface CatalogFilm {
   imdbRating: number;
   imdbVotes: number;
   imdbId: string;
-  themes: string[];
+  /** Generated labels in the source data; not shipped in the packaged catalog. */
+  themes?: string[];
   genres: string[];
   keywords: string[];
   pitch: string;
+  /** Precomputed by the build for the packaged catalog (see tasteTags). */
+  tasteTags?: string[];
 }
 
 export interface KeywordEvidence {
@@ -65,6 +68,8 @@ export interface ProfileFilm {
 
 /** A profile film completed with catalog metadata when its identity is safe. */
 export interface EnrichedFilm extends ProfileFilm {
+  /** The catalog match's precomputed tags, when its descriptive data came from the catalog. */
+  tasteTags?: readonly string[];
   catalogSlug: string;
   catalogTitleAmbiguous: boolean;
   director: string;

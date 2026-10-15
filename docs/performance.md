@@ -151,3 +151,52 @@ perfil de CPU mostrava essas funções recalculadas para cada filme a cada pedid
 O heap do diagnóstico passou de 147 MB para 185 MB, por causa do índice e dos
 caches. A primeira busca lexical depois de reativar o worker paga a montagem
 do índice.
+
+## Rodada de 15 de outubro de 2026: o que o usuário sente
+
+Medida no navegador com `npm run diagnostics:ui` (Microsoft Edge, perfil
+sintético de 940 filmes). "Frio" é o service worker recém-acordado: o Chrome o
+encerra depois de uns 30 segundos sem uso. As páginas não tinham tarefas longas;
+o tempo estava todo no worker.
+
+| Ação | Antes | Depois |
+|---|---:|---:|
+| Abrir o popup até o conteúdo, worker frio | 505–889 ms | 79–90 ms |
+| Abrir o painel até o filme do dia, worker frio | 1.908 ms | 899 ms |
+| Clima no popup, worker quente | 211 ms | 46 ms |
+| Clima no painel, worker quente | 119 ms | 63–73 ms |
+| Busca composta no popup, worker quente | 195 ms | 98–105 ms |
+| Resposta de `getActiveProfile` | 622 KB, 197 ms | 10 KB, 18 ms |
+
+Clicar num clima 1,5 s depois de abrir o popup frio leva 330 ms: o catálogo já
+carregou durante esse tempo.
+
+**Abertura sem catálogo.** O cabeçalho usa `getProfileSummary`, que não carrega o
+catálogo. As páginas pedem `warmUp` ao abrir, e o catálogo carrega enquanto a
+pessoa olha a tela. O painel pede o filme do dia assim que sabe quem é o perfil,
+sem esperar as estatísticas. As respostas não levam mais o histórico inteiro.
+
+**Perfil preparado entre pedidos.** Análise, índice de assistidos e modelo de
+gosto ficam guardados enquanto o perfil e o "Não combina comigo" não mudam.
+O modelo memoriza a nota de cada filme, então o segundo pedido reaproveita o
+trabalho do primeiro. Os candidatos de cada clima dependem só do catálogo e
+também são calculados uma vez.
+
+**Catálogo pré-processado.** O build normaliza os filmes, retira `themes`,
+`metadataSources` e `originalLanguage` (nenhum código os lê em tempo de execução)
+e grava as etiquetas de gosto de cada filme. O teste
+`tests/domain/packaged-catalog.test.ts` confirma, com o catálogo real, que as
+indicações e o filme do dia são idênticos aos do catálogo bruto.
+
+| Worker frio, Node | Antes | Depois |
+|---|---:|---:|
+| `JSON.parse` do catálogo | 141 ms | 100 ms |
+| Índices do catálogo | 304–416 ms | 224 ms |
+| Preparar o perfil | 197 ms | 14 ms |
+| Primeiro filme do dia | 965 ms | 105 ms |
+
+**Trabalho ocioso.** Depois de 3 s sem pedidos, o worker prepara o filme do dia
+e monta o índice de busca em etapas de 1.500 filmes, cedendo a vez entre elas.
+Um clique durante esse trabalho é atendido entre uma etapa e outra.
+
+Os resultados dos 21 cenários de `diagnostics:performance` continuam idênticos.

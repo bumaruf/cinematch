@@ -1,4 +1,4 @@
-import type { ActiveProfile } from '../../../application/profile.ts';
+import type { ProfileOverview } from '../../../application/profile.ts';
 import type { InterpretedBy, Recommendation } from '../../../domain/film.ts';
 import { THEMES_CATALOG } from '../../../domain/themes/themes.ts';
 import { onSyncProgress, send, syncProfileFully } from '../../../messaging/client.ts';
@@ -85,14 +85,13 @@ onReady(async () => {
     show(el.discover, hasProfile && state !== 'empty');
   }
 
-  function displayProfile({ profile, analyzed }: Pick<ActiveProfile, 'profile' | 'analyzed'>): void {
+  function displayProfile(profile: ProfileOverview, average: number): void {
     hasProfile = true;
     profileUsername = profile.username;
     profileState('loaded');
     el.displayName.textContent = profile.displayName || profile.username;
     el.displayName.title = `@${profile.username}`;
-    el.totalFilms.textContent = (profile.totalFilms || profile.films.length).toLocaleString('pt-BR');
-    const average = analyzed.stats.avgRating;
+    el.totalFilms.textContent = (profile.totalFilms || profile.filmCount).toLocaleString('pt-BR');
     el.avgRating.textContent = average > 0 ? average.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '—';
     show(el.avatar, Boolean(profile.avatarUrl));
     show(el.avatarFallback, !profile.avatarUrl);
@@ -106,7 +105,8 @@ onReady(async () => {
     profileState('loading');
     el.syncProgress.textContent = `Sincronizando @${username}…`;
     try {
-      displayProfile(await syncProfileFully(username, { onProgress: (message) => (el.syncProgress.textContent = message) }));
+      const synced = await syncProfileFully(username, { onProgress: (message) => (el.syncProgress.textContent = message) });
+      displayProfile(synced.profile, synced.analyzed.stats.avgRating);
     } catch (error) {
       profileState(hasProfile ? 'loaded' : 'empty');
       showError((error as Error).message || 'Não foi possível sincronizar. Confira o usuário e tente de novo.');
@@ -290,11 +290,13 @@ onReady(async () => {
 
   // ── Start ─────────────────────────────────────────────────────────────────
   try {
-    const active = await send('getActiveProfile');
-    if (active) {
-      displayProfile(active);
-      const session = await send('getPopupSession');
-      if (session?.username.toLowerCase() === active.profile.username.toLowerCase()) {
+    // The header needs no catalog; the catalog starts loading meanwhile, so the
+    // first climate click does not pay for it.
+    void send('warmUp').catch(() => {});
+    const [summary, session] = await Promise.all([send('getProfileSummary'), send('getPopupSession')]);
+    if (summary) {
+      displayProfile(summary.profile, summary.avgRating);
+      if (session?.username.toLowerCase() === summary.profile.username.toLowerCase()) {
         if (session.view === 'results' && session.result) await showResults(session.result, false);
         else el.prompt.value = session.prompt;
       }

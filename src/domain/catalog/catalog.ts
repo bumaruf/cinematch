@@ -49,6 +49,12 @@ export interface Catalog {
    * Built on the first lexical search; lets a search score only candidates.
    */
   searchVocabulary(): ReadonlyMap<string, readonly CatalogFilm[]>;
+  /**
+   * Builds the search vocabulary a few films at a time, so idle background
+   * work can yield between steps. True once complete; searchVocabulary()
+   * finishes whatever is left.
+   */
+  buildSearchVocabulary(films: number): boolean;
 }
 
 /** Shape of the generated dataset, before normalization. */
@@ -76,8 +82,12 @@ export function normalizeCatalogFilm(film: RawCatalogFilm): CatalogFilm {
   };
 }
 
-export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: PosterPaths = {}): Catalog {
-  const films = rawFilms.map(normalizeCatalogFilm);
+/**
+ * Indexes catalog films. `normalized` skips normalizeCatalogFilm for data the
+ * build already normalized (see packageCatalog), which every worker start repeated.
+ */
+export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: PosterPaths = {}, { normalized = false } = {}): Catalog {
+  const films = normalized ? (rawFilms as readonly CatalogFilm[]) : rawFilms.map(normalizeCatalogFilm);
   const bySlug = new Map(films.map((film) => [film.slug, film]));
   const byImdbId = new Map(films.filter(film => film.imdbId).map(film => [fold(film.imdbId), film]));
   const byNormalizedSlug = new Map<string, CatalogFilm[]>();
@@ -116,11 +126,13 @@ export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: Post
     return frequency;
   };
 
-  let vocabulary: Map<string, CatalogFilm[]> | null = null;
-  const searchVocabulary = (): Map<string, CatalogFilm[]> => {
-    if (vocabulary) return vocabulary;
-    vocabulary = new Map();
-    for (const film of films) {
+  const vocabulary = new Map<string, CatalogFilm[]>();
+  let indexedFilms = 0;
+  /** Indexes up to `count` more films, in catalog order; true when all are in. */
+  const buildSearchVocabulary = (count: number): boolean => {
+    const end = Math.min(films.length, indexedFilms + count);
+    for (; indexedFilms < end; indexedFilms++) {
+      const film = films[indexedFilms];
       const doc = searchDocument(film);
       for (const field of [doc.title, doc.originalTitle, doc.director, doc.country, doc.pitch, doc.genres, doc.keywords.join(' ')]) {
         for (const word of field.split(WORD_SEPARATORS)) {
@@ -132,6 +144,10 @@ export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: Post
         }
       }
     }
+    return indexedFilms === films.length;
+  };
+  const searchVocabulary = (): Map<string, CatalogFilm[]> => {
+    buildSearchVocabulary(Infinity);
     return vocabulary;
   };
 
@@ -199,6 +215,8 @@ export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: Post
       keywords: film.keywords?.length ? film.keywords : (metadata?.keywords ?? []),
       keywordEvidence: film.keywordEvidence ?? metadata?.keywordEvidence,
       pitch: film.pitch || metadata?.pitch || '',
+      // Precomputed tags only describe the catalog's keywords and synopsis.
+      ...(metadata?.tasteTags && !film.keywords?.length && !film.keywordEvidence && !film.pitch ? { tasteTags: metadata.tasteTags } : {}),
       runtime: film.runtime || metadata?.runtime || null,
       country: film.country || metadata?.country || '',
     };
@@ -223,5 +241,6 @@ export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: Post
     posterPath: (imdbId) => posters[imdbId] ?? '',
     keywordFrequency: (keyword) => keywordFrequencies().get(keyword) ?? 0,
     searchVocabulary,
+    buildSearchVocabulary,
   };
 }

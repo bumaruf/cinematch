@@ -1,9 +1,8 @@
 import type { Catalog } from '../catalog/catalog.ts';
 import type { CatalogFilm, FilmIdentity, Filters, RecommendationResult, UserProfile } from '../film.ts';
-import { analyzeProfile } from '../profile/analyze.ts';
 import { createFilmIdentityIndex } from '../profile/identity.ts';
 import { catalogIdentity, createWatchedIndex, toWatchedEntry } from '../profile/watched.ts';
-import { createTasteMatcher } from '../taste/taste-match.ts';
+import { prepareProfile, type PreparedProfile } from './prepared.ts';
 import { containsPhrase, fold, foldWords, WORD_SEPARATORS } from '../text.ts';
 import { getThemeById, getThemeCriteria } from '../themes/themes.ts';
 import { constraintConflict, passesConstraints } from './filters.ts';
@@ -26,6 +25,8 @@ export interface RecommendationRequest {
    * similar rank. Searches stay strictly ordered by relevance.
    */
   seed?: string;
+  /** Derived profile data a caller kept from an earlier request with the same inputs. */
+  prepared?: PreparedProfile;
   /** A query already read from `customPrompt` (by the on-device model); parsed by rules otherwise. */
   searchQuery?: SearchQuery;
 }
@@ -82,7 +83,6 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
   const filters = request.filters ?? {};
   const prompt = request.customPrompt ?? '';
   const themeId = request.themeId ?? null;
-  const criteria = getThemeCriteria(themeId);
   const profile = request.profile;
   const query = request.searchQuery ?? parseSearchQuery(prompt);
   const conflict = query.issues[0] ?? constraintConflict(filters, query.constraints);
@@ -92,9 +92,8 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
   };
   const blocked = createFilmIdentityIndex([...(request.excludedFilms ?? []), ...(request.rejectedFilms ?? [])]);
 
-  const analyzed = analyzeProfile(profile, catalog, now);
-  const matchTaste = createTasteMatcher(profile ?? {}, catalog, { rejected: request.rejectedFilms });
-  const watched = createWatchedIndex(analyzed.watchedList);
+  const prepared = request.prepared ?? prepareProfile(profile, catalog, now, { rejected: request.rejectedFilms });
+  const { analyzed, matchTaste } = prepared;
   // Earlier recommendations are compared by slug and title only.
   const recent = createWatchedIndex(
     (filters.excludeRecent ?? []).filter((item) => item?.title).map((item) => ({ ...toWatchedEntry(item), catalogSlug: '' })),
@@ -103,7 +102,7 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
   const passesFilters = (film: CatalogFilm, { allowRecent = false } = {}): boolean => {
     const identity = catalogIdentity(film);
     if (blocked.has(identity)) return false;
-    if (filters.avoidWatched !== false && watched.has(identity)) return false;
+    if (filters.avoidWatched !== false && prepared.isWatched(film)) return false;
     // Keep thematic browsing varied, but never hide an unwatched film from an
     // explicit search merely because it appeared in an earlier recommendation.
     if (!allowRecent && !query.clean && recent.has(identity)) return false;
@@ -131,15 +130,7 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
   if (query.tokens.length > 0) {
     ranked = rankSearch(catalog, query, { passesFilters, qualityBonus, affinityBonus, themeId });
   } else if (themeId) {
-    const strict = criteria?.minSignals ?? 0;
-    const themePool = catalog.filmsWithAnyGenre(criteria?.requiredAnyGenres ?? []);
-    const eligible = (minSignals: number): { film: CatalogFilm; signalCount: number }[] =>
-      themePool.flatMap((film) => {
-        if (!matchesThemePacing(film, themeId)) return [];
-        const eligibility = themeEligibility(film, criteria, minSignals);
-        return eligibility.eligible ? [{ film, signalCount: eligibility.signalCount }] : [];
-      });
-    const strictCandidates = eligible(strict);
+    const { strict: strictCandidates, related } = themeCandidates(catalog, themeId);
     const collect = (candidates: readonly { film: CatalogFilm; signalCount: number }[], { allowRecent = false, related = false } = {}): Ranked[] =>
       candidates.flatMap(({ film, signalCount }) => {
         if (!passesFilters(film, { allowRecent })) return [];
@@ -154,12 +145,6 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
     }
     ranked.sort(byKeys);
     if (ranked.length < MAX_RECOMMENDATIONS) {
-      const exactIds = new Set(strictCandidates.map(candidate => candidate.film.slug));
-      const related = themePool.flatMap(film => {
-        if (exactIds.has(film.slug) || !matchesThemePacing(film, themeId)) return [];
-        const evidence = relatedThemeEligibility(film, criteria);
-        return evidence.eligible ? [{ film, signalCount: evidence.signalCount }] : [];
-      });
       let nearby = collect(related, { related: true }).sort(byKeys);
       if (!ranked.length && !nearby.length) {
         nearby = collect(related, { related: true, allowRecent: true }).sort(byKeys);
@@ -210,6 +195,39 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
     allowRecentFallback: fallback === 'recent',
     interpretation: query.interpretation,
   };
+}
+
+interface ThemeCandidate { film: CatalogFilm; signalCount: number }
+
+const themeCandidateCache = new WeakMap<Catalog, Map<string, { strict: ThemeCandidate[]; related: ThemeCandidate[] }>>();
+
+/**
+ * A climate's eligible films depend only on the catalog and the climate, not
+ * on the profile or filters, so they are computed once per catalog.
+ */
+function themeCandidates(catalog: Catalog, themeId: string): { strict: ThemeCandidate[]; related: ThemeCandidate[] } {
+  let byTheme = themeCandidateCache.get(catalog);
+  if (!byTheme) {
+    byTheme = new Map();
+    themeCandidateCache.set(catalog, byTheme);
+  }
+  const cached = byTheme.get(themeId);
+  if (cached) return cached;
+  const criteria = getThemeCriteria(themeId);
+  const pool = catalog.filmsWithAnyGenre(criteria?.requiredAnyGenres ?? []).filter((film) => matchesThemePacing(film, themeId));
+  const strict = pool.flatMap((film) => {
+    const eligibility = themeEligibility(film, criteria, criteria?.minSignals ?? 0);
+    return eligibility.eligible ? [{ film, signalCount: eligibility.signalCount }] : [];
+  });
+  const exactIds = new Set(strict.map((candidate) => candidate.film.slug));
+  const related = pool.flatMap((film) => {
+    if (exactIds.has(film.slug)) return [];
+    const evidence = relatedThemeEligibility(film, criteria);
+    return evidence.eligible ? [{ film, signalCount: evidence.signalCount }] : [];
+  });
+  const candidates = { strict, related };
+  byTheme.set(themeId, candidates);
+  return candidates;
 }
 
 /**

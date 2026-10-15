@@ -1,6 +1,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { syncProfile } from '../../src/application/profile.ts';
+import type { AppContext } from '../../src/application/context.ts';
 import type { SyncCheckpoint } from '../../src/application/ports.ts';
 import type { UserProfile } from '../../src/domain/film.ts';
 import { LetterboxdBlockedError, type PageFetcher } from '../../src/infrastructure/letterboxd/http.ts';
@@ -24,10 +25,14 @@ async function syncContext(fetchPage: PageFetcher, { previous = null as UserProf
   return { ctx, kv };
 }
 
-async function finished(result: Awaited<ReturnType<typeof syncProfile>>) {
+/** The saved profile after a finished sync; the response itself only carries the count. */
+async function finished(result: Awaited<ReturnType<typeof syncProfile>>, ctx: AppContext): Promise<UserProfile> {
   assert.equal(result.pending, false);
   if (result.pending) throw new Error('unreachable');
-  return result.profile;
+  const saved = await ctx.profiles.get();
+  assert.ok(saved);
+  assert.equal(result.profile.filmCount, saved.films.length);
+  return saved;
 }
 
 // This integration stress test copies a 10k-film history over many durable
@@ -58,7 +63,7 @@ test('10,080 films finish across durable batches; later page interruption resume
   do {
     result = await syncProfile(ctx, { username: 'audit' });
   } while (result.pending);
-  const synced = await finished(result);
+  const synced = await finished(result, ctx);
   assert.equal(synced.films.length, 10080);
   assert.equal(synced.syncMode, 'full');
   assert.equal(visited.filter((p) => p === 1).length, 1);
@@ -77,7 +82,7 @@ test('incremental update merges newly watched films and current ratings, preserv
     },
     { previous: { username: 'audit', totalFilms: 1, lastFullSync, films: [{ slug: 'film-1', title: 'Film 1', year: 2000, rating: 2 }] } },
   );
-  const result = await finished(await syncProfile(ctx, { username: 'audit' }));
+  const result = await finished(await syncProfile(ctx, { username: 'audit' }), ctx);
   assert.equal(result.syncMode, 'recent');
   assert.equal(result.films.length, 2);
   assert.equal(result.films.find((f) => f.slug === 'film-1')?.rating, 5);
@@ -101,7 +106,7 @@ test('weekly review and explicit full review refresh old ratings and remove abse
         },
       },
     );
-    const result = await finished(await syncProfile(ctx, { username: 'audit', forceFull }));
+    const result = await finished(await syncProfile(ctx, { username: 'audit', forceFull }), ctx);
     assert.equal(result.syncMode, 'full');
     assert.equal(result.films.length, 1);
     assert.equal(result.films[0].rating, 2);
@@ -125,7 +130,7 @@ test('changed count invalidates a checkpoint and restarts collection', async () 
     },
     { initial: { [KEYS.syncCheckpoint]: stale } },
   );
-  const result = await finished(await syncProfile(ctx, { username: 'audit' }));
+  const result = await finished(await syncProfile(ctx, { username: 'audit' }), ctx);
   assert.deepEqual(result.films.map((f) => f.slug), ['film-1']);
 });
 
@@ -143,7 +148,7 @@ test('a transient network failure retries and incomplete incremental coverage fa
     },
     { previous: { username: 'audit', totalFilms: 1, lastFullSync: FIXED_NOW.toISOString(), films: [{ slug: 'film-1', title: 'Film 1' }] } },
   );
-  const result = await finished(await syncProfile(ctx, { username: 'audit' }));
+  const result = await finished(await syncProfile(ctx, { username: 'audit' }), ctx);
   assert.equal(result.syncMode, 'full');
   assert.equal(result.films.length, 3);
   assert.ok(attempts >= 2);

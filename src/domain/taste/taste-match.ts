@@ -10,7 +10,7 @@ export interface TasteMatch {
   hasPreferences: boolean;
   sameDirector: boolean;
 }
-export type TasteCandidate = EvidenceFilm & { country?: string };
+export type TasteCandidate = EvidenceFilm & { country?: string; tasteTags?: readonly string[] };
 export type TasteMatcher = (film: TasteCandidate) => TasteMatch;
 interface Signal extends EnrichedFilm { tags: Set<string>; weight: number; directorKey: string; genreKeys: string[] }
 
@@ -22,6 +22,21 @@ export interface TasteOptions {
 /** Each further liked film that supports a match adds a little, with a cap. */
 const SUPPORT_PER_SIGNAL = 2.5;
 const MAX_SUPPORT = 10;
+
+/**
+ * The descriptive tags that can relate two films: synopsis concepts, and
+ * keywords shared by a few catalog films but not by many. The packaged
+ * catalog carries them precomputed (tasteTags); others are derived here.
+ */
+export function tasteTags(film: TasteCandidate, catalog: Catalog): readonly string[] {
+  if (film.tasteTags) return film.tasteTags;
+  const common = Math.max(2, catalog.films.length * 0.01);
+  return descriptiveTags(film).filter((tag) => {
+    if (tag.startsWith('conceito:')) return true;
+    const frequency = catalog.keywordFrequency(tag);
+    return tag.length >= 5 && frequency >= 2 && frequency <= common;
+  });
+}
 
 /** Indexed evidence keeps work proportional to relevant signals, not history size. */
 export function createTasteMatcher(profile: Partial<UserProfile>, catalog: Catalog, { rejected = [] }: TasteOptions = {}): TasteMatcher {
@@ -41,11 +56,7 @@ export function createTasteMatcher(profile: Partial<UserProfile>, catalog: Catal
   // Dislikes follow the same personal scale: a generous rater's lowest notes
   // count as negative even above 2 stars, but never reach the liked range.
   const dislikeCutoff = ratings.length >= 8 ? Math.max(2, Math.min(cutoff - 1, ratings[Math.floor((ratings.length - 1) * 0.15)])) : 2;
-  const tagsOf = (film: TasteCandidate): Set<string> => new Set(descriptiveTags(film).filter((tag) => {
-    if (tag.startsWith('conceito:')) return true;
-    const frequency = catalog.keywordFrequency(tag);
-    return tag.length >= 5 && frequency >= 2 && frequency <= Math.max(2, catalog.films.length * 0.01);
-  }));
+  const tagsOf = (film: TasteCandidate): Set<string> => new Set(tasteTags(film, catalog));
   const liked: Signal[] = [...records.values()].filter((film) => film.isFavorite || (film.rating ?? 0) >= cutoff)
     .map((film) => ({ ...film, tags: tagsOf(film), directorKey: fold(film.director), genreKeys: film.genres.map(fold),
       weight: film.isFavorite ? 1.25 : 1 + Math.max(0, (film.rating ?? cutoff) - cutoff) * 0.15 }));

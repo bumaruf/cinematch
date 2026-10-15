@@ -64,6 +64,7 @@ npm run icons      # regera a logo da interface e os ícones a partir de assets/
 npm run diagnostics:recommendations # compara gostos com os mesmos assistidos e mede latência
 npm run diagnostics:themes # confere contratos e cobertura por mínimo de votos
 npm run diagnostics:performance # mede o motor com perfil sintético e relógio fixo
+npm run diagnostics:ui # mede popup e painel no navegador, com o worker frio e quente (Edge ou Chromium)
 npm run diagnostics:package # verifica integridade e tamanho do catálogo no dist/ já gerado
 ```
 

@@ -2,7 +2,7 @@ import type { SavedFilmInput } from '../application/library.ts';
 import type { FeedbackInput } from '../application/feedback.ts';
 import type { EvaluationInput, getRecommendationEvaluationReport } from '../application/evaluation.ts';
 import type { HistoryEntry, OnDeviceModelStatus, PopupSession, SavedFilm, SyncProgress } from '../application/ports.ts';
-import type { ActiveProfile, CsvFile, ImportSummary, SyncResult } from '../application/profile.ts';
+import type { ActiveProfile, CsvFile, ImportSummary, ProfileSummary, SyncResult } from '../application/profile.ts';
 import type { DailyPickResponse, RecommendationQuery } from '../application/recommendations.ts';
 import type { FilmFeedback, RecommendationResult, Settings } from '../domain/film.ts';
 
@@ -12,6 +12,10 @@ import type { FilmFeedback, RecommendationResult, Settings } from '../domain/fil
  */
 export interface Contract {
   getActiveProfile: { request: void; response: ActiveProfile | null };
+  /** Header data without the catalog: answers at once even from a cold worker. */
+  getProfileSummary: { request: void; response: ProfileSummary | null };
+  /** Starts loading the catalog and preparing the daily pick; returns at once. */
+  warmUp: { request: void; response: void };
   syncProfile: { request: { username: string; forceFull?: boolean }; response: SyncResult };
   importCsvProfile: { request: { files: CsvFile[] }; response: ImportSummary };
   clearProfile: { request: void; response: void };
@@ -54,6 +58,8 @@ export interface SyncProgressEvent {
 
 export const ACTIONS: readonly Action[] = [
   'getActiveProfile',
+  'getProfileSummary',
+  'warmUp',
   'syncProfile',
   'importCsvProfile',
   'clearProfile',
@@ -83,6 +89,8 @@ export const ACTIONS: readonly Action[] = [
  */
 export const CONTENT_SCRIPT_ACTIONS: ReadonlySet<Action> = new Set<Action>([
   'getActiveProfile',
+  'getProfileSummary',
+  'warmUp',
   'syncProfile',
   'getDailyPick',
   'getFilmArtwork',

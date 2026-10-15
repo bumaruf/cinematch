@@ -1,5 +1,5 @@
 import type { ImportSummary } from '../../../application/profile.ts';
-import type { UserProfile } from '../../../domain/film.ts';
+import type { ProfileOverview } from '../../../application/profile.ts';
 import { send, syncProfileFully } from '../../../messaging/client.ts';
 import { byId, hide, show } from '../../shared/dom.ts';
 import { safeUrl } from '../../shared/html.ts';
@@ -29,7 +29,7 @@ export function setupProfile({ state, notify, beforeChange }: { state: ProfileSt
     csvModal: byId('csvTutorialModal'),
   };
 
-  function renderSidebar(profile: UserProfile | null): void {
+  function renderSidebar(profile: ProfileOverview | null): void {
     if (!profile) {
       el.displayName.textContent = 'Nenhum perfil';
       el.username.textContent = 'Sincronize para começar';
@@ -51,7 +51,7 @@ export function setupProfile({ state, notify, beforeChange }: { state: ProfileSt
 
   async function sync(forceFull = false): Promise<void> {
     if (el.sync.disabled) return;
-    const username = prompt('Informe o @username do Letterboxd para sincronizar:', state.get()?.profile.username ?? '')?.trim();
+    const username = prompt('Informe o @username do Letterboxd para sincronizar:', state.username() ?? '')?.trim();
     if (!username) return;
     setBusy(true);
     beforeChange();
@@ -63,7 +63,7 @@ export function setupProfile({ state, notify, beforeChange }: { state: ProfileSt
       el.status.textContent =
         result.profile.syncMode === 'recent'
           ? 'Atividades recentes atualizadas. A revisão completa ocorre na próxima sincronização após sete dias.'
-          : `Revisão completa: ${result.profile.films.length} filmes sincronizados.`;
+          : `Revisão completa: ${result.profile.filmCount} filmes sincronizados.`;
     } catch (error) {
       const message = (error as Error).message || 'Sincronização interrompida. Tente novamente para retomar.';
       el.status.textContent = message;
@@ -84,7 +84,7 @@ export function setupProfile({ state, notify, beforeChange }: { state: ProfileSt
       state.set(summary);
       el.status.textContent = importMessage(summary);
       notify.toast(
-        `Importação concluída: ${summary.addedCount} novos filmes, ${summary.updatedRatingCount} notas atualizadas. ${summary.profile.films.length} filmes únicos.`,
+        `Importação concluída: ${summary.addedCount} novos filmes, ${summary.updatedRatingCount} notas atualizadas. ${summary.profile.filmCount} filmes únicos.`,
         8000,
       );
     } catch (error) {
@@ -126,5 +126,5 @@ export function setupProfile({ state, notify, beforeChange }: { state: ProfileSt
     void importCsv(files);
   });
 
-  state.subscribe((active) => renderSidebar(active?.profile ?? null));
+  state.onOverview(renderSidebar);
 }

@@ -1,7 +1,7 @@
 import type { FilmFeedback, FilmIdentity, Filters, Recommendation, RecommendationResult, UserProfile } from '../domain/film.ts';
 import type { Catalog } from '../domain/catalog/catalog.ts';
-import { analyzeProfile } from '../domain/profile/analyze.ts';
-import { createWatchedIndex, toWatchedEntry } from '../domain/profile/watched.ts';
+import { createWatchedIndex, toWatchedEntry, type WatchedIndex } from '../domain/profile/watched.ts';
+import { prepareProfile, preparationKey, type PreparedProfile } from '../domain/recommend/prepared.ts';
 import { createFilmIdentityIndex } from '../domain/profile/identity.ts';
 import { dateKey, DAILY_MATCHING_VERSION, pickDaily, profileKey, usernameKey } from '../domain/recommend/daily.ts';
 import { recommend } from '../domain/recommend/engine.ts';
@@ -18,6 +18,23 @@ import { interpretSearch } from './query-model.ts';
 const RECENT_BATCHES = 20;
 /** Days of earlier daily picks that are not offered again. */
 const RECENT_DAILY_PICKS = 45;
+
+/** One prepared profile per catalog instance, which lives as long as the worker. */
+const preparations = new WeakMap<Catalog, { key: string; prepared: PreparedProfile }>();
+
+/**
+ * The derived profile data for these inputs. Kept while the profile and the
+ * "Não combina comigo" list stay the same, so the taste matcher's per-film
+ * scores carry over from one request to the next.
+ */
+function preparedFor(profile: UserProfile, catalog: Catalog, now: Date, rejected: readonly FilmIdentity[]): PreparedProfile {
+  const key = preparationKey(profile, rejected);
+  const cached = preparations.get(catalog);
+  if (cached?.key === key) return cached.prepared;
+  const prepared = prepareProfile(profile, catalog, now, { rejected });
+  preparations.set(catalog, { key, prepared });
+  return prepared;
+}
 
 export interface RecommendationQuery {
   themeId?: string | null;
@@ -40,6 +57,7 @@ function assertUsableHistory(profile: UserProfile): void {
 
 /** Without a theme or prompt, recommends from the user's general taste. */
 export async function generateRecommendations(ctx: AppContext, query: RecommendationQuery): Promise<RecommendationResult> {
+  markActivity(ctx);
   const profile = (await ctx.profiles.get()) ?? GUEST_PROFILE;
   if (query.username && usernameKey(query.username) !== usernameKey(profile.username)) throw new ProfileChangedError();
   assertUsableHistory(profile);
@@ -60,9 +78,11 @@ export async function generateRecommendations(ctx: AppContext, query: Recommenda
   ]);
   const { excludedFilms, rejectedFilms } = splitFeedback(activeFeedback(await ctx.feedback.list(activeUser), now, timeZoneOf(ctx)));
   const requestId = ctx.identifiers.next();
+  const prepared = preparedFor(profile, catalog, now, rejectedFilms);
   const result = recommend(
     {
       profile,
+      prepared,
       excludedFilms,
       rejectedFilms,
       seed: requestId,
@@ -81,10 +101,9 @@ export async function generateRecommendations(ctx: AppContext, query: Recommenda
     now,
   );
 
-  const recommendations = dropRepeated(result.recommendations, profile, excludeRecent, {
+  const recommendations = dropRepeated(result.recommendations, prepared.watched, excludeRecent, {
     allowRecent: Boolean(query.customPrompt) || result.allowRecentFallback,
     avoidWatched: settings.avoidWatched,
-    catalog, now,
   });
   const sessionId = `rec_${now.getTime()}_${requestId}`;
   const final: RecommendationResult = { ...result, recommendations, evaluationSessionId: sessionId,
@@ -119,11 +138,10 @@ function splitFeedback(entries: readonly FilmFeedback[]): { excludedFilms: FilmI
  */
 function dropRepeated(
   recommendations: Recommendation[],
-  profile: UserProfile,
+  watched: WatchedIndex,
   recent: Recommendation[],
-  { allowRecent, avoidWatched, catalog, now }: { allowRecent: boolean; avoidWatched: boolean; catalog: Catalog; now: Date },
+  { allowRecent, avoidWatched }: { allowRecent: boolean; avoidWatched: boolean },
 ): Recommendation[] {
-  const watched = createWatchedIndex(analyzeProfile(profile, catalog, now).watchedList);
   const recentIndex = createWatchedIndex(recent.map((movie) => ({ ...toWatchedEntry(movie), catalogSlug: '' })));
   const emitted = new Set<string>();
   return recommendations.filter((movie) => {
@@ -154,6 +172,18 @@ export class ProfileChangedError extends Error {
  * the history changes or a new pick is requested.
  */
 export async function getDailyPick(ctx: AppContext, options: { refresh?: boolean; username?: string } = {}): Promise<DailyPickResponse> {
+  if (options.refresh) return computeDailyPick(ctx, options);
+  // The warm-up and a page may ask at once; computing twice would store two picks.
+  dailyInFlight ??= computeDailyPick(ctx, options).finally(() => { dailyInFlight = undefined; });
+  const pending = dailyInFlight;
+  const response = await pending;
+  if (options.username && usernameKey(options.username) !== response.username) throw new ProfileChangedError();
+  return response;
+}
+
+let dailyInFlight: Promise<DailyPickResponse> | undefined;
+
+async function computeDailyPick(ctx: AppContext, options: { refresh?: boolean; username?: string }): Promise<DailyPickResponse> {
   const profile = (await ctx.profiles.get()) ?? GUEST_PROFILE;
   const username = usernameKey(profile.username);
   if (options.username && usernameKey(options.username) !== username) throw new ProfileChangedError();
@@ -183,7 +213,9 @@ export async function getDailyPick(ctx: AppContext, options: { refresh?: boolean
     .map((entry) => entry.data?.film?.letterboxdSlug)
     .filter(Boolean);
   const rejectedFilms = splitFeedback(feedback).rejectedFilms;
-  const pick = pickDaily(profile, await ctx.catalog(), { date: today, now, excludedSlugs, excludedFilms, rejectedFilms });
+  const catalog = await ctx.catalog();
+  const prepared = preparedFor(profile, catalog, now, rejectedFilms);
+  const pick = pickDaily(profile, catalog, { date: today, now, excludedSlugs, excludedFilms, rejectedFilms, prepared });
   const data: StoredDailyPick = { ...pick, profileKey: key, profileUsername: username, kind: 'daily' };
   await ctx.daily.add({ username, date: today, data });
   return { username, profileKey: key, data };
@@ -194,6 +226,7 @@ export async function getDailyPick(ctx: AppContext, options: { refresh?: boolean
  * later surprises vary, but it never overwrites the canonical Film of the Day.
  */
 export async function getSurprisePick(ctx: AppContext, options: { username?: string } = {}): Promise<DailyPickResponse> {
+  markActivity(ctx);
   const daily = await getDailyPick(ctx, options);
   const profile = (await ctx.profiles.get()) ?? GUEST_PROFILE;
   const username = usernameKey(profile.username);
@@ -210,8 +243,76 @@ export async function getSurprisePick(ctx: AppContext, options: { username?: str
     .map((entry) => entry.data?.film?.letterboxdSlug)
     .filter(Boolean)];
   const rejectedFilms = splitFeedback(feedback).rejectedFilms;
-  const pick = pickDaily(profile, await ctx.catalog(), { date: today, now, excludedSlugs, excludedFilms, rejectedFilms });
+  const catalog = await ctx.catalog();
+  const prepared = preparedFor(profile, catalog, now, rejectedFilms);
+  const pick = pickDaily(profile, catalog, { date: today, now, excludedSlugs, excludedFilms, rejectedFilms, prepared });
   const data: StoredDailyPick = { ...pick, profileKey: key, profileUsername: username, kind: 'surprise' };
   await ctx.daily.add({ username, date: today, data });
   return { username: daily.username, profileKey: key, data };
+}
+
+/** Background work waits until requests have stopped for this long. */
+const IDLE_MS = 3000;
+let lastActivity = 0;
+
+/** Called by user-facing requests, so background work never competes with them. */
+function markActivity(ctx: AppContext): void {
+  lastActivity = ctx.clock.now().getTime();
+}
+
+/** Runs task once no request has arrived for IDLE_MS; checks again otherwise. */
+function whenIdle(ctx: AppContext, task: () => Promise<unknown>): void {
+  const wait = lastActivity + IDLE_MS - ctx.clock.now().getTime();
+  if (wait > 0) {
+    setTimeout(() => whenIdle(ctx, task), wait);
+    return;
+  }
+  void task().catch(() => {
+    // Best effort: the request that needs the data reports any failure.
+  });
+}
+
+const idleWorkScheduled = new WeakSet<Catalog>();
+
+/** Films indexed per background step: a few tens of milliseconds each. */
+const SEARCH_INDEX_STEP = 1500;
+
+/**
+ * Builds the text search index in short steps, each one waiting for an idle
+ * moment, so a click in the meantime is answered between steps.
+ */
+function buildSearchIndex(ctx: AppContext, catalog: Catalog): Promise<void> {
+  return new Promise((resolve) => {
+    const step = (): void => whenIdle(ctx, async () => {
+      if (catalog.buildSearchVocabulary(SEARCH_INDEX_STEP)) resolve();
+      else setTimeout(step, 0);
+    });
+    step();
+  });
+}
+
+/**
+ * Prepares what the page's next request needs, in the background: the
+ * catalog and the profile at once; once the user is idle, today's pick (so
+ * the panel and the Letterboxd button find it ready) and the text search
+ * index. Returns at once.
+ */
+export function warmUp(ctx: AppContext): void {
+  void (async () => {
+    const profile = await ctx.profiles.get();
+    const catalog = await ctx.catalog();
+    if (!profile?.films.length) return;
+    const now = ctx.clock.now();
+    const feedback = activeFeedback(await ctx.feedback.list(usernameKey(profile.username)), now, timeZoneOf(ctx));
+    preparedFor(profile, catalog, now, splitFeedback(feedback).rejectedFilms);
+    // Popup and panel both warm up; one background run per worker is enough.
+    if (idleWorkScheduled.has(catalog)) return;
+    idleWorkScheduled.add(catalog);
+    whenIdle(ctx, async () => {
+      await getDailyPick(ctx).catch(() => {});
+      await buildSearchIndex(ctx, catalog);
+    });
+  })().catch(() => {
+    // Best effort: the request that needs the data reports any failure.
+  });
 }

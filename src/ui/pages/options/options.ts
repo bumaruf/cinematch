@@ -42,7 +42,7 @@ onReady(async () => {
   }
 
   async function renderCacheInfo(): Promise<void> {
-    const active = await send('getActiveProfile');
+    const active = await send('getProfileSummary');
     clearCacheButton.disabled = !active?.profile.username;
     if (!active?.profile.username) {
       render(cacheStatus, html`<p>Nenhum perfil salvo.</p>`);
@@ -53,7 +53,7 @@ onReady(async () => {
       cacheStatus,
       html`
         <p><strong class="font-semibold text-ink">${profile.displayName || profile.username}</strong> (@${profile.username})</p>
-        <p>${profile.films.length.toLocaleString('pt-BR')} filmes no histórico</p>
+        <p>${profile.filmCount.toLocaleString('pt-BR')} filmes no histórico</p>
         ${profile.lastSync ? html`<p>Atualizado em ${new Date(profile.lastSync).toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' })}</p>` : ''}`,
     );
   }

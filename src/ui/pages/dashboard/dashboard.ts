@@ -28,9 +28,9 @@ onReady(async () => {
   const tabPanes = [...document.querySelectorAll<HTMLElement>('.tab-pane')];
 
   const saved = setupSaved({ notify, goToCurator: () => activateTab('curator') });
-  const feedback = setupFeedbackReview(() => state.get()?.profile.username ?? null, notify);
-  const daily = setupDailyHero(() => state.get()?.profile.username ?? null, () => void saved.updateBadge());
-  const curator = setupCurator({ notify, onSavedChange: () => void saved.updateBadge(), hasDaily: () => daily.hasContent(), currentUsername: () => state.get()?.profile.username ?? null });
+  const feedback = setupFeedbackReview(state.username, notify);
+  const daily = setupDailyHero(state.username, () => void saved.updateBadge());
+  const curator = setupCurator({ notify, onSavedChange: () => void saved.updateBadge(), hasDaily: () => daily.hasContent(), currentUsername: state.username });
   setupProfile({
     state,
     notify,
@@ -51,22 +51,29 @@ onReady(async () => {
     if (tab === 'curator') document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  state.subscribe((active) => {
+  // The daily pick only needs to know who is active, so it starts with the overview.
+  state.onOverview((overview) => {
     void curator.refreshEvaluation();
-    if (!active) return;
-    renderDna(active);
-    void daily.load();
+    if (overview) void daily.load();
+  });
+  state.subscribe((active) => {
+    if (active) renderDna(active);
   });
 
   for (const item of navItems) item.addEventListener('click', () => activateTab(item.dataset.tab ?? 'curator'));
   byId('btnOpenOptionsPage').addEventListener('click', () => void chrome.runtime.openOptionsPage());
 
   try {
-    state.set(await send('getActiveProfile'));
+    // The overview needs no catalog; the catalog warms up meanwhile, and the
+    // statistics follow without holding up the daily pick.
+    void send('warmUp').catch(() => {});
+    const summary = await send('getProfileSummary');
+    state.setOverview(summary?.profile ?? null);
+    void saved.updateBadge();
+    if (summary) state.setActive(await send('getActiveProfile'));
   } catch (error) {
     notify.error((error as Error).message);
   }
-  await saved.updateBadge();
 
   if (location.hash === '#recovery') {
     activateTab('dna');
