@@ -30,7 +30,7 @@ testWithCatalog('recomendação do dia: qualidade, justificativa, nunca assistid
   const seen = ['Alien', 'Blade Runner', 'O Iluminado', 'Stalker', 'Solaris'];
 
   const dailyRec1 = daily(mockYearProfile, '2026-09-17');
-  assert.ok(dailyRec1 && dailyRec1.film && dailyRec1.film.title, 'Recomendação do Dia gerada com sucesso');
+  assert.ok(dailyRec1?.film?.title, 'Recomendação do Dia gerada com sucesso');
   assert.ok(dailyRec1.film.imdbRating >= 7.0, 'Recomendação do Dia atende ao critério de alta qualidade (IMDb >= 7.0)');
   assert.ok(dailyRec1.curatorReason && seen.some((title) => dailyRec1.curatorReason.includes(title)), 'Justificativa cita um filme do perfil');
   assert.ok(!seen.includes(dailyRec1.film.title), 'Recomendação do Dia nunca recomenda filme já assistido');
@@ -39,7 +39,7 @@ testWithCatalog('recomendação do dia: qualidade, justificativa, nunca assistid
   assert.equal(dailyRec1.film.title, dailyRec1Again.film.title, 'Recomendação do Dia é 100% determinística para a mesma data');
 
   const dailyRec2 = daily(mockYearProfile, '2026-09-18');
-  assert.ok(dailyRec2 && dailyRec2.film, 'Recomendação do Dia para data seguinte gerada com sucesso');
+  assert.ok(dailyRec2?.film, 'Recomendação do Dia para data seguinte gerada com sucesso');
 });
 
 test('daily curation never backfills a profile without preferences with an arbitrary film', () => {

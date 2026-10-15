@@ -43,6 +43,8 @@ test('10,080 films finish across durable batches; later page interruption resume
     const page = Number(url.match(/page\/(\d+)/)?.[1] || 1);
     visited.push(page);
     if (page === 4 && fail) throw new Error('HTTP 403');
+    // Like Letterboxd, pages past the last one list no films.
+    if (page > 140) return '<ul class="poster-list"></ul>';
     return Array.from({ length: 72 }, (_, i) => film((page - 1) * 72 + i)).join('');
   };
   const { ctx } = await syncContext(fetchPage, { previous: old });
@@ -52,7 +54,7 @@ test('10,080 films finish across durable batches; later page interruption resume
   await assert.rejects(syncProfile(ctx, { username: 'audit' }), /403/);
   assert.deepEqual(await ctx.profiles.get(), old);
   fail = false;
-  let result;
+  let result: Awaited<ReturnType<typeof syncProfile>>;
   do {
     result = await syncProfile(ctx, { username: 'audit' });
   } while (result.pending);

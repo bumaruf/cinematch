@@ -14,4 +14,6 @@ O recurso de consulta à watchlist foi removido. Cópias de consulta deixadas pe
 
 Filmes salvos, preferências, histórico, feedback e avaliações da curadoria não são apagados pelo botão de apagar perfil. Para remover todos os dados, limpe os dados da extensão ou desinstale-a pelo navegador. O histórico retém até 30 buscas, as indicações diárias até 180 registros, o feedback até 5 mil registros e as avaliações até 200 listas no total. O rascunho do popup é mantido só durante a sessão do navegador.
 
+A busca com IA no navegador, experimental e desligada por padrão, usa o modelo Gemini Nano do próprio Chrome. O texto da busca é processado no dispositivo e não é enviado pela rede; o perfil não é enviado ao modelo. O download do modelo é feito pelo Chrome.
+
 O CineMatch não coleta credenciais, tokens, informações de pagamento ou dados de navegação fora do Letterboxd.

@@ -14,6 +14,8 @@ local (25 mil filmes no catálogo expandido atual) e não envia seu perfil a nen
   período e duração, como "suspense ou ficção científica, sem terror, até 1h40".
   A tela mostra os critérios aplicados e explica conflitos entre texto e filtros.
   [Exemplos e limites da interpretação](docs/search-understanding.md).
+  Protótipo opcional com o modelo do Chrome no dispositivo:
+  [busca com o Gemini Nano](docs/on-device-model.md).
 - **Recomendações automáticas:** seu gosto orienta as sugestões, respeitando
   os filtros e o clima escolhido, sem precisar escolher um modo de descoberta.
 - **Sugestões próximas:** quando faltam opções específicas do clima, alternativas
@@ -46,7 +48,7 @@ um catálogo vazio basta:
 ```sh
 npm install
 npm run catalog:stub   # catálogo vazio: compila e roda os testes que não precisam de filmes
-npm run check          # typecheck + testes + build
+npm run check          # lint + typecheck + testes + build
 ```
 
 Outros comandos:
@@ -54,6 +56,7 @@ Outros comandos:
 ```sh
 npm run dev        # build em modo de desenvolvimento, com recarga
 npm test           # Vitest (os testes com filmes reais rodam só com o catálogo gerado)
+npm run lint       # Biome (só lint; o formatador está desligado)
 npm run e2e        # carrega dist/ no Chromium e testa as telas (requer o catálogo)
 npm run package    # gera cinematch-v<versão>.zip para a Chrome Web Store (requer o catálogo)
 npm run icons      # regera a logo da interface e os ícones a partir de assets/brand

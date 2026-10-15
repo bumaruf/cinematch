@@ -25,7 +25,7 @@ const fixture = () => readFileSync(new URL('../fixtures/profile-nested-name.html
 
 /** collectFullProfile without batching: a single call must finish or reject. */
 async function extract(username: string, fetchPage: PageFetcher) {
-  const result = await collectFullProfile(username, fetchPage, { checkpoint: null });
+  const result = await collectFullProfile(username, fetchPage, { checkpoint: null, sleep: async () => {} });
   assert.equal(result.pending, false);
   if (result.pending) throw new Error('unreachable');
   return result.profile;
@@ -177,4 +177,29 @@ test('letterboxdArtwork fetches the film page once, caches it and swallows failu
     throw new Error('offline');
   }) as unknown as typeof fetch);
   assert.equal(await failing.artworkUrl('alien'), '');
+});
+
+test('a film logged during the sync is not lost when it pushes another to the next page', async () => {
+  // The profile reported 72 films; a new one took the first slot of page 1
+  // and pushed the oldest to page 2.
+  const page1 = ['new', ...Array.from({ length: 71 }, (_, i) => `film-${i}`)];
+  const profile = await extract('test', async (url) => {
+    if (url.endsWith('/test/')) return profileHtml(72);
+    if (url.endsWith('/films/')) return page1.map((slug) => filmHtml(slug)).join('');
+    if (url.includes('/page/2/')) return filmHtml('oldest');
+    return '<ul class="poster-list"></ul>';
+  });
+  assert.equal(profile.films.length, 73);
+  assert.ok(profile.films.some((film) => film.slug === 'oldest'));
+  assert.equal(profile.totalFilms, 73);
+});
+
+test('a page past the end that repeats the last full page ends a complete collection', async () => {
+  const page1 = Array.from({ length: 72 }, (_, i) => filmHtml(`film-${i}`)).join('');
+  const profile = await extract('test', async (url) => {
+    if (url.endsWith('/test/')) return profileHtml(72);
+    if (url.endsWith('/films/') || url.includes('/page/2/')) return page1;
+    return '<ul class="poster-list"></ul>';
+  });
+  assert.equal(profile.films.length, 72);
 });

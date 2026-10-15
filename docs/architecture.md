@@ -45,6 +45,8 @@ Regras puras, sem efeitos colaterais, testáveis sem mocks.
   A interpretação de texto separa limites de ano/duração (`query-constraints.ts`)
   das cláusulas de gênero/país (`query-requirements.ts`). `query.ts` coordena a
   extração e a busca lexical. Contradições retornam avisos pelo DTO existente.
+  `query-model.ts` valida a resposta opcional do modelo do Chrome e a converte
+  no mesmo `SearchQuery` ([on-device-model.md](on-device-model.md)).
 - `themes/`: catálogo de atmosferas, contratos de evidência e anotações
   editoriais com fontes, ligadas ao identificador de um único filme.
 
@@ -66,8 +68,10 @@ suas dependências:
 - `ports.ts`: interfaces que a infraestrutura implementa (`ProfileStore`,
   `SettingsStore`, `HistoryStore`, `SavedFilmsStore`, `DailyPickStore`,
   `SyncCheckpointStore`, `EvaluationStore`, `LetterboxdSync`, `ArtworkSource`,
-  `Clock`, `IdentifierSource`). O identificador de uma lista não depende apenas
+  `Clock`, `IdentifierSource`, `OnDeviceModel`). O identificador de uma lista não depende apenas
   do relógio: duas buscas no mesmo milissegundo continuam distintas.
+- `query-model.ts`: `interpretSearch`, que consulta o modelo no dispositivo
+  quando o ajuste está ligado e volta ao parser por regras em qualquer falha.
 - `context.ts`: `AppContext`, o conjunto de portas que cada caso de uso recebe.
   `catalog()` retorna uma Promise; os casos de uso aguardam os dados apenas
   quando precisam resolver identidades ou gerar indicações.
@@ -89,11 +93,16 @@ Adaptadores das portas:
   e cria os índices na primeira demanda. Pedidos simultâneos compartilham uma
   Promise; falhas permitem uma nova tentativa. O cache dura até o worker parar.
 - `catalog.ts`: adaptador síncrono reservado a testes e diagnósticos Node.
+- `on-device-model.ts`: adaptador da Prompt API (`LanguageModel`). Só cria
+  uma sessão quando o modelo já está disponível; nunca inicia o download.
 
 ## Mensagens (`src/messaging`)
 
 - `contract.ts`: mapa tipado `ação → { request, response }`. É a única API
   entre UI e background.
+- `contract.ts` também define `CONTENT_SCRIPT_ACTIONS`: o content script, que roda
+  dentro do Letterboxd, só pode pedir o fluxo do filme do dia. O worker recusa
+  mensagens de outras extensões e valida o formato do payload.
 - `client.ts`: `send(action, payload)` baseado em Promise, com tratamento de
   `runtime.lastError` e de contexto invalidado.
 - `router.ts`: despacha as mensagens para os casos de uso no service worker.

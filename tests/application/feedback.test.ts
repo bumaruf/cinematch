@@ -55,3 +55,20 @@ test('simultaneous saves and feedback retain every independent update', async ()
   await Promise.all(Array.from({ length: 20 }, (_, i) => recordFilmFeedback(ctx, { film: { title: `feedback-${i}`, year: 2000 + i }, kind: 'not-for-me' })));
   expect((await ctx.feedback.list('test')).length).toBe(20);
 });
+
+test('"Hoje não" turns over at midnight in the user\'s time zone', () => {
+  const entry = { username: 'test', film: { title: 'known-0' }, kind: 'later' as const, createdAt: '2026-09-17T12:00:00.000Z' };
+  // FIXED_NOW is 12:00 in São Paulo on the same day, but already the next day in Tokyo.
+  expect(activeFeedback([entry], FIXED_NOW, 'America/Sao_Paulo')).toHaveLength(1);
+  expect(activeFeedback([entry], FIXED_NOW, 'Asia/Tokyo')).toHaveLength(0);
+});
+
+test('recent recommendations of another profile do not hide films from the active one', async () => {
+  const ctx = await context();
+  const first = await generateRecommendations(ctx, {});
+  const top = first.recommendations[0];
+  const fresh = await context();
+  await fresh.history.append({ id: 'other', username: 'someone-else', timestamp: FIXED_NOW.toISOString(), theme: '', customPrompt: '', movies: [top] });
+  const result = await generateRecommendations(fresh, {});
+  expect(result.recommendations.map((film) => film.catalogSlug)).toContain(top.catalogSlug);
+});

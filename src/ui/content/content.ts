@@ -12,7 +12,12 @@ const BADGE_LABEL = 'Filme do Dia';
 // Inlined, so Letterboxd pages need no access to the extension's files.
 const ICON = new Markup(iconSvg);
 
-function showDailyModal({ film, curatorReason, phaseInfo }: StoredDailyPick): void {
+interface ProfileSwitch {
+  active: string;
+  member: string;
+}
+
+function showDailyModal({ film, curatorReason, phaseInfo }: StoredDailyPick, offer?: ProfileSwitch): void {
   document.getElementById('lb-ai-daily-modal')?.remove();
   const original = differentOriginalTitle(film);
   const meta = [film.year, film.director ? `Dir. ${film.director}` : '', film.runtimeMinutes ? `${film.runtimeMinutes} min` : '', film.country]
@@ -55,7 +60,9 @@ function showDailyModal({ film, curatorReason, phaseInfo }: StoredDailyPick): vo
           <a href="${safeUrl(film.letterboxdUrl)}" target="_blank" rel="noreferrer" class="lb-ai-btn-primary"><span>Ver no Letterboxd ↗</span></a>
           <a href="${safeUrl(trailerSearchUrl(film))}" target="_blank" rel="noreferrer" class="lb-ai-btn-secondary"><span>Trailer ↗</span></a>
           <button type="button" class="lb-ai-btn-secondary lb-ai-open-studio"><span>Abrir o Studio</span></button>
+          ${offer ? html`<button type="button" class="lb-ai-btn-secondary lb-ai-switch-profile"><span>Usar o perfil de @${offer.member}</span></button>` : ''}
         </div>
+        ${offer ? html`<p class="lb-ai-switch-note">Indicação para o seu perfil ativo, @${offer.active}.</p>` : ''}
       </div>`,
   );
   modal.addEventListener('close', () => modal.remove());
@@ -63,6 +70,21 @@ function showDailyModal({ film, curatorReason, phaseInfo }: StoredDailyPick): vo
   modal.querySelector('.lb-ai-open-studio')?.addEventListener('click', () => {
     void send('openDashboard', {});
     modal.remove();
+  });
+  modal.querySelector('.lb-ai-switch-profile')?.addEventListener('click', async (event) => {
+    if (!offer) return;
+    const message = `Trocar o perfil ativo do CineMatch de @${offer.active} para @${offer.member}?\n\nO histórico de @${offer.active} fica guardado como backup.`;
+    if (!window.confirm(message)) return;
+    const button = event.currentTarget as HTMLButtonElement;
+    button.disabled = true;
+    button.textContent = 'Sincronizando…';
+    try {
+      await syncProfileFully(offer.member);
+      showDailyModal((await send('getDailyPick', {})).data);
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = (error as Error).message || 'Não foi possível sincronizar. Tente novamente.';
+    }
   });
   document.body.append(modal);
   modal.showModal();
@@ -92,14 +114,19 @@ function injectBadge(): void {
     badge.classList.add('syncing');
     label.textContent = 'Buscando sugestão…';
     const username = usernameFromLetterboxdUrl(location.href);
+    let offer: ProfileSwitch | undefined;
     try {
       if (username) {
         try {
           const active = await send('getActiveProfile');
-          const isCurrentProfile = active?.profile.username.toLowerCase() === username.toLowerCase();
-          if (!isCurrentProfile) {
+          const activeName = active?.profile.films.length ? active.profile.username : '';
+          if (!activeName) {
+            // Nothing to lose yet: the member being viewed becomes the profile.
             label.textContent = 'Atualizando histórico…';
             await syncProfileFully(username);
+          } else if (activeName.toLowerCase() !== username.toLowerCase()) {
+            // Never replace the active history without an explicit choice.
+            offer = { active: activeName, member: username };
           }
         } catch (error) {
           completionLabel = (error as Error).message || 'Não foi possível sincronizar. Tente novamente.';
@@ -107,7 +134,7 @@ function injectBadge(): void {
         }
       }
       try {
-        showDailyModal((await send('getDailyPick', {})).data);
+        showDailyModal((await send('getDailyPick', {})).data, offer);
       } catch {
         completionLabel = 'Não foi possível gerar agora. Abrindo o Studio…';
         void send('openDashboard', {}).catch(() => {});

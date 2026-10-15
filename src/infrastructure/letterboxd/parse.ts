@@ -82,8 +82,7 @@ export function parseFilmsListHtml(html: string, defaultRating: number | null = 
 
   // Pattern 1: <li class="griditem"> ... </li> (Modern Letterboxd)
   const gridItemRegex = /<li[^>]*class="[^"]*griditem[^"]*"[^>]*>([\s\S]*?)<\/li>/gi;
-  let gm: RegExpExecArray | null;
-  while ((gm = gridItemRegex.exec(html)) !== null) {
+  for (const gm of html.matchAll(gridItemRegex)) {
     const content = gm[1];
 
     // Slug
@@ -123,8 +122,7 @@ export function parseFilmsListHtml(html: string, defaultRating: number | null = 
   // Pattern 2: <li class="poster-container ..."> (Classic Letterboxd)
   if (films.length === 0) {
     const liRegex = /<li[^>]*class="([^"]*poster-container[^"]*)"([^>]*)>([\s\S]*?)<\/li>/gi;
-    let liMatch: RegExpExecArray | null;
-    while ((liMatch = liRegex.exec(html)) !== null) {
+    for (const liMatch of html.matchAll(liRegex)) {
       const liClassStr   = liMatch[1] || '';
       const liExtraAttrs = liMatch[2] || '';
       const liContent    = liMatch[3] || '';
@@ -174,8 +172,7 @@ export function parseFilmsListHtml(html: string, defaultRating: number | null = 
   // Pattern 3: Fallback data-film-slug or data-item-slug
   if (films.length === 0) {
     const slugRegex = /(?:data-item-slug|data-film-slug)="([^"]+)"/g;
-    let slugMatch: RegExpExecArray | null;
-    while ((slugMatch = slugRegex.exec(html)) !== null) {
+    for (const slugMatch of html.matchAll(slugRegex)) {
       const slug = slugMatch[1];
       const nearbyHtml = html.substring(slugMatch.index, slugMatch.index + 600);
       const altNearby = nearbyHtml.match(/<img[^>]+alt="([^"]+)"/);
@@ -199,7 +196,7 @@ export function parseFilmsListHtml(html: string, defaultRating: number | null = 
  */
 export function parseProfileHtml(html: string): ProfileMetadata {
   let displayName = '';
-  let bio = '';
+  const bio = '';
   let totalFilms = 0;
   let avatarUrl = '';
   const favorites: ParsedFilm[] = [];

@@ -1,5 +1,5 @@
 import type { CatalogFilm, EnrichedFilm, FilmIdentity, ProfileFilm } from '../film.ts';
-import { fold, normalizeSlug, normalizeTitle } from '../text.ts';
+import { fold, normalizeSlug, normalizeTitle, WORD_SEPARATORS } from '../text.ts';
 import { normalizeGenres } from './genres.ts';
 import { FILM_IDENTITY_ALIASES } from './identity-aliases.ts';
 import { REVIEWED_THEME_EVIDENCE } from '../themes/reviewed-evidence.ts';
@@ -44,6 +44,11 @@ export interface Catalog {
   posterPath(imdbId: string): string;
   /** How many catalog films carry this (folded) keyword. */
   keywordFrequency(keyword: string): number;
+  /**
+   * Every word of the searchable fields mapped to the films that contain it.
+   * Built on the first lexical search; lets a search score only candidates.
+   */
+  searchVocabulary(): ReadonlyMap<string, readonly CatalogFilm[]>;
 }
 
 /** Shape of the generated dataset, before normalization. */
@@ -111,6 +116,50 @@ export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: Post
     return frequency;
   };
 
+  let vocabulary: Map<string, CatalogFilm[]> | null = null;
+  const searchVocabulary = (): Map<string, CatalogFilm[]> => {
+    if (vocabulary) return vocabulary;
+    vocabulary = new Map();
+    for (const film of films) {
+      const doc = searchDocument(film);
+      for (const field of [doc.title, doc.originalTitle, doc.director, doc.country, doc.pitch, doc.genres, doc.keywords.join(' ')]) {
+        for (const word of field.split(WORD_SEPARATORS)) {
+          if (!word) continue;
+          const holders = vocabulary.get(word);
+          // Films are visited one at a time, so a repeat is always the last entry.
+          if (!holders) vocabulary.set(word, [film]);
+          else if (holders.at(-1) !== film) holders.push(film);
+        }
+      }
+    }
+    return vocabulary;
+  };
+
+  function searchDocument(film: CatalogFilm): CatalogSearchDocument {
+    let searchDoc = searchDocuments.get(film);
+    if (searchDoc) return searchDoc;
+    if (!catalogPosition.has(film)) throw new Error('O filme não pertence a este catálogo.');
+    const title = fold(film.title);
+    const originalTitle = fold(film.originalTitle);
+    const director = fold(film.director);
+    const country = fold(film.country);
+    const pitch = fold(film.pitch);
+    const genres = film.genres.map(fold).join(' ');
+    const keywords = film.keywords.map(fold);
+    searchDoc = {
+      title,
+      originalTitle,
+      director,
+      country,
+      pitch,
+      genres,
+      keywords,
+      searchable: [title, originalTitle, director, country, pitch, keywords.join(' ')].join(' '),
+    };
+    searchDocuments.set(film, searchDoc);
+    return searchDoc;
+  }
+
   function resolve(film: FilmIdentity): Resolution {
     if (film.imdbId) return { film: byImdbId.get(fold(film.imdbId)) ?? null, ambiguous: false };
     const rawSlug = film.catalogSlug || film.slug || film.letterboxdSlug || '';
@@ -170,31 +219,9 @@ export function createCatalog(rawFilms: readonly RawCatalogFilm[], posters: Post
       const matches = new Set(genres.flatMap((genre) => byGenre.get(fold(genre)) ?? []));
       return [...matches].sort((a, b) => (catalogPosition.get(a) ?? 0) - (catalogPosition.get(b) ?? 0));
     },
-    searchDocument: (film) => {
-      let searchDoc = searchDocuments.get(film);
-      if (searchDoc) return searchDoc;
-      if (!catalogPosition.has(film)) throw new Error('O filme não pertence a este catálogo.');
-      const title = fold(film.title);
-      const originalTitle = fold(film.originalTitle);
-      const director = fold(film.director);
-      const country = fold(film.country);
-      const pitch = fold(film.pitch);
-      const genres = film.genres.map(fold).join(' ');
-      const keywords = film.keywords.map(fold);
-      searchDoc = {
-        title,
-        originalTitle,
-        director,
-        country,
-        pitch,
-        genres,
-        keywords,
-        searchable: [title, originalTitle, director, country, pitch, keywords.join(' ')].join(' '),
-      };
-      searchDocuments.set(film, searchDoc);
-      return searchDoc;
-    },
+    searchDocument,
     posterPath: (imdbId) => posters[imdbId] ?? '',
     keywordFrequency: (keyword) => keywordFrequencies().get(keyword) ?? 0,
+    searchVocabulary,
   };
 }

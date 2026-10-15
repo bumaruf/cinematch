@@ -2,9 +2,10 @@ import type { AppContext } from '../application/context.ts';
 import { createPackagedCatalogLoader } from '../infrastructure/catalog-resource.ts';
 import catalogUrl from 'virtual:cinematch-catalog-url';
 import { letterboxdArtwork } from '../infrastructure/letterboxd/artwork.ts';
+import { chromeOnDeviceModel } from '../infrastructure/on-device-model.ts';
 import { tabAwareFetcher } from '../infrastructure/letterboxd/http.ts';
 import { createLetterboxdSync } from '../infrastructure/letterboxd/sync.ts';
-import { chromeKeyValueStore, type KeyValueStore } from '../infrastructure/storage/key-value.ts';
+import type { KeyValueStore } from '../infrastructure/storage/key-value.ts';
 import {
   dailyPickStore,
   feedbackStore,
@@ -12,16 +13,19 @@ import {
   historyStore,
   popupSessionStore,
   profileStore,
-  removeObsoleteData,
   savedFilmsStore,
   settingsStore,
   syncCheckpointStore,
 } from '../infrastructure/storage/stores.ts';
-import { DASHBOARD_PATH, isRequestMessage, type ResponseMessage, type SyncProgressEvent } from '../messaging/contract.ts';
-import { createHandlers, type Handlers, type Platform } from './router.ts';
+import { DASHBOARD_PATH, isAllowedSender, isRequestMessage, type ResponseMessage, type SyncProgressEvent } from '../messaging/contract.ts';
+import type { Handlers, Platform } from './router.ts';
 
 export function createContext(kv: KeyValueStore, sessionKv: KeyValueStore = kv): AppContext {
-  const clock = { now: () => new Date() };
+  const clock = {
+    now: () => new Date(),
+    // Days turn over at the user's midnight, not at a fixed zone.
+    timeZone: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+  };
   const checkpoints = syncCheckpointStore(kv);
   return {
     catalog: createPackagedCatalogLoader(catalogUrl),
@@ -42,6 +46,7 @@ export function createContext(kv: KeyValueStore, sessionKv: KeyValueStore = kv):
       clearProgress: () => checkpoints.clear(),
     },
     artwork: letterboxdArtwork(),
+    onDeviceModel: chromeOnDeviceModel(),
   };
 }
 
@@ -65,10 +70,16 @@ export const chromePlatform: Platform = {
 };
 
 export function listen(handlers: Handlers): void {
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!isRequestMessage(message)) return false;
+    if (!isAllowedSender(message.action, sender, chrome.runtime.id)) {
+      sendResponse({ ok: false, error: 'Ação não permitida neste contexto.' } satisfies ResponseMessage);
+      return false;
+    }
     const handler = handlers[message.action] as (payload: unknown) => Promise<unknown>;
-    handler(message.payload)
+    // A handler that throws before returning its promise still gets an answer.
+    Promise.resolve()
+      .then(() => handler(message.payload))
       .then((data) => sendResponse({ ok: true, data }))
       .catch((error: unknown) => {
         console.error(`[CineMatch] ${message.action}:`, error);

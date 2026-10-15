@@ -1,7 +1,7 @@
 import type { SavedFilmInput } from '../application/library.ts';
 import type { FeedbackInput } from '../application/feedback.ts';
 import type { EvaluationInput, getRecommendationEvaluationReport } from '../application/evaluation.ts';
-import type { HistoryEntry, PopupSession, SavedFilm, SyncProgress } from '../application/ports.ts';
+import type { HistoryEntry, OnDeviceModelStatus, PopupSession, SavedFilm, SyncProgress } from '../application/ports.ts';
 import type { ActiveProfile, CsvFile, ImportSummary, SyncResult } from '../application/profile.ts';
 import type { DailyPickResponse, RecommendationQuery } from '../application/recommendations.ts';
 import type { FilmFeedback, RecommendationResult, Settings } from '../domain/film.ts';
@@ -30,6 +30,7 @@ export interface Contract {
   savePopupSession: { request: PopupSession; response: void };
   getSettings: { request: void; response: Settings };
   updateSettings: { request: Partial<Settings>; response: Settings };
+  getOnDeviceModelStatus: { request: void; response: OnDeviceModelStatus };
   getFilmArtwork: { request: { slug: string }; response: string };
   openDashboard: { request: { hash?: string }; response: void };
 }
@@ -71,12 +72,39 @@ export const ACTIONS: readonly Action[] = [
   'savePopupSession',
   'getSettings',
   'updateSettings',
+  'getOnDeviceModelStatus',
   'getFilmArtwork',
   'openDashboard',
 ];
 
+/**
+ * What the content script may ask for. It runs inside Letterboxd pages, so it
+ * gets only the daily pick flow, never destructive or bulk operations.
+ */
+export const CONTENT_SCRIPT_ACTIONS: ReadonlySet<Action> = new Set<Action>([
+  'getActiveProfile',
+  'syncProfile',
+  'getDailyPick',
+  'getFilmArtwork',
+  'openDashboard',
+]);
+
 export function isRequestMessage(message: unknown): message is RequestMessage {
-  return typeof message === 'object' && message !== null && ACTIONS.includes((message as RequestMessage).action);
+  if (typeof message !== 'object' || message === null || !ACTIONS.includes((message as RequestMessage).action)) return false;
+  const { payload } = message as { payload?: unknown };
+  return payload === undefined || (typeof payload === 'object' && payload !== null && !Array.isArray(payload));
+}
+
+export interface MessageSender {
+  id?: string;
+  url?: string;
+}
+
+/** Extension pages may call anything; content scripts only their allowlist. */
+export function isAllowedSender(action: Action, sender: MessageSender, extensionId: string): boolean {
+  if (sender.id !== extensionId) return false;
+  if (sender.url?.startsWith(`chrome-extension://${extensionId}/`)) return true;
+  return CONTENT_SCRIPT_ACTIONS.has(action);
 }
 
 export function isSyncProgressEvent(message: unknown): message is SyncProgressEvent {

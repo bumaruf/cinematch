@@ -12,9 +12,9 @@
  * ---------------------------------------------------------------
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..', '..');
@@ -57,7 +57,7 @@ async function getPitchForFilm(film) {
   if (!results?.length) return null;
 
   // Find best year match
-  const hit = results.find(r => Math.abs(parseInt(r.release_date) - film.year) <= 2) || results[0];
+  const hit = results.find(r => Math.abs(parseInt(r.release_date, 10) - film.year) <= 2) || results[0];
   if (!hit) return null;
 
   // Fetch full details with pt-BR overview
@@ -153,7 +153,7 @@ async function main() {
         checkpoint[film.slug] = '';
         failed++;
       }
-    } catch (err) {
+    } catch {
       checkpoint[film.slug] = '';
       failed++;
     }

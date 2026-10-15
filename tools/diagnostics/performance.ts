@@ -27,7 +27,7 @@ const requests = [
 ];
 const cases = requests.map(({ name, ...query }) => {
   const samplesMs: number[] = [];
-  let result;
+  let result: ReturnType<typeof recommend> | undefined;
   for (let i = 0; i < 3; i++) {
     const at = performance.now();
     result = recommend({ profile, ...query, filters: { avoidWatched: true, minVotes: 0 } }, catalog, now);

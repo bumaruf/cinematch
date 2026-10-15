@@ -3,6 +3,7 @@ import { createCatalog } from '../../src/domain/catalog/catalog.ts';
 import { productionCountries } from '../../src/domain/catalog/countries.ts';
 import { specificKeywords } from '../../src/domain/catalog/evidence.ts';
 import { recommend } from '../../src/domain/recommend/engine.ts';
+import type { Filters } from '../../src/domain/film.ts';
 import { parseSearchQuery } from '../../src/domain/recommend/query.ts';
 import { themeEligibility } from '../../src/domain/recommend/theme-eligibility.ts';
 import { createTasteMatcher } from '../../src/domain/taste/taste-match.ts';
@@ -135,4 +136,54 @@ test('explicit identities do not confuse similar titles, sequels or remakes', ()
   expect(saved.has({ title: 'Alien', year: 1979, slug: 'alien-1979' })).toBe(true);
   expect(saved.has({ title: 'Suspiria', year: 2018 })).toBe(false);
   expect(saved.has({ title: 'Suspiria', year: 1977 })).toBe(true);
+});
+
+test('"Não combina comigo" works as a negative taste signal, not only as an exclusion', () => {
+  const catalog = discoveryCatalog();
+  const profile = { films: [{ title: 'seen', slug: 'seen', rating: 5 }] };
+  const plain = createTasteMatcher(profile, catalog)(catalog.bySlug('known-1')!);
+  const rejected = createTasteMatcher(profile, catalog, { rejected: [{ title: 'known-0', slug: 'known-0' }] })(catalog.bySlug('known-1')!);
+  expect(rejected.score).toBeLessThan(plain.score);
+  const result = recommend({ profile: { username: 'test', ...profile }, rejectedFilms: [{ title: 'known-0', slug: 'known-0' }] }, catalog, FIXED_NOW);
+  expect(result.recommendations.some((item) => item.catalogSlug === 'known-0')).toBe(false);
+});
+
+test('dislikes follow a generous personal rating scale', () => {
+  const catalog = discoveryCatalog();
+  // Nobody here rates below 3, so 3 stars is this user's "bad".
+  const films = [
+    ...Array.from({ length: 8 }, (_, i) => ({ title: `liked-${i}`, slug: `liked-${i}`, rating: 4.5 })),
+    { title: 'seen', slug: 'seen', rating: 5 },
+    { title: 'known-0', slug: 'known-0', rating: 3 },
+    { title: 'known-1', slug: 'known-1', rating: 3 },
+  ];
+  const withScale = createTasteMatcher({ films }, catalog)(catalog.bySlug('known-2')!);
+  const withoutDislikes = createTasteMatcher({ films: films.filter((item) => item.rating !== 3) }, catalog)(catalog.bySlug('known-2')!);
+  expect(withScale.score).toBeLessThan(withoutDislikes.score);
+});
+
+test('several supporting liked films score above a single one', () => {
+  const catalog = discoveryCatalog();
+  const one = createTasteMatcher({ films: [{ title: 'seen', slug: 'seen', rating: 5 }] }, catalog)(catalog.bySlug('known-5')!);
+  const many = createTasteMatcher({ films: ['seen', 'known-0', 'known-1', 'known-2'].map((slug) => ({ title: slug, slug, rating: 5 })) }, catalog)(catalog.bySlug('known-5')!);
+  expect(many.score).toBeGreaterThan(one.score);
+});
+
+test('a seed varies browsing deterministically but never reorders searches', () => {
+  const catalog = discoveryCatalog();
+  const profile = { username: 'test', films: [{ title: 'seen', slug: 'seen', rating: 5 }] };
+  const slugs = (seed?: string, customPrompt?: string) =>
+    recommend({ profile, seed, customPrompt }, catalog, FIXED_NOW).recommendations.map((item) => item.catalogSlug);
+  expect(slugs('a')).toEqual(slugs('a'));
+  const seeds = Array.from({ length: 12 }, (_, i) => slugs(`seed-${i}`).join());
+  expect(new Set(seeds).size).toBeGreaterThan(1);
+  expect(slugs('a', 'animação japonesa')).toEqual(slugs(undefined, 'animação japonesa'));
+});
+
+test('unknown runtime filters from old data or the UI mean no limit instead of failing', () => {
+  const catalog = discoveryCatalog();
+  const profile = { username: 'test', films: [{ title: 'seen', slug: 'seen', rating: 5 }] };
+  const filters = { runtimeFilter: 'any', maxRuntime: 'any' } as unknown as Filters;
+  const result = recommend({ profile, filters }, catalog, FIXED_NOW);
+  expect(result.recommendations.length).toBeGreaterThan(0);
 });

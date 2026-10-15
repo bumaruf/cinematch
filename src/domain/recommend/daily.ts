@@ -57,17 +57,19 @@ export interface DailyOptions {
   /** Slugs picked on earlier days, kept out for variety. */
   excludedSlugs?: readonly string[];
   excludedFilms?: readonly FilmIdentity[];
+  /** Films marked "Não combina comigo", used as negative taste signals. */
+  rejectedFilms?: readonly FilmIdentity[];
 }
 
 /**
  * One well-rated unwatched film per user and day. The choice is
  * deterministic for a date, and only strong taste matches compete.
  */
-export function pickDaily(profile: UserProfile | null, catalog: Catalog, { date, now, excludedSlugs = [], excludedFilms = [] }: DailyOptions): DailyPick {
+export function pickDaily(profile: UserProfile | null, catalog: Catalog, { date, now, excludedSlugs = [], excludedFilms = [], rejectedFilms = [] }: DailyOptions): DailyPick {
   const seed = hashString(`${date}-${(profile?.username || 'cinefilo').toLowerCase()}`);
   const analyzed = analyzeProfile(profile, catalog, now);
   const yearPhase = analyzeYearPhase(profile, catalog, now);
-  const matchTaste = createTasteMatcher(profile ?? {}, catalog);
+  const matchTaste = createTasteMatcher(profile ?? {}, catalog, { rejected: rejectedFilms });
   const watched = createWatchedIndex(analyzed.watchedList);
   const excluded = new Set(excludedSlugs.map(slugKey));
   const blocked = createFilmIdentityIndex(excludedFilms);

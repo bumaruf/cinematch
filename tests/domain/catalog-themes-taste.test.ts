@@ -12,7 +12,7 @@ const catalog = loadCatalog();
 test('catálogo de temas: contagem, busca por ID e busca por palavra-chave', () => {
   assert.ok(THEMES_CATALOG.length >= 15, `Catálogo contém ${THEMES_CATALOG.length} temas cadastrados`);
   const cyberpunkTheme = getThemeById('cyberpunk-neon-noir');
-  assert.ok(cyberpunkTheme && cyberpunkTheme.title.includes('Cyberpunk'), 'Recuperação de tema por ID');
+  assert.ok(cyberpunkTheme?.title.includes('Cyberpunk'), 'Recuperação de tema por ID');
   assert.ok(!('criteria' in (cyberpunkTheme ?? {})), 'getThemeById no longer carries criteria');
   assert.ok(getThemeCriteria('cyberpunk-neon-noir'), 'criteria come from getThemeCriteria');
 

@@ -7,6 +7,7 @@ import { savedMatcher, type FilmLike } from '../../shared/film.ts';
 import { filmCard, filmSkeletons } from '../../shared/film-card.ts';
 import { readFilters } from '../../shared/filters.ts';
 import { html, render } from '../../shared/html.ts';
+import { interpretationText } from '../../shared/interpretation.ts';
 import type { Notifier } from './state.ts';
 import { setupRecommendationEvaluation } from './evaluation.ts';
 
@@ -122,7 +123,7 @@ export function setupCurator({
       el.resultsTitle.textContent = result.themeName;
       el.exportText.hidden = current.length === 0;
       el.note.textContent = current.length ? result.notice : '';
-      el.interpretation.textContent = result.interpretation?.length ? `Entendi: ${result.interpretation.join(' · ')}` : '';
+      el.interpretation.textContent = interpretationText(result.interpretation, result.interpretedBy);
       if (current.length === 0) {
         render(el.list, html`<div class="col-span-full py-6"><p class="mb-4 text-muted" role="status">${result.notice || 'Nenhum filme com esses critérios. Tente outro clima ou tire um filtro.'}</p><button type="button" class="btn btn-secondary" data-general-recovery>Ver sugestões gerais</button><p class="mt-2 text-[12px] text-muted">Busca sem clima, texto ou filtros. Seus assistidos e feedback continuam sendo respeitados.</p></div>`);
         el.list.querySelector<HTMLButtonElement>('[data-general-recovery]')!.addEventListener('click', async event => {
@@ -167,7 +168,7 @@ export function setupCurator({
         const control = document.createElement('button');
         control.type = 'button';
         control.className =
-          'rounded-full border border-line px-4 py-2 text-left text-[13px] font-semibold text-muted transition-colors hover:border-line-strong hover:text-ink pressed:border-accent pressed:bg-accent pressed:text-on-accent';
+          'rounded-full border border-line px-4 py-2 text-left text-[13px] font-semibold text-muted transition-colors hover:border-line-strong hover:text-ink pressed:border-brand pressed:bg-brand pressed:text-on-brand';
         control.setAttribute('aria-pressed', String(index === activeCollectionIndex));
         render(control, html`${collection.title}`);
         control.addEventListener('click', () => {
@@ -197,12 +198,12 @@ export function setupCurator({
         const option = document.createElement('button');
         option.type = 'button';
         option.className =
-          'group flex min-h-28 w-full cursor-pointer flex-col justify-between rounded-card border border-line bg-surface p-4 text-left transition-[border-color,background-color,transform] hover:-translate-y-0.5 hover:border-line-strong hover:bg-raised pressed:border-accent pressed:bg-accent/10 motion-reduce:transform-none';
+          'group flex min-h-28 w-full cursor-pointer flex-col justify-between rounded-card border border-line bg-surface p-4 text-left transition-[border-color,background-color,transform] hover:-translate-y-0.5 hover:border-line-strong hover:bg-raised pressed:border-brand pressed:bg-brand/10 motion-reduce:transform-none';
         option.dataset.themeId = theme.id;
         option.setAttribute('aria-pressed', String(theme.id === selectedThemeId));
         render(
           option,
-          html`<span class="font-serif text-xl leading-tight font-medium group-aria-pressed:text-accent">${theme.shortTitle}</span><span class="mt-3 line-clamp-2 text-[13px] leading-snug text-muted">${theme.vibe}</span>`,
+          html`<span class="font-serif text-xl leading-tight font-medium group-aria-pressed:text-brand">${theme.shortTitle}</span><span class="mt-3 line-clamp-2 text-[13px] leading-snug text-muted">${theme.vibe}</span>`,
         );
         // A climate remains an immediate recommendation request.
         option.addEventListener('click', () => {

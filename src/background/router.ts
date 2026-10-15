@@ -3,6 +3,7 @@ import { listFilmFeedback, recordFilmFeedback } from '../application/feedback.ts
 import { clearRecommendationEvaluations, getRecommendationEvaluationReport, recordRecommendationEvaluation } from '../application/evaluation.ts';
 import { getFilmArtwork, getPopupSession, getSettings, listHistory, listSavedFilms, savePopupSession, toggleSavedFilm, updateSettings } from '../application/library.ts';
 import type { SyncProgress } from '../application/ports.ts';
+import { getOnDeviceModelStatus } from '../application/query-model.ts';
 import { clearProfile, getActiveProfile, importCsvProfile, syncProfile } from '../application/profile.ts';
 import { generateRecommendations, getDailyPick, getSurprisePick } from '../application/recommendations.ts';
 import type { Action, RequestOf, ResponseOf } from '../messaging/contract.ts';
@@ -37,6 +38,7 @@ export function createHandlers(ctx: AppContext, platform: Platform): Handlers {
     savePopupSession: (session) => savePopupSession(ctx, session),
     getSettings: () => getSettings(ctx),
     updateSettings: (changes) => updateSettings(ctx, changes),
+    getOnDeviceModelStatus: () => getOnDeviceModelStatus(ctx),
     getFilmArtwork: ({ slug }) => getFilmArtwork(ctx, slug),
     openDashboard: ({ hash } = {}) => platform.openDashboard(hash),
   };

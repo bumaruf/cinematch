@@ -24,6 +24,7 @@ export const KEYS = {
   syncCheckpoint: 'lb_curator_sync_checkpoint',
   importBackup: 'lb_curator_import_backup',
   repairBackup: 'lb_curator_repair_backup',
+  switchBackup: 'lb_curator_switch_backup',
   history: 'lb_curator_rec_history',
   popupSession: 'lb_curator_popup_session',
   saved: 'lb_curator_saved_recs',
@@ -48,12 +49,14 @@ const OBSOLETE_KEYS = [
 ];
 const OBSOLETE_SETTINGS = ['model', 'engineMode', 'temperature', 'maxRecommendations', 'language'];
 
-export const DEFAULT_SETTINGS: Settings = { avoidWatched: true, includeUnderrated: true, minVotes: 0 };
+export const DEFAULT_SETTINGS: Settings = { avoidWatched: true, includeUnderrated: true, minVotes: 0, modelQuery: false };
 
 const HISTORY_LIMIT = 30;
 const DAILY_LIMIT = 180;
 /** Keeps local storage predictable even for exceptionally large imports. */
 export const PROFILE_FILMS_LIMIT = 20_000;
+
+const BACKUP_KEYS = { import: KEYS.importBackup, repair: KEYS.repairBackup, switch: KEYS.switchBackup } as const;
 
 export function profileStore(kv: KeyValueStore, clock: () => Date = () => new Date()): ProfileStore {
   return {
@@ -66,10 +69,10 @@ export function profileStore(kv: KeyValueStore, clock: () => Date = () => new Da
       assertProfileSize(profile);
       return kv.set({
         [KEYS.profile]: profile,
-        [reason === 'import' ? KEYS.importBackup : KEYS.repairBackup]: { profile: previous, savedAt: clock().toISOString() },
+        [BACKUP_KEYS[reason]]: { profile: previous, savedAt: clock().toISOString() },
       });
     },
-    clear: () => kv.remove([KEYS.profile, KEYS.syncCheckpoint, KEYS.importBackup, KEYS.repairBackup, KEYS.watchlist]),
+    clear: () => kv.remove([KEYS.profile, KEYS.syncCheckpoint, KEYS.importBackup, KEYS.repairBackup, KEYS.switchBackup, KEYS.watchlist]),
   };
 }
 
@@ -94,6 +97,7 @@ export function settingsStore(kv: KeyValueStore): SettingsStore {
       avoidWatched: saved.avoidWatched ?? DEFAULT_SETTINGS.avoidWatched,
       includeUnderrated: saved.includeUnderrated ?? DEFAULT_SETTINGS.includeUnderrated,
       minVotes: Number(saved.minVotes ?? DEFAULT_SETTINGS.minVotes),
+      modelQuery: saved.modelQuery === true,
     };
   };
   return {

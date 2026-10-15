@@ -110,3 +110,21 @@ testWithCatalog('getActiveProfile describes the saved profile; clearProfile remo
   await clearProfile(ctx);
   assert.equal(await getActiveProfile(ctx), null);
 });
+
+test('syncing a different member keeps the previous history as a backup', async () => {
+  const previous: UserProfile = { username: 'me', films: [{ title: 'Alien', slug: 'alien' }], favorites: [] };
+  const friend: UserProfile = { username: 'friend', films: [{ title: 'Heat', slug: 'heat' }], favorites: [] };
+  const letterboxd = fakeLetterboxd(async () => ({ pending: false, profile: friend }));
+  const { ctx, kv } = await createTestContext({ profile: previous, letterboxd });
+  await syncProfile(ctx, { username: 'friend' });
+  assert.equal((await ctx.profiles.get())?.username, 'friend');
+  assert.deepEqual((await kv.get<{ profile: UserProfile }>(KEYS.switchBackup))?.profile, previous);
+});
+
+test('resyncing the same member does not write a switch backup', async () => {
+  const previous: UserProfile = { username: 'Me', films: [{ title: 'Alien', slug: 'alien' }], favorites: [] };
+  const letterboxd = fakeLetterboxd(async () => ({ pending: false, profile: { ...previous, username: 'me' } }));
+  const { ctx, kv } = await createTestContext({ profile: previous, letterboxd });
+  await syncProfile(ctx, { username: 'me' });
+  assert.equal(await kv.get(KEYS.switchBackup), undefined);
+});

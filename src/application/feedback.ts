@@ -1,18 +1,23 @@
 import type { FeedbackKind, FilmFeedback, FilmIdentity } from '../domain/film.ts';
 import { catalogIdentity } from '../domain/profile/watched.ts';
 import { createFilmIdentityIndex } from '../domain/profile/identity.ts';
-import { dateKey, usernameKey } from '../domain/recommend/daily.ts';
+import { DAILY_TIME_ZONE, dateKey, usernameKey } from '../domain/recommend/daily.ts';
 import type { AppContext } from './context.ts';
 
 export interface FeedbackInput { film: FilmIdentity; kind: FeedbackKind | null; username?: string }
 
-export function activeFeedback(entries: readonly FilmFeedback[], now: Date): FilmFeedback[] {
-  return entries.filter((entry) => entry.kind !== 'later' || dateKey(new Date(entry.createdAt)) === dateKey(now));
+export function activeFeedback(entries: readonly FilmFeedback[], now: Date, timeZone = DAILY_TIME_ZONE): FilmFeedback[] {
+  return entries.filter((entry) => entry.kind !== 'later' || dateKey(new Date(entry.createdAt), timeZone) === dateKey(now, timeZone));
+}
+
+/** The user's time zone, or the historical default when the clock has none. */
+export function timeZoneOf(ctx: Pick<AppContext, 'clock'>): string {
+  return ctx.clock.timeZone?.() || DAILY_TIME_ZONE;
 }
 
 export async function listFilmFeedback(ctx: AppContext): Promise<FilmFeedback[]> {
   const profile = await ctx.profiles.get();
-  return activeFeedback(await ctx.feedback.list(usernameKey(profile?.username)), ctx.clock.now());
+  return activeFeedback(await ctx.feedback.list(usernameKey(profile?.username)), ctx.clock.now(), timeZoneOf(ctx));
 }
 
 export async function recordFilmFeedback(ctx: AppContext, { film, kind, username: expected }: FeedbackInput): Promise<void> {

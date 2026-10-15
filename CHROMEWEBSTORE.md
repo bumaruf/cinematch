@@ -65,6 +65,7 @@ O catálogo IMDb tem licença de uso pessoal e não comercial; o código GPL nã
 
 | Versão | Data | Mudanças | Estado |
 |---|---|---|---|
+| 1.0.0, alterações locais | 2026-10-14 | O botão do Letterboxd não troca mais o perfil ativo sem confirmação (com backup do anterior); fontes dos dados nas opções e no painel; "Não combina comigo" ensina o gosto; variedade por década; buscas mais rápidas; sincronização tolerante e dia no fuso do usuário | Rascunho local |
 | 1.0.0, alterações locais | 2026-10-12 | Alternativas de gêneros e países, negações locais, intervalos de duração e explicação de conflitos entre texto e filtros | Rascunho local |
 | 1.0.0, alterações locais | 2026-10-12 | Ampliação das evidências de Um único cenário e Cinema lento; revisão das lacunas de metadados e auditoria de cobertura por popularidade | Rascunho local |
 | 1.0.0, alterações locais | 2026-10-10 | Remoção dos modos Familiar, Explorar e Surpreender; recomendação automática; correção do bloqueio de assistidos para títulos regionais e listas reabertas no popup | Rascunho local |
