@@ -206,7 +206,11 @@ export async function collectFullProfile(rawUsername: string, fetchPage: PageFet
         collected.add(film.slug || film.title);
         setFilm(film, false, 'films-page');
       }
-      if (collected.size === before && total > 0) throw new Error('Paginação repetiu a mesma página.');
+      if (collected.size === before && total > 0) {
+        // A page past the end may repeat the last one instead of listing nothing.
+        if (isHistoryComplete(collected.size, total)) break;
+        throw new Error('Paginação repetiu a mesma página.');
+      }
       pagesProcessed++;
       await options.saveCheckpoint?.({ username, totalFilms: total, startedAt, nextPage: page + 1, collectedSlugs: [...collected], films: [...films.values()] });
       // A full page may hide a film pushed to the next one by a film logged

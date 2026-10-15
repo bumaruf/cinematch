@@ -1,5 +1,8 @@
 const DIACRITICS = /[̀-ͯ]/g;
 
+/** Longer texts (synopses) are folded once per film and cached elsewhere. */
+const MEMO_MAX_LENGTH = 200;
+
 /**
  * Bounded memo for pure string functions called for every catalog film on
  * every request. Clearing at the cap keeps memory predictable.
@@ -7,6 +10,7 @@ const DIACRITICS = /[̀-ͯ]/g;
 function memoize(fn: (value: string) => string, cap = 100_000): (value: string) => string {
   const cache = new Map<string, string>();
   return (value) => {
+    if (value.length > MEMO_MAX_LENGTH) return fn(value);
     let result = cache.get(value);
     if (result === undefined) {
       if (cache.size >= cap) cache.clear();

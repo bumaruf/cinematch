@@ -8,7 +8,7 @@ import { fetchLetterboxdPage } from '../../src/infrastructure/letterboxd/http.ts
 import { createLetterboxdSync } from '../../src/infrastructure/letterboxd/sync.ts';
 import { memoryKeyValueStore } from '../../src/infrastructure/storage/key-value.ts';
 import { DEFAULT_SETTINGS, syncCheckpointStore } from '../../src/infrastructure/storage/stores.ts';
-import { isRequestMessage, type ResponseMessage } from '../../src/messaging/contract.ts';
+import { ACTIONS, isRequestMessage, type ResponseMessage } from '../../src/messaging/contract.ts';
 import { createTestContext, FIXED_NOW } from '../helpers.ts';
 
 const originalChrome = (globalThis as { chrome?: unknown }).chrome;
@@ -122,4 +122,23 @@ test('isRequestMessage rejects malformed and unknown messages', () => {
   assert.equal(isRequestMessage({ action: 'getSettings' }), true);
   assert.equal(isRequestMessage({ action: 'getSettings', payload: 'x' }), false);
   assert.equal(isRequestMessage({ action: 'getSettings', payload: [] }), false);
+});
+
+test('every action answers malformed payloads with a response instead of hanging or crashing', { timeout: 60000 }, async () => {
+  const { ctx } = await createTestContext({ profile: { username: 'test', films: [{ title: 'Alien', slug: 'alien', rating: 4 }] } });
+  const { platform } = fakePlatform();
+  const send = installRuntime();
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  listen(createHandlers(ctx, platform));
+  const payloads: unknown[] = [undefined, {}, { username: 42, files: 'x', film: null, kind: 'evil', slug: '../../x', filters: { runtimeFilter: 'any' } }];
+  // clearProfile is destructive by design; everything else must survive junk.
+  for (const action of ACTIONS.filter((name) => name !== 'clearProfile')) {
+    for (const payload of payloads) {
+      const { handled, response } = await send({ action, payload });
+      assert.equal(handled, true, `${action} must answer`);
+      assert.equal(typeof response?.ok, 'boolean', `${action} answers with { ok }`);
+    }
+  }
+  // Malformed input never wipes or corrupts the saved profile.
+  assert.equal((await ctx.profiles.get())?.username, 'test');
 });

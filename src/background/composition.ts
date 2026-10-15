@@ -75,7 +75,9 @@ export function listen(handlers: Handlers): void {
       return false;
     }
     const handler = handlers[message.action] as (payload: unknown) => Promise<unknown>;
-    handler(message.payload)
+    // A handler that throws before returning its promise still gets an answer.
+    Promise.resolve()
+      .then(() => handler(message.payload))
       .then((data) => sendResponse({ ok: true, data }))
       .catch((error: unknown) => {
         console.error(`[CineMatch] ${message.action}:`, error);

@@ -3,6 +3,7 @@ import { createCatalog } from '../../src/domain/catalog/catalog.ts';
 import { productionCountries } from '../../src/domain/catalog/countries.ts';
 import { specificKeywords } from '../../src/domain/catalog/evidence.ts';
 import { recommend } from '../../src/domain/recommend/engine.ts';
+import type { Filters } from '../../src/domain/film.ts';
 import { parseSearchQuery } from '../../src/domain/recommend/query.ts';
 import { themeEligibility } from '../../src/domain/recommend/theme-eligibility.ts';
 import { createTasteMatcher } from '../../src/domain/taste/taste-match.ts';
@@ -177,4 +178,12 @@ test('a seed varies browsing deterministically but never reorders searches', () 
   const seeds = Array.from({ length: 12 }, (_, i) => slugs(`seed-${i}`).join());
   expect(new Set(seeds).size).toBeGreaterThan(1);
   expect(slugs('a', 'animação japonesa')).toEqual(slugs(undefined, 'animação japonesa'));
+});
+
+test('unknown runtime filters from old data or the UI mean no limit instead of failing', () => {
+  const catalog = discoveryCatalog();
+  const profile = { username: 'test', films: [{ title: 'seen', slug: 'seen', rating: 5 }] };
+  const filters = { runtimeFilter: 'any', maxRuntime: 'any' } as unknown as Filters;
+  const result = recommend({ profile, filters }, catalog, FIXED_NOW);
+  expect(result.recommendations.length).toBeGreaterThan(0);
 });

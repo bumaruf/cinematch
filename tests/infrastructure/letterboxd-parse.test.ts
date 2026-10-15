@@ -193,3 +193,13 @@ test('a film logged during the sync is not lost when it pushes another to the ne
   assert.ok(profile.films.some((film) => film.slug === 'oldest'));
   assert.equal(profile.totalFilms, 73);
 });
+
+test('a page past the end that repeats the last full page ends a complete collection', async () => {
+  const page1 = Array.from({ length: 72 }, (_, i) => filmHtml(`film-${i}`)).join('');
+  const profile = await extract('test', async (url) => {
+    if (url.endsWith('/test/')) return profileHtml(72);
+    if (url.endsWith('/films/') || url.includes('/page/2/')) return page1;
+    return '<ul class="poster-list"></ul>';
+  });
+  assert.equal(profile.films.length, 72);
+});
