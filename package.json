@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build",
     "e2e": "npm run build && node tools/diagnostics/e2e-smoke.mjs",
+    "screenshots": "npm run build && node tools/diagnostics/screenshots.mjs",
     "diagnostics:recommendations": "node tools/diagnostics/recommendation-quality.ts",
     "diagnostics:themes": "node tools/diagnostics/theme-quality.ts",
     "diagnostics:performance": "node --expose-gc tools/diagnostics/performance.ts",
