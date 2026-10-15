@@ -80,7 +80,7 @@ test('settings store returns defaults and merges partial updates', async () => {
   const kv = memoryKeyValueStore();
   const settings = settingsStore(kv);
   assert.deepEqual(await settings.get(), DEFAULT_SETTINGS);
-  assert.deepEqual(DEFAULT_SETTINGS, { avoidWatched: true, includeUnderrated: true, minVotes: 0 });
+  assert.deepEqual(DEFAULT_SETTINGS, { avoidWatched: true, includeUnderrated: true, minVotes: 0, modelQuery: false });
   assert.deepEqual(await settings.update({ minVotes: 1000 }), { ...DEFAULT_SETTINGS, minVotes: 1000 });
   assert.deepEqual(await settingsStore(kv).get(), { ...DEFAULT_SETTINGS, minVotes: 1000 });
   const partial = settingsStore(memoryKeyValueStore({ [KEYS.settings]: { avoidWatched: false } }));

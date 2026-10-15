@@ -6,14 +6,14 @@ export interface QueryRequirement { kind: 'genre' | 'country'; values: string[] 
 /** All clauses must hold; within a clause, alternatives contain conjunctive terms. */
 export type QueryClause = QueryRequirement[][];
 
-const GENRE_LABELS: Record<string, string> = {
+export const GENRE_LABELS: Record<string, string> = {
   horror: 'terror', thriller: 'suspense', crime: 'crime', comedy: 'comédia', romance: 'romance',
   drama: 'drama', animation: 'animação', 'sci-fi': 'ficção científica', war: 'guerra', action: 'ação',
   adventure: 'aventura', documentary: 'documentário', mystery: 'mistério', fantasy: 'fantasia',
   western: 'faroeste', family: 'família', 'film-noir': 'noir', musical: 'musical', music: 'música',
-  biography: 'biografia', sport: 'esporte',
+  biography: 'biografia', sport: 'esporte', history: 'história',
 };
-const label = (term: QueryRequirement): string => term.kind === 'genre'
+export const requirementLabel = (term: QueryRequirement): string => term.kind === 'genre'
   ? term.values.map(value => GENRE_LABELS[value] ?? value).join(' e ')
   : `Produção: ${term.values.map(value => COUNTRIES.find(country => country.code === value)!.label).join(' e ')}`;
 
@@ -71,7 +71,7 @@ export function extractQueryRequirements(source: string, genreEntries: [string, 
     } else if (mode === 'negative') {
       for (const value of term.values) (term.kind === 'genre' ? excludedGenres : excludedCountries).add(value);
     } else if (mode === 'optional') {
-      notes.push(`Não exigir ${label(term).toLocaleLowerCase('pt-BR')}`);
+      notes.push(`Não exigir ${requirementLabel(term).toLocaleLowerCase('pt-BR')}`);
     } else {
       if (!boundary && /\b(?:ou|or)\b/.test(gap) && branch.length) { clause.push(branch); branch = []; }
       branch.push({ kind: term.kind, values: term.values });
@@ -96,7 +96,7 @@ export function extractQueryRequirements(source: string, genreEntries: [string, 
     return [...values[0]].filter(value => values.every(set => set.has(value)));
   }));
   const interpretation = [...new Set(notes), ...clauses.map(alternatives => alternatives.map(branch => {
-    const text = branch.map(label).join(' e ');
+    const text = branch.map(requirementLabel).join(' e ');
     return alternatives.length > 1 && branch.length > 1 ? `(${text})` : text;
   }).join(' ou '))];
   for (const genre of excludedGenres) interpretation.push(`Sem ${GENRE_LABELS[genre] ?? genre}`);

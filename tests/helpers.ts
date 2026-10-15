@@ -1,5 +1,5 @@
 import type { AppContext } from '../src/application/context.ts';
-import type { ArtworkSource, LetterboxdSync } from '../src/application/ports.ts';
+import type { ArtworkSource, LetterboxdSync, OnDeviceModel } from '../src/application/ports.ts';
 import type { UserProfile } from '../src/domain/film.ts';
 import { loadCatalog } from '../src/infrastructure/catalog.ts';
 import { memoryKeyValueStore } from '../src/infrastructure/storage/key-value.ts';
@@ -53,6 +53,7 @@ export interface TestContextOptions {
   now?: Date | (() => Date);
   letterboxd?: LetterboxdSync;
   artwork?: ArtworkSource;
+  onDeviceModel?: OnDeviceModel;
 }
 
 /** A fully in-memory AppContext; every call gets its own storage. */
@@ -76,6 +77,7 @@ export async function createTestContext(options: TestContextOptions = {}) {
     evaluations: evaluationStore(kv),
     letterboxd: options.letterboxd ?? fakeLetterboxd(),
     artwork: options.artwork ?? fakeArtwork,
+    onDeviceModel: options.onDeviceModel,
   };
   if (options.profile) await ctx.profiles.save(options.profile);
   return { ctx, kv };

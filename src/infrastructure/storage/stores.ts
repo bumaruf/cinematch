@@ -49,7 +49,7 @@ const OBSOLETE_KEYS = [
 ];
 const OBSOLETE_SETTINGS = ['model', 'engineMode', 'temperature', 'maxRecommendations', 'language'];
 
-export const DEFAULT_SETTINGS: Settings = { avoidWatched: true, includeUnderrated: true, minVotes: 0 };
+export const DEFAULT_SETTINGS: Settings = { avoidWatched: true, includeUnderrated: true, minVotes: 0, modelQuery: false };
 
 const HISTORY_LIMIT = 30;
 const DAILY_LIMIT = 180;
@@ -97,6 +97,7 @@ export function settingsStore(kv: KeyValueStore): SettingsStore {
       avoidWatched: saved.avoidWatched ?? DEFAULT_SETTINGS.avoidWatched,
       includeUnderrated: saved.includeUnderrated ?? DEFAULT_SETTINGS.includeUnderrated,
       minVotes: Number(saved.minVotes ?? DEFAULT_SETTINGS.minVotes),
+      modelQuery: saved.modelQuery === true,
     };
   };
   return {

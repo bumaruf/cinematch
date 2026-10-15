@@ -7,6 +7,7 @@ import { savedMatcher, type FilmLike } from '../../shared/film.ts';
 import { filmCard, filmSkeletons } from '../../shared/film-card.ts';
 import { readFilters } from '../../shared/filters.ts';
 import { html, render } from '../../shared/html.ts';
+import { interpretationText } from '../../shared/interpretation.ts';
 import type { Notifier } from './state.ts';
 import { setupRecommendationEvaluation } from './evaluation.ts';
 
@@ -122,7 +123,7 @@ export function setupCurator({
       el.resultsTitle.textContent = result.themeName;
       el.exportText.hidden = current.length === 0;
       el.note.textContent = current.length ? result.notice : '';
-      el.interpretation.textContent = result.interpretation?.length ? `Entendi: ${result.interpretation.join(' · ')}` : '';
+      el.interpretation.textContent = interpretationText(result.interpretation, result.interpretedBy);
       if (current.length === 0) {
         render(el.list, html`<div class="col-span-full py-6"><p class="mb-4 text-muted" role="status">${result.notice || 'Nenhum filme com esses critérios. Tente outro clima ou tire um filtro.'}</p><button type="button" class="btn btn-secondary" data-general-recovery>Ver sugestões gerais</button><p class="mt-2 text-[12px] text-muted">Busca sem clima, texto ou filtros. Seus assistidos e feedback continuam sendo respeitados.</p></div>`);
         el.list.querySelector<HTMLButtonElement>('[data-general-recovery]')!.addEventListener('click', async event => {

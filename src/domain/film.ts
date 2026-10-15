@@ -132,7 +132,15 @@ export interface Settings {
   avoidWatched: boolean;
   includeUnderrated: boolean;
   minVotes: number;
+  /** Experimental: read free-text searches with Chrome's on-device model. */
+  modelQuery: boolean;
 }
+
+/**
+ * Who read the search: the on-device model, or the rule-based parser after
+ * the model was requested but could not be used.
+ */
+export type InterpretedBy = 'model' | 'rules-fallback';
 
 export interface Recommendation {
   /** Stable identity; older stored recommendations may not have it. */
@@ -169,6 +177,8 @@ export interface RecommendationResult {
   allowRecentFallback: boolean;
   /** Conditions actually applied to the request, in pt-BR. */
   interpretation?: string[];
+  /** Absent when the rule-based parser was the only option. */
+  interpretedBy?: InterpretedBy;
 }
 
 export interface YearPhaseSummary {
