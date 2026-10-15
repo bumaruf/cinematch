@@ -290,7 +290,15 @@
   padding: 14px 24px 18px;
   border-top: 1px solid #242c34;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
+}
+
+.lb-ai-switch-note {
+  margin: 0;
+  padding: 0 24px 16px;
+  color: #8a96a3;
+  font-size: 12px;
 }
 
 @media (max-width: 560px) {

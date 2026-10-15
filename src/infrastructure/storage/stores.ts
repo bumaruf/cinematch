@@ -24,6 +24,7 @@ export const KEYS = {
   syncCheckpoint: 'lb_curator_sync_checkpoint',
   importBackup: 'lb_curator_import_backup',
   repairBackup: 'lb_curator_repair_backup',
+  switchBackup: 'lb_curator_switch_backup',
   history: 'lb_curator_rec_history',
   popupSession: 'lb_curator_popup_session',
   saved: 'lb_curator_saved_recs',
@@ -55,6 +56,8 @@ const DAILY_LIMIT = 180;
 /** Keeps local storage predictable even for exceptionally large imports. */
 export const PROFILE_FILMS_LIMIT = 20_000;
 
+const BACKUP_KEYS = { import: KEYS.importBackup, repair: KEYS.repairBackup, switch: KEYS.switchBackup } as const;
+
 export function profileStore(kv: KeyValueStore, clock: () => Date = () => new Date()): ProfileStore {
   return {
     get: async () => (await kv.get<UserProfile>(KEYS.profile)) ?? null,
@@ -66,10 +69,10 @@ export function profileStore(kv: KeyValueStore, clock: () => Date = () => new Da
       assertProfileSize(profile);
       return kv.set({
         [KEYS.profile]: profile,
-        [reason === 'import' ? KEYS.importBackup : KEYS.repairBackup]: { profile: previous, savedAt: clock().toISOString() },
+        [BACKUP_KEYS[reason]]: { profile: previous, savedAt: clock().toISOString() },
       });
     },
-    clear: () => kv.remove([KEYS.profile, KEYS.syncCheckpoint, KEYS.importBackup, KEYS.repairBackup, KEYS.watchlist]),
+    clear: () => kv.remove([KEYS.profile, KEYS.syncCheckpoint, KEYS.importBackup, KEYS.repairBackup, KEYS.switchBackup, KEYS.watchlist]),
   };
 }
 

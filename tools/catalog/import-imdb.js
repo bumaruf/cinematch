@@ -1,9 +1,9 @@
-import https from 'https';
-import zlib from 'zlib';
-import readline from 'readline';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import https from 'node:https';
+import zlib from 'node:zlib';
+import readline from 'node:readline';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { selectCatalogCandidates, selectionSummary } from './selection.js';
 // Curated fields of an existing catalog are kept; a fresh clone has none.
 const CURRENT_DB = await import('../../src/data/films-dataset.js')
@@ -45,7 +45,7 @@ function streamTsvGz(url, onLine) {
         onLine(cols, header);
       });
 
-      rl.on('close', () => resolve());
+      rl.on('close', () => resolve(undefined));
       gunzip.on('error', (err) => reject(err));
       res.on('error', (err) => reject(err));
     }).on('error', (err) => reject(err));
@@ -64,7 +64,7 @@ function slugify(text) {
 }
 
 // Map IMDb genres and year/director to our 15 curator themes
-function mapThemes(genres, year, runtime, director) {
+function mapThemes(genres, year, runtime, _director) {
   const g = (genres || []).map(x => x.toLowerCase());
   const themes = new Set();
 
@@ -146,7 +146,7 @@ async function run() {
     const genresStr = cols[8];
 
     // Only feature movies matching our rated candidates
-    if (titleType === 'movie' && isAdult === '0' && ratingMap.has(tconst) && !isNaN(startYear)) {
+    if (titleType === 'movie' && isAdult === '0' && ratingMap.has(tconst) && !Number.isNaN(startYear)) {
       const genres = genresStr && genresStr !== '\\N' ? genresStr.split(',') : [];
       const ratingInfo = ratingMap.get(tconst);
 
@@ -221,7 +221,6 @@ async function run() {
     if (selectedTconsts.has(tconst)) {
       const title = cols[2];
       const region = cols[3];
-      const isOriginal = cols[7] === '1';
 
       if (region === 'BR' && title && title !== '\\N') {
         ptTitleMap.set(tconst, title);

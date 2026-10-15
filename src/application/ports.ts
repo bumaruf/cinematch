@@ -4,13 +4,15 @@ import type { EvaluationContext, RecommendationEvaluation } from '../domain/reco
 /** Source of the current time, so use cases stay deterministic in tests. */
 export interface Clock {
   now(): Date;
+  /** The user's IANA time zone; days (daily pick, "Hoje não") turn over at its midnight. */
+  timeZone?(): string;
 }
 
 export interface ProfileStore {
   get(): Promise<UserProfile | null>;
   save(profile: UserProfile): Promise<void>;
   /** Replaces the profile and keeps the previous one as a recoverable backup. */
-  replace(profile: UserProfile, previous: UserProfile | null, reason: 'import' | 'repair'): Promise<void>;
+  replace(profile: UserProfile, previous: UserProfile | null, reason: 'import' | 'repair' | 'switch'): Promise<void>;
   clear(): Promise<void>;
 }
 

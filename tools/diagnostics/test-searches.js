@@ -44,13 +44,13 @@ function fuzzyMatch(token, corpusWord) {
 function fuzzyMatchInText(token, text) {
   if (!text || !token) return false;
   if (text.includes(token)) return true;
-  const words = text.split(/[\s,.:;!?\/\-_()]+/).filter(w => w.length >= 2);
+  const words = text.split(/[\s,.:;!?/\-_()]+/).filter(w => w.length >= 2);
   return words.some(w => fuzzyMatch(token, w));
 }
 
 function search(query) {
   const cleanPrompt = normalizeStr(query);
-  const tokens = cleanPrompt.split(/[\s,.;:!?+\-_\/]+/).filter(w => w.length >= 2);
+  const tokens = cleanPrompt.split(/[\s,.;:!?+\-_/]+/).filter(w => w.length >= 2);
   const results = [];
 
   for (const film of EXPANDED_FILM_DATABASE) {

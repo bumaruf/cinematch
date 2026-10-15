@@ -11,10 +11,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.tools.json",
+    "lint": "biome lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run typecheck && npm run test && npm run build",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build",
     "e2e": "npm run build && node tools/diagnostics/e2e-smoke.mjs",
     "diagnostics:recommendations": "node tools/diagnostics/recommendation-quality.ts",
     "diagnostics:themes": "node tools/diagnostics/theme-quality.ts",
@@ -32,6 +33,7 @@
     "catalog:dedup": "node tools/catalog/dedup-database.js"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@crxjs/vite-plugin": "^3.0.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/chrome": "^0.3.4",

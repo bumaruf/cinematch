@@ -16,6 +16,6 @@
     "allowJs": true,
     "checkJs": false
   },
-  "include": ["src", "tests", "*.config.ts"],
+  "include": ["src", "tests", "tools/**/*.ts", "*.config.ts"],
   "exclude": ["src/data/films-dataset.js", "src/data/poster-catalog.js"]
 }

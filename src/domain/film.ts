@@ -90,6 +90,8 @@ export interface UserProfile {
   syncMode?: 'full' | 'recent';
   csvIdentityVersion?: number;
   csvDuplicatesRemoved?: number;
+  /** Films Letterboxd counted but its list did not show (within tolerance). */
+  syncShortfall?: number;
 }
 
 /** What is needed to decide whether two records are the same film. */

@@ -6,12 +6,12 @@ import { parseDecade } from '../../src/domain/recommend/filters.ts';
 import { analyzeProfile } from '../../src/domain/profile/analyze.ts';
 import { loadCatalog } from '../../src/infrastructure/catalog.ts';
 import { EXPANDED_FILM_DATABASE } from '../../src/data/films-dataset.js';
-import { THEMES_CATALOG, getThemeById } from '../../src/domain/themes/themes.ts';
+import { THEMES_CATALOG, } from '../../src/domain/themes/themes.ts';
 
 // Adapters from the pre-refactor API this script was written against.
 const catalog = loadCatalog();
 const LocalRecommender = {
-  generateLocalRecommendations: ({ userProfile, themeObj = null, customPrompt = '', filters = {} }) =>
+  generateLocalRecommendations: ({ userProfile, themeObj = null, customPrompt = '', filters = /** @type {Record<string, any> & { decade?: string }} */ ({}) }) =>
     recommend(
       { profile: userProfile, themeId: themeObj?.id ?? null, customPrompt: customPrompt ?? '', filters: { ...filters, ...(filters?.decade ? parseDecade(filters.decade) : {}) } },
       catalog,
@@ -51,10 +51,10 @@ for (const f of EXPANDED_FILM_DATABASE) {
 assert(dupSlugs === 0, `Sem slugs duplicados (${dupSlugs} duplicados encontrados)`);
 
 // Check required fields
-const missingTitle = EXPANDED_FILM_DATABASE.filter(f => !f.title || !f.title.trim()).length;
-const missingYear = EXPANDED_FILM_DATABASE.filter(f => !f.year || isNaN(f.year)).length;
-const missingSlug = EXPANDED_FILM_DATABASE.filter(f => !f.slug || !f.slug.trim()).length;
-const invalidRuntime = EXPANDED_FILM_DATABASE.filter(f => f.runtime !== undefined && (isNaN(f.runtime) || f.runtime < 0)).length;
+const missingTitle = EXPANDED_FILM_DATABASE.filter(f => !f.title?.trim()).length;
+const missingYear = EXPANDED_FILM_DATABASE.filter(f => !f.year || Number.isNaN(f.year)).length;
+const missingSlug = EXPANDED_FILM_DATABASE.filter(f => !f.slug?.trim()).length;
+const invalidRuntime = EXPANDED_FILM_DATABASE.filter(f => f.runtime !== undefined && (Number.isNaN(f.runtime) || f.runtime < 0)).length;
 const futureYear = EXPANDED_FILM_DATABASE.filter(f => f.year > 2027).length;
 const pastYear = EXPANDED_FILM_DATABASE.filter(f => f.year < 1880).length;
 
@@ -92,17 +92,17 @@ const profileBase = {
 // Test with null/empty inputs
 try {
   const r1 = LocalRecommender.generateLocalRecommendations({ userProfile: profileBase, customPrompt: '', filters: {} });
-  assert(r1 && r1.recommendations, 'Funciona com customPrompt vazio');
+  assert(r1?.recommendations, 'Funciona com customPrompt vazio');
 } catch(e) { assert(false, 'Funciona com customPrompt vazio', e.message); }
 
 try {
   const r2 = LocalRecommender.generateLocalRecommendations({ userProfile: profileBase, customPrompt: null, filters: {} });
-  assert(r2 && r2.recommendations, 'Funciona com customPrompt null');
+  assert(r2?.recommendations, 'Funciona com customPrompt null');
 } catch(e) { assert(false, 'Funciona com customPrompt null', e.message); }
 
 try {
   const r3 = LocalRecommender.generateLocalRecommendations({ userProfile: profileBase, themeObj: null, customPrompt: '', filters: null });
-  assert(r3 && r3.recommendations, 'Funciona com filters null');
+  assert(r3?.recommendations, 'Funciona com filters null');
 } catch(e) { assert(false, 'Funciona com filters null', e.message); }
 
 // Test with profile with no films
@@ -117,7 +117,7 @@ try {
 const watchedSlugs = profileBase.films.map(f => f.slug);
 try {
   const r5 = LocalRecommender.generateLocalRecommendations({ userProfile: profileBase, customPrompt: 'crime', filters: {} });
-  const contaminated = r5.recommendations.filter(r => watchedSlugs.includes(r.letterboxdSlug || r.slug));
+  const contaminated = r5.recommendations.filter(r => watchedSlugs.includes(r.letterboxdSlug || r.catalogSlug));
   assert(contaminated.length === 0, 'Nunca recomenda filmes já assistidos', contaminated.map(f => f.title).join(', '));
 } catch(e) { assert(false, 'Nunca recomenda filmes já assistidos', e.message); }
 
@@ -141,7 +141,7 @@ for (const rf of runtimeFilters) {
     const r = LocalRecommender.generateLocalRecommendations({
       userProfile: profileBase, customPrompt: 'drama', filters: { runtimeFilter: rf, maxRuntime: rf }
     });
-    assert(r && r.recommendations, `Filtro de duração "${rf}" funciona`);
+    assert(r?.recommendations, `Filtro de duração "${rf}" funciona`);
     if (rf === 'under-90') {
       const violating = r.recommendations.filter(rec => rec.runtimeMinutes && rec.runtimeMinutes > 90);
       assert(violating.length === 0, `Filtro under-90 respeita limite`, violating.map(f=>`${f.title}(${f.runtimeMinutes}m)`).join(', '));
@@ -163,12 +163,12 @@ for (const df of decadeFilters) {
     const r = LocalRecommender.generateLocalRecommendations({
       userProfile: profileBase, customPrompt: 'drama', filters: { decade: df }
     });
-    assert(r && r.recommendations, `Filtro de década "${df}" funciona`);
+    assert(r?.recommendations, `Filtro de década "${df}" funciona`);
     if (r.recommendations.length > 0) {
       const [start, end] = df.split('-').map(Number);
       const violating = r.recommendations.filter(rec => {
-        const film = EXPANDED_FILM_DATABASE.find(f => f.slug === (rec.letterboxdSlug || rec.slug));
-        return film && film.year && (film.year < start || film.year > end);
+        const film = EXPANDED_FILM_DATABASE.find(f => f.slug === (rec.letterboxdSlug || rec.catalogSlug));
+        return film?.year && (film.year < start || film.year > end);
       });
       assert(violating.length === 0, `Filtro década "${df}" respeita anos`, violating.map(f=>`${f.title}(${f.year})`).join(', '));
     }
@@ -206,7 +206,7 @@ for (const {q, label} of extremeSearches) {
 console.log('\n7. Stress do Profiler:');
 try {
   const analyzed = UserProfiler.analyzeProfile(profileBase);
-  assert(analyzed && analyzed.stats, 'analyzeProfile retorna stats');
+  assert(analyzed?.stats, 'analyzeProfile retorna stats');
   assert(typeof analyzed.stats.fiveStarCount === 'number', 'fiveStarCount é número');
 } catch(e) { assert(false, 'analyzeProfile não crasha', e.message); }
 
@@ -234,7 +234,7 @@ try {
   const r = LocalRecommender.generateLocalRecommendations({
     userProfile: bigProfile, customPrompt: 'drama', filters: {}
   });
-  assert(r && r.recommendations, 'Funciona com perfil gigante (5000 filmes)');
+  assert(r?.recommendations, 'Funciona com perfil gigante (5000 filmes)');
 } catch(e) { assert(false, 'Funciona com perfil gigante (5000 filmes)', e.message); }
 
 // Recommendations must have required fields

@@ -46,7 +46,7 @@ um catálogo vazio basta:
 ```sh
 npm install
 npm run catalog:stub   # catálogo vazio: compila e roda os testes que não precisam de filmes
-npm run check          # typecheck + testes + build
+npm run check          # lint + typecheck + testes + build
 ```
 
 Outros comandos:
@@ -54,6 +54,7 @@ Outros comandos:
 ```sh
 npm run dev        # build em modo de desenvolvimento, com recarga
 npm test           # Vitest (os testes com filmes reais rodam só com o catálogo gerado)
+npm run lint       # Biome (só lint; o formatador está desligado)
 npm run e2e        # carrega dist/ no Chromium e testa as telas (requer o catálogo)
 npm run package    # gera cinematch-v<versão>.zip para a Chrome Web Store (requer o catálogo)
 npm run icons      # regera a logo da interface e os ícones a partir de assets/brand

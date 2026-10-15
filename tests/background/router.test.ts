@@ -34,17 +34,42 @@ function fakePlatform() {
 
 type Listener = (message: unknown, sender: unknown, sendResponse: (response: unknown) => void) => boolean;
 
+const EXTENSION_ID = 'cinematch-test';
+const EXTENSION_PAGE = { id: EXTENSION_ID, url: `chrome-extension://${EXTENSION_ID}/src/ui/pages/popup/index.html` };
+
 /** Installs a fake chrome.runtime.onMessage and returns a sender for it. */
 function installRuntime() {
   let listener: Listener | undefined;
-  (globalThis as { chrome?: unknown }).chrome = { runtime: { onMessage: { addListener: (fn: Listener) => (listener = fn) } } };
-  return (message: unknown) =>
+  (globalThis as { chrome?: unknown }).chrome = { runtime: { id: EXTENSION_ID, onMessage: { addListener: (fn: Listener) => (listener = fn) } } };
+  return (message: unknown, sender: unknown = EXTENSION_PAGE) =>
     new Promise<{ handled: boolean; response?: ResponseMessage }>((resolve) => {
       assert.ok(listener, 'listen() registered a listener');
-      const handled = listener(message, {}, (response) => resolve({ handled, response: response as ResponseMessage }));
-      if (!handled) resolve({ handled });
+      // A synchronous answer (a refused sender) arrives before the return value.
+      let syncResponse: ResponseMessage | undefined;
+      let returned = false;
+      const handled = listener(message, sender, (response) => {
+        if (returned) resolve({ handled, response: response as ResponseMessage });
+        else syncResponse = response as ResponseMessage;
+      });
+      returned = true;
+      if (syncResponse) resolve({ handled: true, response: syncResponse });
+      else if (!handled) resolve({ handled });
     });
 }
+
+test('content scripts reach only their allowlist; other extensions nothing', async () => {
+  const { ctx } = await createTestContext();
+  const { platform } = fakePlatform();
+  const send = installRuntime();
+  listen(createHandlers(ctx, platform));
+  const contentScript = { id: EXTENSION_ID, url: 'https://letterboxd.com/someone/', tab: { id: 1 } };
+
+  assert.deepEqual(await send({ action: 'getActiveProfile' }, contentScript), { handled: true, response: { ok: true, data: null } });
+  const denied = await send({ action: 'clearProfile' }, contentScript);
+  assert.equal(denied.response?.ok, false);
+  const foreign = await send({ action: 'getSettings' }, { id: 'other-extension', url: 'chrome-extension://other-extension/x.html' });
+  assert.equal(foreign.response?.ok, false);
+});
 
 test('background preserves the saved profile on sync failure', async () => {
   const previous: UserProfile = { username: 'previous', films: [{ title: 'Alien' }], favorites: [] };
@@ -95,4 +120,6 @@ test('isRequestMessage rejects malformed and unknown messages', () => {
   assert.equal(isRequestMessage({ action: 'SYNC_USER_PROFILE' }), false);
   assert.equal(isRequestMessage({ event: 'syncProgress', progress: { message: 'x' } }), false);
   assert.equal(isRequestMessage({ action: 'getSettings' }), true);
+  assert.equal(isRequestMessage({ action: 'getSettings', payload: 'x' }), false);
+  assert.equal(isRequestMessage({ action: 'getSettings', payload: [] }), false);
 });

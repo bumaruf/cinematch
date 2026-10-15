@@ -1,6 +1,6 @@
 import type { Catalog } from '../catalog/catalog.ts';
 import { descriptiveTags, type EvidenceFilm } from '../catalog/evidence.ts';
-import type { EnrichedFilm, UserProfile } from '../film.ts';
+import type { EnrichedFilm, FilmIdentity, UserProfile } from '../film.ts';
 import { fold } from '../text.ts';
 
 export interface TasteMatch {
@@ -14,8 +14,17 @@ export type TasteCandidate = EvidenceFilm & { country?: string };
 export type TasteMatcher = (film: TasteCandidate) => TasteMatch;
 interface Signal extends EnrichedFilm { tags: Set<string>; weight: number; directorKey: string; genreKeys: string[] }
 
+export interface TasteOptions {
+  /** Films the user marked "Não combina comigo": negative signals like a low rating. */
+  rejected?: readonly FilmIdentity[];
+}
+
+/** Each further liked film that supports a match adds a little, with a cap. */
+const SUPPORT_PER_SIGNAL = 2.5;
+const MAX_SUPPORT = 10;
+
 /** Indexed evidence keeps work proportional to relevant signals, not history size. */
-export function createTasteMatcher(profile: Partial<UserProfile>, catalog: Catalog): TasteMatcher {
+export function createTasteMatcher(profile: Partial<UserProfile>, catalog: Catalog, { rejected = [] }: TasteOptions = {}): TasteMatcher {
   const favorites = new Set((profile.favorites ?? []).map((film) => fold(film.slug || film.title)));
   const records = new Map<string, EnrichedFilm>();
   for (const raw of [...(profile.films ?? []), ...(profile.favorites ?? []).map((film) => ({ ...film, isFavorite: true }))]) {
@@ -29,6 +38,9 @@ export function createTasteMatcher(profile: Partial<UserProfile>, catalog: Catal
   // Respect personal rating scales with enough evidence, without treating low
   // ratings as preferences. Sparse histories keep an absolute positive floor.
   const cutoff = ratings.length >= 8 ? Math.max(2.5, ratings[Math.floor((ratings.length - 1) * 0.7)]) : 3.5;
+  // Dislikes follow the same personal scale: a generous rater's lowest notes
+  // count as negative even above 2 stars, but never reach the liked range.
+  const dislikeCutoff = ratings.length >= 8 ? Math.max(2, Math.min(cutoff - 1, ratings[Math.floor((ratings.length - 1) * 0.15)])) : 2;
   const tagsOf = (film: TasteCandidate): Set<string> => new Set(descriptiveTags(film).filter((tag) => {
     if (tag.startsWith('conceito:')) return true;
     const frequency = catalog.keywordFrequency(tag);
@@ -38,7 +50,11 @@ export function createTasteMatcher(profile: Partial<UserProfile>, catalog: Catal
     .map((film) => ({ ...film, tags: tagsOf(film), directorKey: fold(film.director), genreKeys: film.genres.map(fold),
       weight: film.isFavorite ? 1.25 : 1 + Math.max(0, (film.rating ?? cutoff) - cutoff) * 0.15 }));
   if (liked.length === 0) return () => ({ eligible: false, score: 0, reason: '', hasPreferences: false, sameDirector: false });
-  const disliked = [...records.values()].filter((film) => !film.isFavorite && typeof film.rating === 'number' && film.rating <= 2)
+  const rejectedFilms = rejected.flatMap((identity) => {
+    const film = catalog.resolve(identity).film;
+    return film ? [film] : [];
+  });
+  const disliked = [...[...records.values()].filter((film) => !film.isFavorite && typeof film.rating === 'number' && film.rating <= dislikeCutoff), ...rejectedFilms]
     .map((film) => ({ ...film, tags: tagsOf(film) }));
   const directors = new Map<string, Set<Signal>>();
   const tags = new Map<string, Set<Signal>>();
@@ -62,11 +78,13 @@ export function createTasteMatcher(profile: Partial<UserProfile>, catalog: Catal
     const relevant = new Set(directors.get(director) ?? []);
     for (const tag of candidateTags) for (const signal of tags.get(tag) ?? []) relevant.add(signal);
     let best = { score: 0, reason: '', sameDirector: false };
+    let supporting = 0;
     for (const signal of relevant) {
       const shared = [...signal.tags].filter((tag) => candidateTags.has(tag));
       const sameDirector = Boolean(director && director === signal.directorKey);
       const overlap = signal.genreKeys.filter((genre) => genres.has(genre)).length;
       if (!sameDirector && !(shared.length >= 2 && overlap >= 1)) continue;
+      supporting++;
       const score = (sameDirector ? 42 : 28) + Math.min(12, shared.length * 4) + Math.min(6, overlap * 2) + (signal.isFavorite ? 8 : (signal.rating ?? 0) >= 4.5 ? 4 : 0);
       if (score > best.score) best = { score, sameDirector,
         reason: sameDirector
@@ -77,7 +95,9 @@ export function createTasteMatcher(profile: Partial<UserProfile>, catalog: Catal
     const genreAffinity = [...genres].reduce((total, genre) => total + (genreWeight.get(genre) ?? 0) / Math.max(1, totalWeight), 0) * 16;
     const negativeOverlap = [...candidateTags].filter((tag) => negativeTags.has(tag)).length;
     const penalty = Math.min(24, (negativeDirectors.has(director) ? 18 : 0) + (negativeOverlap >= 2 ? 10 : 0));
-    const match = { eligible: best.score > 0 && best.score - penalty >= 30, score: Math.max(0, best.score + genreAffinity - penalty),
+    // A film close to many liked films is a safer bet than one close to a single film.
+    const support = Math.min(MAX_SUPPORT, Math.max(0, supporting - 1) * SUPPORT_PER_SIGNAL);
+    const match = { eligible: best.score > 0 && best.score - penalty >= 30, score: Math.max(0, best.score + support + genreAffinity - penalty),
       reason: best.reason, hasPreferences: liked.length > 0, sameDirector: best.sameDirector };
     cache.set(film, match); return match;
   };

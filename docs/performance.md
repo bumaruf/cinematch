@@ -115,3 +115,39 @@ ao histórico; mantenha-os em `e2e-screenshots/`, que é ignorado pelo Git.
 com as fontes geradas. Também verifica que nenhum script chega a 500 KB. O
 diagnóstico de desempenho aceita o relatório anterior como último argumento
 opcional e falha se algum resultado completo mudar.
+
+## Rodada de 14 de outubro de 2026
+
+Mesma máquina, catálogo de 25 mil filmes e perfil sintético de 936 filmes.
+Medida em duas etapas, para separar a mudança de resultado da mudança de custo:
+
+1. As mudanças de curadoria (sinais de gosto agregados, desgosto na escala
+   pessoal, "Não combina comigo" como sinal negativo e variedade por década)
+   alteram resultados de propósito. A partir delas, gerou-se um relatório
+   intermediário.
+2. O índice de palavras da busca e a memoização das funções de texto foram
+   comparados com esse relatório: **os 21 cenários ficaram idênticos**.
+
+| Cenário, mediana de 3 execuções | Antes | Depois |
+|---|---:|---:|
+| Recomendações gerais | 420 ms | 158 ms |
+| Cyberpunk | 81 ms | 29 ms |
+| Cinema lento | 300 ms | 119 ms |
+| Busca por comédia | 214 ms | 128 ms |
+| Suspense ou ficção científica, sem terror, até 100 minutos | 291 ms | 98 ms |
+| Busca lexical por memória | 847 ms | 44 ms |
+| Busca por título: Harry Potter | 1.240 ms | 39 ms |
+
+**Busca lexical.** O catálogo monta, na primeira busca, um índice palavra →
+filmes dos campos pesquisáveis. Cada token é comparado com o vocabulário único,
+e só os filmes candidatos recebem a pontuação completa. Para tokens sem
+separadores, isso equivale à comparação anterior. Buscas por franquia e buscas
+sem tokens lexicais continuam percorrendo o catálogo.
+
+**Funções de texto.** `fold`, `normalizeTitle` e `normalizeSlug` usam um cache
+limitado, e `containsPhrase` reaproveita a expressão regular de cada frase. O
+perfil de CPU mostrava essas funções recalculadas para cada filme a cada pedido.
+
+O heap do diagnóstico passou de 147 MB para 185 MB, por causa do índice e dos
+caches. A primeira busca lexical depois de reativar o worker paga a montagem
+do índice.

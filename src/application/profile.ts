@@ -1,6 +1,7 @@
 import type { CatalogInfo } from '../domain/catalog/catalog.ts';
 import type { ProfileFilm, UserProfile } from '../domain/film.ts';
 import { analyzeProfile, ratingHistogram, type AnalyzedProfile } from '../domain/profile/analyze.ts';
+import { usernameKey } from '../domain/recommend/daily.ts';
 import { importProfileSnapshot, mergeProfileFilms, needsCsvRepair, parseProfileCsv } from '../domain/profile/csv-import.ts';
 import type { AppContext } from './context.ts';
 import type { SyncProgress } from './ports.ts';
@@ -57,7 +58,12 @@ export async function syncProfile(
   const previous = await ctx.profiles.get();
   const result = await ctx.letterboxd.syncBatch(username.trim(), { previous, forceFull, onProgress });
   if (result.pending) return result;
-  await ctx.profiles.save(result.profile);
+  // Syncing another member keeps the previous history recoverable.
+  if (previous?.films.length && usernameKey(previous.username) !== usernameKey(result.profile.username)) {
+    await ctx.profiles.replace(result.profile, previous, 'switch');
+  } else {
+    await ctx.profiles.save(result.profile);
+  }
   await ctx.popupSession.clear();
   await ctx.letterboxd.clearProgress();
   return { pending: false, ...await describe(ctx, result.profile) };

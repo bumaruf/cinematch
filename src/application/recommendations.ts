@@ -1,4 +1,4 @@
-import type { Filters, Recommendation, RecommendationResult, UserProfile } from '../domain/film.ts';
+import type { FilmFeedback, FilmIdentity, Filters, Recommendation, RecommendationResult, UserProfile } from '../domain/film.ts';
 import type { Catalog } from '../domain/catalog/catalog.ts';
 import { analyzeProfile } from '../domain/profile/analyze.ts';
 import { createWatchedIndex, toWatchedEntry } from '../domain/profile/watched.ts';
@@ -9,8 +9,9 @@ import { normalizeTitle, slugKey } from '../domain/text.ts';
 import type { AppContext } from './context.ts';
 import type { StoredDailyPick } from './ports.ts';
 import { GUEST_PROFILE } from './profile.ts';
-import { activeFeedback } from './feedback.ts';
+import { activeFeedback, timeZoneOf } from './feedback.ts';
 import { CURATION_VERSION } from '../domain/recommend/evaluation.ts';
+import { isHistoryComplete } from '../domain/profile/completeness.ts';
 
 /** Batches of earlier recommendations kept out of new thematic results. */
 const RECENT_BATCHES = 20;
@@ -31,7 +32,7 @@ function assertUsableHistory(profile: UserProfile): void {
   if (profile.username && profile.username !== GUEST_PROFILE.username && synced === 0 && !(profile.filmCountKnown && expected === 0)) {
     throw new Error('Não há filmes sincronizados neste perfil. Sincronize seu Letterboxd antes de pedir recomendações.');
   }
-  if (expected > 0 && synced < expected) {
+  if (expected > 0 && !isHistoryComplete(synced, expected)) {
     throw new Error(`Histórico incompleto: ${synced} de ${expected} filmes sincronizados. Sincronize novamente antes de pedir recomendações.`);
   }
 }
@@ -43,17 +44,23 @@ export async function generateRecommendations(ctx: AppContext, query: Recommenda
   assertUsableHistory(profile);
 
   const settings = await ctx.settings.get();
+  const activeUser = usernameKey(profile.username);
+  // Older entries have no username; they predate profile switching.
   const excludeRecent = (await ctx.history.list())
+    .filter((entry) => !entry.username || entry.username === activeUser)
     .slice(0, RECENT_BATCHES)
     .flatMap((entry) => (Array.isArray(entry.movies) ? entry.movies : []))
     .filter((movie) => movie?.title);
   const now = ctx.clock.now();
   const catalog = await ctx.catalog();
-  const excludedFilms = activeFeedback(await ctx.feedback.list(usernameKey(profile.username)), now).map((entry) => entry.film);
+  const { excludedFilms, rejectedFilms } = splitFeedback(activeFeedback(await ctx.feedback.list(activeUser), now, timeZoneOf(ctx)));
+  const requestId = ctx.identifiers.next();
   const result = recommend(
     {
       profile,
       excludedFilms,
+      rejectedFilms,
+      seed: requestId,
       themeId: query.themeId ?? null,
       customPrompt: query.customPrompt ?? '',
       filters: {
@@ -73,7 +80,7 @@ export async function generateRecommendations(ctx: AppContext, query: Recommenda
     avoidWatched: settings.avoidWatched,
     catalog, now,
   });
-  const sessionId = `rec_${now.getTime()}_${ctx.identifiers.next()}`;
+  const sessionId = `rec_${now.getTime()}_${requestId}`;
   const final = { ...result, recommendations, evaluationSessionId: sessionId };
   if (query.username && usernameKey((await ctx.profiles.get())?.username ?? '') !== usernameKey(query.username)) throw new ProfileChangedError();
   await ctx.history.append({
@@ -89,6 +96,14 @@ export async function generateRecommendations(ctx: AppContext, query: Recommenda
     movies: recommendations,
   });
   return final;
+}
+
+/** "Não combina comigo" also teaches the taste model; the rest only excludes. */
+function splitFeedback(entries: readonly FilmFeedback[]): { excludedFilms: FilmIdentity[]; rejectedFilms: FilmIdentity[] } {
+  return {
+    excludedFilms: entries.filter((entry) => entry.kind !== 'not-for-me').map((entry) => entry.film),
+    rejectedFilms: entries.filter((entry) => entry.kind === 'not-for-me').map((entry) => entry.film),
+  };
 }
 
 /**
@@ -137,10 +152,12 @@ export async function getDailyPick(ctx: AppContext, options: { refresh?: boolean
   if (options.username && usernameKey(options.username) !== username) throw new ProfileChangedError();
 
   const now = ctx.clock.now();
-  const today = dateKey(now);
+  const timeZone = timeZoneOf(ctx);
+  const today = dateKey(now, timeZone);
   const key = profileKey(profile);
   const history = await ctx.daily.list(username);
-  const excludedFilms = activeFeedback(await ctx.feedback.list(username), now).map((entry) => entry.film);
+  const feedback = activeFeedback(await ctx.feedback.list(username), now, timeZone);
+  const excludedFilms = feedback.map((entry) => entry.film);
   const blocked = createFilmIdentityIndex(excludedFilms);
   // "Surpresas" are alternatives. They must never replace the daily pick
   // shown by the dashboard and the Letterboxd button.
@@ -158,7 +175,8 @@ export async function getDailyPick(ctx: AppContext, options: { refresh?: boolean
     .slice(0, RECENT_DAILY_PICKS)
     .map((entry) => entry.data?.film?.letterboxdSlug)
     .filter(Boolean);
-  const pick = pickDaily(profile, await ctx.catalog(), { date: today, now, excludedSlugs, excludedFilms });
+  const rejectedFilms = splitFeedback(feedback).rejectedFilms;
+  const pick = pickDaily(profile, await ctx.catalog(), { date: today, now, excludedSlugs, excludedFilms, rejectedFilms });
   const data: StoredDailyPick = { ...pick, profileKey: key, profileUsername: username, kind: 'daily' };
   await ctx.daily.add({ username, date: today, data });
   return { username, profileKey: key, data };
@@ -175,14 +193,17 @@ export async function getSurprisePick(ctx: AppContext, options: { username?: str
   const key = profileKey(profile);
   if (username !== daily.username || key !== daily.profileKey) throw new ProfileChangedError();
   const now = ctx.clock.now();
-  const today = dateKey(now);
+  const timeZone = timeZoneOf(ctx);
+  const today = dateKey(now, timeZone);
   const history = await ctx.daily.list(username);
-  const excludedFilms = activeFeedback(await ctx.feedback.list(username), now).map((entry) => entry.film);
+  const feedback = activeFeedback(await ctx.feedback.list(username), now, timeZone);
+  const excludedFilms = feedback.map((entry) => entry.film);
   const excludedSlugs = [daily.data.film.letterboxdSlug, ...history
     .slice(0, RECENT_DAILY_PICKS)
     .map((entry) => entry.data?.film?.letterboxdSlug)
     .filter(Boolean)];
-  const pick = pickDaily(profile, await ctx.catalog(), { date: today, now, excludedSlugs, excludedFilms });
+  const rejectedFilms = splitFeedback(feedback).rejectedFilms;
+  const pick = pickDaily(profile, await ctx.catalog(), { date: today, now, excludedSlugs, excludedFilms, rejectedFilms });
   const data: StoredDailyPick = { ...pick, profileKey: key, profileUsername: username, kind: 'surprise' };
   await ctx.daily.add({ username, date: today, data });
   return { username: daily.username, profileKey: key, data };

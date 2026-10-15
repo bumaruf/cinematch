@@ -4,9 +4,9 @@
  */
 
 import { EXPANDED_FILM_DATABASE } from '../../src/data/films-dataset.js';
-import { writeFileSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { writeFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -300,7 +300,7 @@ for (const slug of checks) {
   if (f) console.log(`\n✅ ${f.title} (${f.year})\n   kw: ${f.keywords.slice(0,12).join(', ')}`);
 }
 for (const name of nameChecks) {
-  const f = enriched.find(x => x.title && x.title.toLowerCase().includes(name));
+  const f = enriched.find(x => x.title?.toLowerCase().includes(name));
   if (f) console.log(`\n⚠️  ${f.title} (${f.year})\n   kw: ${f.keywords.slice(0,10).join(', ')}`);
 }
 

@@ -1,4 +1,4 @@
-import { containsPhrase, fold, foldWords } from '../text.ts';
+import { fold, foldWords, WORD_SEPARATORS } from '../text.ts';
 import type { CatalogFilm, Filters } from '../film.ts';
 import { passesConstraints } from './filters.ts';
 import { extractQueryConstraints } from './query-constraints.ts';
@@ -116,9 +116,18 @@ export function fuzzyMatchInText(token: string, text: string): boolean {
   if (!text || !token) return false;
   if (text.includes(token)) return true;
   return text
-    .split(/[\s,.:;!?/\-_()]+/)
+    .split(WORD_SEPARATORS)
     .filter((word) => word.length >= 2)
     .some((word) => fuzzyMatch(token, word));
+}
+
+/**
+ * Whether fuzzyMatchInText(token, text) can hold for a text containing this
+ * word. For a token without separators the two are equivalent, so a word
+ * index finds every film a lexical token can match.
+ */
+export function wordMatchesToken(token: string, word: string): boolean {
+  return word.includes(token) || (word.length >= 2 && fuzzyMatch(token, word));
 }
 
 export interface SearchQuery {

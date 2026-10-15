@@ -75,8 +75,34 @@ export const ACTIONS: readonly Action[] = [
   'openDashboard',
 ];
 
+/**
+ * What the content script may ask for. It runs inside Letterboxd pages, so it
+ * gets only the daily pick flow, never destructive or bulk operations.
+ */
+export const CONTENT_SCRIPT_ACTIONS: ReadonlySet<Action> = new Set<Action>([
+  'getActiveProfile',
+  'syncProfile',
+  'getDailyPick',
+  'getFilmArtwork',
+  'openDashboard',
+]);
+
 export function isRequestMessage(message: unknown): message is RequestMessage {
-  return typeof message === 'object' && message !== null && ACTIONS.includes((message as RequestMessage).action);
+  if (typeof message !== 'object' || message === null || !ACTIONS.includes((message as RequestMessage).action)) return false;
+  const { payload } = message as { payload?: unknown };
+  return payload === undefined || (typeof payload === 'object' && payload !== null && !Array.isArray(payload));
+}
+
+export interface MessageSender {
+  id?: string;
+  url?: string;
+}
+
+/** Extension pages may call anything; content scripts only their allowlist. */
+export function isAllowedSender(action: Action, sender: MessageSender, extensionId: string): boolean {
+  if (sender.id !== extensionId) return false;
+  if (sender.url?.startsWith(`chrome-extension://${extensionId}/`)) return true;
+  return CONTENT_SCRIPT_ACTIONS.has(action);
 }
 
 export function isSyncProgressEvent(message: unknown): message is SyncProgressEvent {

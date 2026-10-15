@@ -29,6 +29,7 @@ jobs:
       # versioned. An empty stub is enough to typecheck, test and build; the
       # tests that need real films are skipped.
       - run: npm run catalog:stub
+      - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

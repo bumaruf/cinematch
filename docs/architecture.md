@@ -94,6 +94,9 @@ Adaptadores das portas:
 
 - `contract.ts`: mapa tipado `ação → { request, response }`. É a única API
   entre UI e background.
+- `contract.ts` também define `CONTENT_SCRIPT_ACTIONS`: o content script, que roda
+  dentro do Letterboxd, só pode pedir o fluxo do filme do dia. O worker recusa
+  mensagens de outras extensões e valida o formato do payload.
 - `client.ts`: `send(action, payload)` baseado em Promise, com tratamento de
   `runtime.lastError` e de contexto invalidado.
 - `router.ts`: despacha as mensagens para os casos de uso no service worker.

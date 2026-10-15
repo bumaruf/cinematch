@@ -2,6 +2,7 @@ import type { LetterboxdSync, SyncBatchResult, SyncCheckpoint, SyncCheckpointSto
 import type { ProfileFilm, UserProfile } from '../../domain/film.ts';
 import { isVerificationPage, LETTERBOXD_ORIGIN, LetterboxdError, LetterboxdNotFoundError, type PageFetcher } from './http.ts';
 import { cleanUsername, parseFilmsListHtml, parseProfileHtml, parseRssFeed } from './parse.ts';
+import { isHistoryComplete } from '../../domain/profile/completeness.ts';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -9,6 +10,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const BATCH_DEADLINE_MS = 90_000;
 const PAGES_PER_BATCH = 3;
 const FILMS_PER_PAGE = 72;
+/** Pause between list pages, so a large history does not trip rate limits. */
+const PAGE_INTERVAL_MS = 600;
 
 type Progress = (progress: SyncProgress) => void;
 
@@ -58,6 +61,7 @@ export function createLetterboxdSync({ fetchPage, checkpoints, now = Date.now, s
         saveCheckpoint: (value) => checkpoints.save(value),
         onProgress,
         now,
+        sleep,
       });
       if (result.pending) return result;
       return { pending: false, profile: { ...result.profile, lastFullSync: new Date(now()).toISOString(), syncMode: 'full' } };
@@ -114,6 +118,7 @@ interface CollectOptions {
   saveCheckpoint?: (checkpoint: SyncCheckpoint) => Promise<void>;
   onProgress?: Progress;
   now?: () => number;
+  sleep?: (ms: number) => Promise<void>;
 }
 
 type CollectResult = Extract<SyncBatchResult, { pending: true }> | { pending: false; profile: UserProfile };
@@ -144,7 +149,7 @@ export async function collectFullProfile(rawUsername: string, fetchPage: PageFet
     if (isFavorite) existing.isFavorite = true;
   };
 
-  let metadata;
+  let metadata: ReturnType<typeof parseProfileHtml>;
   try {
     const html = await fetchPage(`${LETTERBOXD_ORIGIN}/${username}/`);
     if (isVerificationPage(html)) {
@@ -175,6 +180,7 @@ export async function collectFullProfile(rawUsername: string, fetchPage: PageFet
   const total = metadata.totalFilms || 0;
   const pageCount = Math.ceil(total / FILMS_PER_PAGE);
   const lastPage = total > 0 ? pageCount + 2 : 999;
+  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const collected = new Set<string>(resumable && checkpoint ? checkpoint.collectedSlugs : []);
   const startPage = resumable && checkpoint ? checkpoint.nextPage : 1;
   const startedAt = resumable && checkpoint ? checkpoint.startedAt : now();
@@ -187,6 +193,7 @@ export async function collectFullProfile(rawUsername: string, fetchPage: PageFet
       percent: Math.min(95, 20 + Math.round((page / Math.max(lastPage, 1)) * 75)),
     });
     const path = page === 1 ? '/films/' : `/films/page/${page}/`;
+    if (pagesProcessed > 0) await sleep(PAGE_INTERVAL_MS);
     try {
       const html = await fetchPage(`${LETTERBOXD_ORIGIN}/${username}${path}`);
       const pageFilms = parseFilmsListHtml(html);
@@ -202,15 +209,17 @@ export async function collectFullProfile(rawUsername: string, fetchPage: PageFet
       if (collected.size === before && total > 0) throw new Error('Paginação repetiu a mesma página.');
       pagesProcessed++;
       await options.saveCheckpoint?.({ username, totalFilms: total, startedAt, nextPage: page + 1, collectedSlugs: [...collected], films: [...films.values()] });
-      if (collected.size >= total) break;
+      // A full page may hide a film pushed to the next one by a film logged
+      // during the sync, so only a short page ends the collection early.
+      if (collected.size >= total && pageFilms.length < FILMS_PER_PAGE) break;
       if (pagesProcessed >= (options.maxPages ?? Infinity)) return { pending: true, collected: collected.size, totalFilms: total };
     } catch (error) {
       // Letterboxd can report a count whose last page no longer exists.
-      if (page > 1 && error instanceof LetterboxdNotFoundError && collected.size >= total) break;
+      if (page > 1 && error instanceof LetterboxdNotFoundError && isHistoryComplete(collected.size, total)) break;
       throw new Error('Sincronização interrompida; perfil anterior preservado. ' + (error as Error).message, { cause: error });
     }
   }
-  if (collected.size < total) throw new Error(`Histórico incompleto: ${collected.size} de ${total} filmes. Perfil anterior preservado.`);
+  if (!isHistoryComplete(collected.size, total)) throw new Error(`Histórico incompleto: ${collected.size} de ${total} filmes. Perfil anterior preservado.`);
 
   const currentYear = new Date(now()).getFullYear();
   const thisYearFilms: ProfileFilm[] = [];
@@ -223,7 +232,8 @@ export async function collectFullProfile(rawUsername: string, fetchPage: PageFet
   }
 
   const allFilms = [...films.values()].filter((film) => collected.has(film.slug || film.title));
-  if (allFilms.length !== total) throw new Error(`Histórico inconsistente: ${allFilms.length} de ${total} filmes. Sincronize novamente.`);
+  // More films than reported means some were logged during the sync.
+  if (!isHistoryComplete(allFilms.length, total)) throw new Error(`Histórico inconsistente: ${allFilms.length} de ${total} filmes. Sincronize novamente.`);
   onProgress({ stage: 'done', message: `Concluído! ${allFilms.length} filmes mapeados.`, percent: 100 });
 
   return {
@@ -233,7 +243,8 @@ export async function collectFullProfile(rawUsername: string, fetchPage: PageFet
       displayName: metadata.displayName || username,
       bio: metadata.bio || '',
       avatarUrl: metadata.avatarUrl || '',
-      totalFilms: metadata.totalFilms || allFilms.length,
+      totalFilms: Math.max(metadata.totalFilms || 0, allFilms.length),
+      ...(allFilms.length < total ? { syncShortfall: total - allFilms.length } : {}),
       thisYearCount: metadata.thisYearCount || thisYearFilms.length,
       thisYearFilms,
       favorites: metadata.favorites,
