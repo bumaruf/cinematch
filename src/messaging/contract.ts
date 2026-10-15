@@ -1,7 +1,7 @@
 import type { SavedFilmInput } from '../application/library.ts';
 import type { FeedbackInput } from '../application/feedback.ts';
 import type { EvaluationInput, getRecommendationEvaluationReport } from '../application/evaluation.ts';
-import type { HistoryEntry, PopupSession, SavedFilm, SyncProgress } from '../application/ports.ts';
+import type { HistoryEntry, OnDeviceModelStatus, PopupSession, SavedFilm, SyncProgress } from '../application/ports.ts';
 import type { ActiveProfile, CsvFile, ImportSummary, SyncResult } from '../application/profile.ts';
 import type { DailyPickResponse, RecommendationQuery } from '../application/recommendations.ts';
 import type { FilmFeedback, RecommendationResult, Settings } from '../domain/film.ts';
@@ -30,6 +30,7 @@ export interface Contract {
   savePopupSession: { request: PopupSession; response: void };
   getSettings: { request: void; response: Settings };
   updateSettings: { request: Partial<Settings>; response: Settings };
+  getOnDeviceModelStatus: { request: void; response: OnDeviceModelStatus };
   getFilmArtwork: { request: { slug: string }; response: string };
   openDashboard: { request: { hash?: string }; response: void };
 }
@@ -71,6 +72,7 @@ export const ACTIONS: readonly Action[] = [
   'savePopupSession',
   'getSettings',
   'updateSettings',
+  'getOnDeviceModelStatus',
   'getFilmArtwork',
   'openDashboard',
 ];

@@ -1,4 +1,4 @@
-import type { DailyPick, FilmFeedback, ProfileFilm, Recommendation, Settings, UserProfile } from '../domain/film.ts';
+import type { DailyPick, FilmFeedback, InterpretedBy, ProfileFilm, Recommendation, Settings, UserProfile } from '../domain/film.ts';
 import type { EvaluationContext, RecommendationEvaluation } from '../domain/recommend/evaluation.ts';
 
 /** Source of the current time, so use cases stay deterministic in tests. */
@@ -55,6 +55,7 @@ export interface PopupResult {
   note: string;
   films: Recommendation[];
   interpretation?: string[];
+  interpretedBy?: InterpretedBy;
 }
 
 /** Popup state, kept only for the current browser session. */
@@ -136,4 +137,33 @@ export interface LetterboxdSync {
 export interface ArtworkSource {
   /** The film page's og:image, or '' when unavailable. */
   artworkUrl(slug: string): Promise<string>;
+}
+
+/**
+ * Readiness of the on-device model, as Chrome reports it. `unsupported` means
+ * this browser context does not expose the API at all.
+ */
+export type OnDeviceModelStatus = 'unsupported' | 'unavailable' | 'downloadable' | 'downloading' | 'available';
+
+export interface StructuredPrompt {
+  /** System instructions for the session. */
+  instructions: string;
+  /** The user's request, sent as is. */
+  input: string;
+  /** JSON Schema the answer must follow. */
+  schema: object;
+  /** Language hints Chrome checks before creating a session. */
+  sessionOptions: object;
+  timeoutMs: number;
+}
+
+/**
+ * A language model that runs inside the browser. Implementations never
+ * download the model and never use the network; they answer only when the
+ * model is already available.
+ */
+export interface OnDeviceModel {
+  status(sessionOptions: object): Promise<OnDeviceModelStatus>;
+  /** The parsed JSON answer. Throws when the model is not ready or the answer is not JSON. */
+  promptJson(request: StructuredPrompt): Promise<unknown>;
 }

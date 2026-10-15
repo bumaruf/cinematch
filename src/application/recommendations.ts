@@ -11,6 +11,7 @@ import type { StoredDailyPick } from './ports.ts';
 import { GUEST_PROFILE } from './profile.ts';
 import { activeFeedback } from './feedback.ts';
 import { CURATION_VERSION } from '../domain/recommend/evaluation.ts';
+import { interpretSearch } from './query-model.ts';
 
 /** Batches of earlier recommendations kept out of new thematic results. */
 const RECENT_BATCHES = 20;
@@ -48,7 +49,11 @@ export async function generateRecommendations(ctx: AppContext, query: Recommenda
     .flatMap((entry) => (Array.isArray(entry.movies) ? entry.movies : []))
     .filter((movie) => movie?.title);
   const now = ctx.clock.now();
-  const catalog = await ctx.catalog();
+  // The model reads the prompt while the catalog loads.
+  const [interpretation, catalog] = await Promise.all([
+    interpretSearch(ctx, query.customPrompt ?? '', settings.modelQuery),
+    ctx.catalog(),
+  ]);
   const excludedFilms = activeFeedback(await ctx.feedback.list(usernameKey(profile.username)), now).map((entry) => entry.film);
   const result = recommend(
     {
@@ -56,6 +61,7 @@ export async function generateRecommendations(ctx: AppContext, query: Recommenda
       excludedFilms,
       themeId: query.themeId ?? null,
       customPrompt: query.customPrompt ?? '',
+      searchQuery: interpretation.searchQuery,
       filters: {
         avoidWatched: settings.avoidWatched,
         includeUnderrated: settings.includeUnderrated,
@@ -74,7 +80,8 @@ export async function generateRecommendations(ctx: AppContext, query: Recommenda
     catalog, now,
   });
   const sessionId = `rec_${now.getTime()}_${ctx.identifiers.next()}`;
-  const final = { ...result, recommendations, evaluationSessionId: sessionId };
+  const final: RecommendationResult = { ...result, recommendations, evaluationSessionId: sessionId,
+    ...(interpretation.interpretedBy ? { interpretedBy: interpretation.interpretedBy } : {}) };
   if (query.username && usernameKey((await ctx.profiles.get())?.username ?? '') !== usernameKey(query.username)) throw new ProfileChangedError();
   await ctx.history.append({
     id: sessionId,

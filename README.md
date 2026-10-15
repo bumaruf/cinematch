@@ -14,6 +14,8 @@ local (25 mil filmes no catálogo expandido atual) e não envia seu perfil a nen
   período e duração, como "suspense ou ficção científica, sem terror, até 1h40".
   A tela mostra os critérios aplicados e explica conflitos entre texto e filtros.
   [Exemplos e limites da interpretação](docs/search-understanding.md).
+  Protótipo opcional com o modelo do Chrome no dispositivo:
+  [busca com o Gemini Nano](docs/on-device-model.md).
 - **Recomendações automáticas:** seu gosto orienta as sugestões, respeitando
   os filtros e o clima escolhido, sem precisar escolher um modo de descoberta.
 - **Sugestões próximas:** quando faltam opções específicas do clima, alternativas

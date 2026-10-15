@@ -138,6 +138,8 @@ export interface SearchQuery {
   franchiseAliases: string[];
   clauses: QueryClause[];
   issues: string[];
+  /** Negated phrases that map to no genre or country; each also raises one issue. */
+  uncheckedExclusions: string[];
 }
 
 /** Extract explicit requirements before matching the remaining words. */
@@ -148,7 +150,7 @@ export function parseSearchQuery(prompt: string): SearchQuery {
     const tokens = foldWords(literalTitle).split(/\s+/).filter(Boolean);
     return { clean, tokens, lexicalTokens: tokens, genres: new Set(), excludedGenres: new Set(),
       countries: new Set(), excludedCountries: new Set(), constraints: {}, preferredGenres: new Set(),
-      interpretation: [`Título: ${literalTitle}`], franchiseAliases: [], clauses: [], issues: [] };
+      interpretation: [`Título: ${literalTitle}`], franchiseAliases: [], clauses: [], issues: [], uncheckedExclusions: [] };
   }
   const clean = fold(prompt.trim());
   // "sci-fi", "sci fi" and "sci/fi" are the same query.
@@ -162,23 +164,32 @@ export function parseSearchQuery(prompt: string): SearchQuery {
   // Unrecognized exclusions must never become positive lexical requirements.
   const negativeText = requirements.remaining.replace(/\bnao (?:(?:precisa|preciso) (?:ser|ter)|so|apenas|somente)\b/g, ' ');
   const exclusionIssues: string[] = [];
+  const uncheckedExclusions: string[] = [];
   if (/\b(?:ou|or|sem|exceto|nem|without)\s*$/.test(intent)) exclusionIssues.push('O pedido terminou com uma alternativa ou exclusão incompleta. Complete o gênero ou país depois de “ou” ou “sem”.');
   for (const match of negativeText.matchAll(/\b(?:sem filmes? com|sem|exceto|evitar|excluindo|without|nem|nao(?: quero| seja)?)\b([^,;.!?]*)/g)) {
     const scope = match[1].split(/\b(?:mas|porem|contudo|prefiro|quero|com|incluindo)\b/)[0];
     const unknown = foldWords(scope).split(/\s+/).filter(word => word.length >= 3 && !STOPWORDS.has(word));
+    if (unknown.length) uncheckedExclusions.push(unknown.join(' '));
     if (unknown.length) exclusionIssues.push(`Não consigo verificar a exclusão “sem ${unknown.join(' ')}” pelos dados disponíveis. Use gêneros ou países, como “sem terror”.`);
   }
-  if (constraints.minYear && constraints.maxYear) interpretation.push(constraints.minYear === constraints.maxYear ? `Ano: ${constraints.minYear}` : `${constraints.minYear}–${constraints.maxYear}`);
-  else if (constraints.minYear) interpretation.push(`A partir de ${constraints.minYear}`);
-  else if (constraints.maxYear) interpretation.push(`Até ${constraints.maxYear}`);
-  if (constraints.maxRuntime !== undefined) interpretation.push(`Até ${constraints.maxRuntime} min`);
-  if (constraints.minRuntime !== undefined) interpretation.push(`Pelo menos ${constraints.minRuntime} min`);
+  interpretation.push(...describeConstraints(constraints));
   return {
     clean, tokens: foldWords(prompt).split(/\s+/).filter(Boolean), lexicalTokens, genres, excludedGenres,
     countries, excludedCountries, constraints, preferredGenres, interpretation,
     franchiseAliases: FRANCHISE_ALIASES[clean] ?? [],
-    clauses, issues: [...temporal.issues, ...requirements.issues, ...exclusionIssues],
+    clauses, issues: [...temporal.issues, ...requirements.issues, ...exclusionIssues], uncheckedExclusions,
   };
+}
+
+/** Period and runtime limits, in the words shown to the user. */
+export function describeConstraints(constraints: Filters): string[] {
+  const labels: string[] = [];
+  if (constraints.minYear && constraints.maxYear) labels.push(constraints.minYear === constraints.maxYear ? `Ano: ${constraints.minYear}` : `${constraints.minYear}–${constraints.maxYear}`);
+  else if (constraints.minYear) labels.push(`A partir de ${constraints.minYear}`);
+  else if (constraints.maxYear) labels.push(`Até ${constraints.maxYear}`);
+  if (constraints.maxRuntime !== undefined) labels.push(`Até ${constraints.maxRuntime} min`);
+  if (constraints.minRuntime !== undefined) labels.push(`Pelo menos ${constraints.minRuntime} min`);
+  return labels;
 }
 
 export function passesQuery(film: CatalogFilm, query: SearchQuery): boolean {

@@ -12,6 +12,7 @@ import type {
   ProfileStore,
   SavedFilmsStore,
   SettingsStore,
+  OnDeviceModel,
 } from './ports.ts';
 
 /** Everything a use case may depend on, wired by the background worker. */
@@ -30,4 +31,6 @@ export interface AppContext {
   evaluations: EvaluationStore;
   letterboxd: LetterboxdSync;
   artwork: ArtworkSource;
+  /** Chrome's built-in model; absent where the platform offers none. */
+  onDeviceModel?: OnDeviceModel;
 }

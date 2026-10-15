@@ -83,6 +83,7 @@ export async function updateSettings(ctx: AppContext, changes: Partial<Settings>
   if (typeof changes.avoidWatched === 'boolean') allowed.avoidWatched = changes.avoidWatched;
   if (typeof changes.includeUnderrated === 'boolean') allowed.includeUnderrated = changes.includeUnderrated;
   if (Number.isFinite(changes.minVotes) && Number(changes.minVotes) >= 0) allowed.minVotes = Number(changes.minVotes);
+  if (typeof changes.modelQuery === 'boolean') allowed.modelQuery = changes.modelQuery;
   return ctx.settings.update(allowed);
 }
 

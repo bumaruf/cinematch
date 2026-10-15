@@ -1,6 +1,16 @@
 import { send } from '../../../messaging/client.ts';
 import { byId, onReady } from '../../shared/dom.ts';
 import { html, render } from '../../shared/html.ts';
+import { canDownloadOnDeviceModel, downloadOnDeviceModel } from '../../shared/on-device-model.ts';
+import type { OnDeviceModelStatus } from '../../../application/ports.ts';
+
+const MODEL_STATUS: Record<OnDeviceModelStatus, string> = {
+  unsupported: 'Este Chrome não oferece a Prompt API ao CineMatch. A busca continua com as regras.',
+  unavailable: 'O modelo não está disponível neste dispositivo (requisitos de hardware, espaço ou idioma). A busca continua com as regras.',
+  downloadable: 'O modelo ainda não foi baixado. O download é feito pelo Chrome, uma única vez, e ocupa alguns gigabytes.',
+  downloading: 'O Chrome está baixando o modelo. Até terminar, a busca usa as regras.',
+  available: 'Modelo pronto neste dispositivo.',
+};
 
 const POPULARITY_PRESETS = [
   { minVotes: 0, label: 'Sem limite' },
@@ -19,6 +29,9 @@ onReady(async () => {
   const clearCacheButton = byId<HTMLButtonElement>('clearCacheBtn');
   const clearCacheDialog = byId<HTMLDialogElement>('clearCacheDialog');
   const saveMessage = byId('saveMessage');
+  const modelQuery = byId<HTMLInputElement>('modelQuery');
+  const modelStatus = byId('modelStatus');
+  const downloadModelButton = byId<HTMLButtonElement>('downloadModelBtn');
 
   const preset = () => POPULARITY_PRESETS[Number(popularityLevel.value || 0)] ?? POPULARITY_PRESETS[0];
 
@@ -45,12 +58,19 @@ onReady(async () => {
     );
   }
 
+  async function renderModelStatus(): Promise<void> {
+    const status = await send('getOnDeviceModelStatus').catch((): OnDeviceModelStatus => 'unavailable');
+    modelStatus.textContent = MODEL_STATUS[status];
+    downloadModelButton.hidden = !(status === 'downloadable' || status === 'downloading') || !canDownloadOnDeviceModel();
+  }
+
   async function save(): Promise<void> {
     try {
       await send('updateSettings', {
         avoidWatched: avoidWatched.checked,
         includeUnderrated: includeUnderrated.checked,
         minVotes: preset().minVotes,
+        modelQuery: modelQuery.checked,
       });
       toast('Salvo automaticamente ✓');
     } catch (error) {
@@ -61,12 +81,27 @@ onReady(async () => {
   const settings = await send('getSettings');
   avoidWatched.checked = settings.avoidWatched;
   includeUnderrated.checked = settings.includeUnderrated;
+  modelQuery.checked = settings.modelQuery;
   const level = POPULARITY_PRESETS.findIndex((item) => item.minVotes === settings.minVotes);
   popularityLevel.value = String(Math.max(0, level));
   popularityValue.textContent = preset().label;
-  await renderCacheInfo();
+  await Promise.all([renderCacheInfo(), renderModelStatus()]);
 
-  for (const control of [avoidWatched, includeUnderrated, popularityLevel]) control.addEventListener('change', () => void save());
+  downloadModelButton.addEventListener('click', async () => {
+    downloadModelButton.disabled = true;
+    try {
+      await downloadOnDeviceModel((fraction) => {
+        modelStatus.textContent = `Baixando o modelo: ${Math.round(fraction * 100)}%`;
+      });
+      toast('Modelo pronto ✓');
+    } catch (error) {
+      toast((error as Error).message);
+    } finally {
+      downloadModelButton.disabled = false;
+      await renderModelStatus();
+    }
+  });
+  for (const control of [avoidWatched, includeUnderrated, popularityLevel, modelQuery]) control.addEventListener('change', () => void save());
   popularityLevel.addEventListener('input', () => (popularityValue.textContent = preset().label));
   clearCacheButton.addEventListener('click', () => clearCacheDialog.showModal());
   byId('confirmClearCacheBtn').addEventListener('click', async () => {

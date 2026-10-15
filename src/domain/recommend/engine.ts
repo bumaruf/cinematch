@@ -19,6 +19,8 @@ export interface RecommendationRequest {
   customPrompt?: string;
   filters?: Filters;
   excludedFilms?: readonly FilmIdentity[];
+  /** A query already read from `customPrompt` (by the on-device model); parsed by rules otherwise. */
+  searchQuery?: SearchQuery;
 }
 
 type FallbackMode = 'recent' | null;
@@ -53,7 +55,7 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
   const themeId = request.themeId ?? null;
   const criteria = getThemeCriteria(themeId);
   const profile = request.profile;
-  const query = parseSearchQuery(prompt);
+  const query = request.searchQuery ?? parseSearchQuery(prompt);
   const conflict = query.issues[0] ?? constraintConflict(filters, query.constraints);
   if (conflict) return {
     themeName: query.clean ? `Busca: "${prompt}"` : (getThemeById(themeId)?.title ?? 'Recomendação especial'),

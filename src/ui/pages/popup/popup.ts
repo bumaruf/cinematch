@@ -1,5 +1,5 @@
 import type { ActiveProfile } from '../../../application/profile.ts';
-import type { Recommendation } from '../../../domain/film.ts';
+import type { InterpretedBy, Recommendation } from '../../../domain/film.ts';
 import { THEMES_CATALOG } from '../../../domain/themes/themes.ts';
 import { onSyncProgress, send, syncProfileFully } from '../../../messaging/client.ts';
 import { byId, copyWithFeedback, hide, onReady, show } from '../../shared/dom.ts';
@@ -8,6 +8,7 @@ import { savedMatcher, type FilmLike } from '../../shared/film.ts';
 import { filmCard, filmSkeletons } from '../../shared/film-card.ts';
 import { readFilters } from '../../shared/filters.ts';
 import { html, render, safeUrl } from '../../shared/html.ts';
+import { interpretationText } from '../../shared/interpretation.ts';
 import { usernameFromLetterboxdUrl } from '../../shared/letterboxd.ts';
 
 interface Results {
@@ -15,6 +16,7 @@ interface Results {
   note: string;
   films: Recommendation[];
   interpretation?: string[];
+  interpretedBy?: InterpretedBy;
 }
 
 onReady(async () => {
@@ -166,7 +168,7 @@ onReady(async () => {
     }
   };
 
-  async function showResults({ title, note, films, interpretation }: Results, persist = true): Promise<void> {
+  async function showResults({ title, note, films, interpretation, interpretedBy }: Results, persist = true): Promise<void> {
     const expected = profileUsername;
     const requestId = generation;
     const saved = await send('listSavedFilms');
@@ -175,7 +177,7 @@ onReady(async () => {
     current = films;
     el.resultsTitle.textContent = title;
     el.resultsNote.textContent = films.length ? note : '';
-    el.interpretation.textContent = interpretation?.length ? `Entendi: ${interpretation.join(' · ')}` : '';
+    el.interpretation.textContent = interpretationText(interpretation, interpretedBy);
     if (films.length === 0) {
       render(el.films, html`<div class="py-6"><p class="mb-4 text-muted" role="status">${note || 'Nenhum filme novo com esses critérios. Tente outro clima ou tire um filtro.'}</p><button type="button" class="btn btn-secondary" data-general-recovery>Ver sugestões gerais</button><p class="mt-2 text-[12px] text-muted">Busca sem clima, texto ou filtros. Seus assistidos e feedback continuam sendo respeitados.</p></div>`);
       el.films.querySelector<HTMLButtonElement>('[data-general-recovery]')!.addEventListener('click', async event => {
@@ -194,7 +196,7 @@ onReady(async () => {
     }
     view('results');
     if (persist && profileUsername) {
-      void send('savePopupSession', { username: profileUsername, view: 'results', prompt: '', result: { title, note, films, interpretation } }).catch(() => {
+      void send('savePopupSession', { username: profileUsername, view: 'results', prompt: '', result: { title, note, films, interpretation, interpretedBy } }).catch(() => {
         // Restoring the list is a convenience; the visible result remains usable.
       });
     }
@@ -217,7 +219,7 @@ onReady(async () => {
         filters: readFilters({ decade: el.decade, runtime: el.runtime, nicheOnly: el.niche }),
       });
       if (requestId !== generation) return;
-      await showResults({ title: result.themeName, note: result.notice, films: result.recommendations, interpretation: result.interpretation });
+      await showResults({ title: result.themeName, note: result.notice, films: result.recommendations, interpretation: result.interpretation, interpretedBy: result.interpretedBy });
     } catch (error) {
       view('home');
       showError((error as Error).message);
