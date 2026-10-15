@@ -58,6 +58,7 @@ npm run dev        # build em modo de desenvolvimento, com recarga
 npm test           # Vitest (os testes com filmes reais rodam só com o catálogo gerado)
 npm run lint       # Biome (só lint; o formatador está desligado)
 npm run e2e        # carrega dist/ no Chromium e testa as telas (requer o catálogo)
+npm run screenshots # regera as imagens de docs/screenshots com um perfil sintético
 npm run package    # gera cinematch-v<versão>.zip para a Chrome Web Store (requer o catálogo)
 npm run icons      # regera a logo da interface e os ícones a partir de assets/brand
 npm run diagnostics:recommendations # compara gostos com os mesmos assistidos e mede latência
