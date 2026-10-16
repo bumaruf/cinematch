@@ -51,3 +51,16 @@ test('an answer that is not JSON is an error, not a query', async () => {
 test('unknown availability values are treated as unavailable', async () => {
   expect(await chromeOnDeviceModel(fakeApi('readily').api).status({})).toBe('unavailable');
 });
+
+test('preparing creates the base session once, only for an available model, and prompts reuse it', async () => {
+  const waiting = fakeApi('downloadable');
+  await chromeOnDeviceModel(waiting.api).prepare?.(request);
+  expect(waiting.calls.create).toEqual([]);
+
+  const ready = fakeApi('available');
+  const model = chromeOnDeviceModel(ready.api);
+  await model.prepare?.(request);
+  await model.prepare?.(request);
+  await model.promptJson(request);
+  expect(ready.calls.create).toHaveLength(1);
+});

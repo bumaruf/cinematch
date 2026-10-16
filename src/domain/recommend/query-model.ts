@@ -233,6 +233,7 @@ export function validateModelQuery(raw: unknown, prompt: string): ModelQueryVali
       excludedCountries,
       constraints,
       preferredGenres,
+      themeHints: rules.themeHints.filter(group => !group.some(genre => excludedGenres.has(genre))),
       interpretation,
       franchiseAliases: rules.franchiseAliases,
       clauses,

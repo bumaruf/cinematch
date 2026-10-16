@@ -12,7 +12,7 @@ import { GUEST_PROFILE } from './profile.ts';
 import { activeFeedback, timeZoneOf } from './feedback.ts';
 import { CURATION_VERSION } from '../domain/recommend/evaluation.ts';
 import { isHistoryComplete } from '../domain/profile/completeness.ts';
-import { interpretSearch } from './query-model.ts';
+import { interpretSearch, prepareSearchModel } from './query-model.ts';
 
 /** Batches of earlier recommendations kept out of new thematic results. */
 const RECENT_BATCHES = 20;
@@ -299,6 +299,8 @@ function buildSearchIndex(ctx: AppContext, catalog: Catalog): Promise<void> {
  */
 export function warmUp(ctx: AppContext): void {
   void (async () => {
+    // Creating the model session is the slow part of a first AI search.
+    void prepareSearchModel(ctx, (await ctx.settings.get()).modelQuery);
     const profile = await ctx.profiles.get();
     const catalog = await ctx.catalog();
     if (!profile?.films.length) return;

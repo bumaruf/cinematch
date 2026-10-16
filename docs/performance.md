@@ -200,3 +200,16 @@ e monta o índice de busca em etapas de 1.500 filmes, cedendo a vez entre elas.
 Um clique durante esse trabalho é atendido entre uma etapa e outra.
 
 Os resultados dos 21 cenários de `diagnostics:performance` continuam idênticos.
+
+### Busca “amor com assassinato”
+
+Com a busca por IA ligada, a busca esperava até 10 segundos pelo Gemini Nano e
+criava a sessão do modelo na hora. Agora espera no máximo 2,5 s: depois disso
+responde pelas regras, e a resposta tardia do modelo fica guardada para a mesma
+busca. A sessão é criada quando a página abre.
+
+Nas regras, cada filme candidato tinha a sinopse dividida e comparada palavra a
+palavra, por aproximação, para cada termo. Agora o campo é dividido uma vez e
+cada palavra é procurada no conjunto de palavras do vocabulário que o termo já
+casa. O resultado é o mesmo; o motor passou de cerca de 345 ms para 100 ms nessa
+busca, e o painel com o worker quente responde em cerca de 190 ms.

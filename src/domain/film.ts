@@ -145,7 +145,8 @@ export interface Settings {
  * Who read the search: the on-device model, or the rule-based parser after
  * the model was requested but could not be used.
  */
-export type InterpretedBy = 'model' | 'rules-fallback';
+/** Who read a search: the on-device model, or the rules when it failed or was too slow. */
+export type InterpretedBy = 'model' | 'rules-fallback' | 'rules-slow-model';
 
 export interface Recommendation {
   /** Stable identity; older stored recommendations may not have it. */

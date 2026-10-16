@@ -3,6 +3,7 @@ import type { InterpretedBy } from '../../domain/film.ts';
 const PREFIX: Record<InterpretedBy, string> = {
   model: 'Entendi com o Gemini Nano, no seu dispositivo',
   'rules-fallback': 'Entendi pelas regras (o modelo não pôde ser usado)',
+  'rules-slow-model': 'Entendi pelas regras (o modelo demorou; repetir a busca usa a resposta dele)',
 };
 
 /** The criteria applied to a search, and who read them. */

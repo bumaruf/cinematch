@@ -61,3 +61,33 @@ test('settings keep the model off by default and accept only booleans', async ()
   expect((await updateSettings(ctx, { modelQuery: 'yes' as unknown as boolean })).modelQuery).toBe(false);
   expect((await updateSettings(ctx, { modelQuery: true })).modelQuery).toBe(true);
 });
+
+test('a slow model does not hold the search, and its late answer serves the next identical search', async () => {
+  vi.useFakeTimers();
+  try {
+    let release: (value: unknown) => void = () => {};
+    const model = fakeModel('available', () => new Promise((resolve) => { release = resolve; }));
+    const { ctx } = await createTestContext({ onDeviceModel: model });
+    const first = interpretSearch(ctx, 'filme para ver com a família', true);
+    await vi.advanceTimersByTimeAsync(2_500);
+    expect(await first).toEqual({ interpretedBy: 'rules-slow-model' });
+    release(familyAnswer);
+    await vi.advanceTimersByTimeAsync(0);
+    const second = await interpretSearch(ctx, 'Filme para ver com a família ', true);
+    expect(second.interpretedBy).toBe('model');
+    expect(model.prompts).toBe(1);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('preparing creates the session only when the setting is on', async () => {
+  const { prepareSearchModel } = await import('../../src/application/query-model.ts');
+  let prepared = 0;
+  const model = { ...fakeModel('available'), prepare: async () => { prepared++; } };
+  const { ctx } = await createTestContext({ onDeviceModel: model });
+  await prepareSearchModel(ctx, false);
+  expect(prepared).toBe(0);
+  await prepareSearchModel(ctx, true);
+  expect(prepared).toBe(1);
+});

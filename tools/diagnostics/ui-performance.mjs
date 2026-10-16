@@ -138,6 +138,12 @@ try {
     await dashboard.click('#dashThemesGrid [data-theme-id] >> nth=0');
     await dashboard.waitForSelector('#dashMoviesGrid article', { timeout: 30000 });
     step(`painel ${label}: clima → grade`, performance.now() - t1, { longTasks: await longTasks(dashboard) });
+    await dashboard.fill('#dashCustomPrompt', 'amor com assassinato');
+    const tSearch = performance.now();
+    await dashboard.click('#dashBtnGenerate');
+    await dashboard.waitForFunction(() => document.querySelector('#dashResultsTitle')?.textContent?.includes('amor com assassinato')
+      && document.querySelector('#dashMoviesGrid article'), null, { timeout: 30000 });
+    step(`painel ${label}: busca "amor com assassinato"`, performance.now() - tSearch, { longTasks: await longTasks(dashboard) });
     const t2 = performance.now();
     await dashboard.click('.nav-item[data-tab="dna"]');
     await dashboard.waitForTimeout(50);

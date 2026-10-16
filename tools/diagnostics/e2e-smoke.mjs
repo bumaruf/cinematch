@@ -280,8 +280,14 @@ writeFileSync(join(diagnostics, 'recommendation-availability.json'), JSON.string
 
 await dashboard.reload();
 await dashboard.waitForSelector('[data-theme-id="claustrophobic-single-location"]');
-await dashboard.click('[data-theme-id="claustrophobic-single-location"]');
-await dashboard.waitForFunction(() => document.querySelector('#dashMoviesGrid[aria-busy="false"] [data-theme-fit="related"]'));
+// Climates vary between requests, so how many exact films earlier steps used
+// up varies too. Each request exhausts more; the nearby ones must then appear.
+for (let attempt = 0; attempt < 4; attempt++) {
+  await dashboard.click('[data-theme-id="claustrophobic-single-location"]');
+  await dashboard.waitForFunction(() => document.querySelector('#dashMoviesGrid[aria-busy="false"] article'));
+  if (await dashboard.locator('#dashMoviesGrid [data-theme-fit="related"]').count()) break;
+}
+await dashboard.waitForFunction(() => document.querySelector('#dashMoviesGrid[aria-busy="false"] [data-theme-fit="related"]'), null, { timeout: 5000 });
 check('painel identifica sugestões próximas ao clima', (await dashboard.locator('#dashMoviesGrid article').count()) > 0);
 await dashboard.screenshot({ path: `${shots}/dashboard-nearby.png` });
 

@@ -302,27 +302,39 @@ interface Scorers {
 }
 
 /** Relevance of each field: a title hit is exactly what the user searched for. */
-const WEIGHTS = { genre: 55, phrase: 60, title: 40, director: 28, genreToken: 20, keyword: 16, pitch: 12, country: 10 };
+const WEIGHTS = { themeHint: 18, allThemeHints: 25, genre: 55, phrase: 60, title: 40, director: 28, genreToken: 20, keyword: 16, pitch: 12, country: 10 };
 
-const tokenMatches = new WeakMap<Catalog, Map<string, ReadonlySet<CatalogFilm>>>();
+interface TokenIndex {
+  /** Films with at least one matching word. */
+  films: ReadonlySet<CatalogFilm>;
+  /** The vocabulary words the token matches. */
+  words: ReadonlySet<string>;
+}
 
-/** Films whose searchable words can match the token, memoized per catalog. */
-function filmsMatchingToken(catalog: Catalog, token: string): ReadonlySet<CatalogFilm> {
+const tokenMatches = new WeakMap<Catalog, Map<string, TokenIndex>>();
+
+/** The words and films a token can match, memoized per catalog. */
+function tokenIndex(catalog: Catalog, token: string): TokenIndex {
   let cache = tokenMatches.get(catalog);
   if (!cache) {
     cache = new Map();
     tokenMatches.set(catalog, cache);
   }
-  let films = cache.get(token);
-  if (films) return films;
-  const found = new Set<CatalogFilm>();
+  const cached = cache.get(token);
+  if (cached) return cached;
+  const films = new Set<CatalogFilm>();
+  const words = new Set<string>();
   for (const [word, holders] of catalog.searchVocabulary()) {
-    if (wordMatchesToken(token, word)) for (const film of holders) found.add(film);
+    if (!wordMatchesToken(token, word)) continue;
+    words.add(word);
+    for (const film of holders) films.add(film);
   }
-  films = found;
-  cache.set(token, films);
-  return films;
+  const index = { films, words };
+  cache.set(token, index);
+  return index;
 }
+
+const filmsMatchingToken = (catalog: Catalog, token: string): ReadonlySet<CatalogFilm> => tokenIndex(catalog, token).films;
 
 /**
  * Films that can score for at least one lexical token, or null when every
@@ -346,10 +358,25 @@ function rankSearch(catalog: Catalog, query: SearchQuery, scorers: Scorers): Ran
   const requiredGenre = query.genres.values().next().value;
   const candidates = requiredGenre ? catalog.filmsWithAnyGenre([requiredGenre]) : catalog.films;
   const lexical = lexicalCandidates(catalog, query);
+  // With the index, a field matches a token when one of its words is among the
+  // token's matching words: the same answer as fuzzyMatchInText, by lookup.
+  const wordSets = lexical ? lexicalTokens.map((token) => tokenIndex(catalog, token).words) : null;
 
   for (const film of candidates) {
     if (lexical && !lexical.has(film)) continue;
     if (!scorers.passesFilters(film) || !matchesThemePacing(film, scorers.themeId)) continue;
+    const fieldWords = new Map<string, string[]>();
+    const matches = (index: number, token: string, text: string): boolean => {
+      if (!wordSets) return fuzzyMatchInText(token, text);
+      if (!text) return false;
+      let words = fieldWords.get(text);
+      if (!words) {
+        words = text.split(WORD_SEPARATORS);
+        fieldWords.set(text, words);
+      }
+      const set = wordSets[index];
+      return words.some((word) => set.has(word));
+    };
     const searchDoc = catalog.searchDocument(film);
     const { title, originalTitle, director, country, pitch, genres, searchable } = searchDoc;
     const franchiseTitle = franchiseAliases.some((alias) => containsPhrase(title, alias) || containsPhrase(originalTitle, alias));
@@ -360,19 +387,22 @@ function rankSearch(catalog: Catalog, query: SearchQuery, scorers: Scorers): Ran
     let titleMatches = 0;
     for (const genre of query.genres) if (fuzzyMatchInText(genre, genres)) relevance += WEIGHTS.genre;
     for (const genre of query.preferredGenres) if (film.genres.some((value) => fold(value) === genre)) relevance += 14;
+    // "amor com assassinato": a romance that is also a crime film fits best.
+    const hinted = query.themeHints.filter((group) => film.genres.some((value) => group.includes(fold(value)))).length;
+    relevance += hinted * WEIGHTS.themeHint + (hinted > 1 && hinted === query.themeHints.length ? WEIGHTS.allThemeHints : 0);
     if (query.clean.length >= 4 && title.includes(query.clean)) relevance += WEIGHTS.phrase;
 
-    for (const token of lexicalTokens) {
+    for (const [index, token] of lexicalTokens.entries()) {
       let score = 0;
-      if (!franchiseAliases.length && (fuzzyMatchInText(token, title) || fuzzyMatchInText(token, originalTitle))) {
+      if (!franchiseAliases.length && (matches(index, token, title) || matches(index, token, originalTitle))) {
         score += WEIGHTS.title;
         titleMatches++;
       }
-      if (fuzzyMatchInText(token, director)) score += WEIGHTS.director;
-      if (fuzzyMatchInText(token, genres)) score += WEIGHTS.genreToken;
-      if (fuzzyMatchInText(token, keywords)) score += WEIGHTS.keyword;
-      if (pitch.length > 50 && fuzzyMatchInText(token, pitch)) score += WEIGHTS.pitch;
-      if (fuzzyMatchInText(token, country)) score += WEIGHTS.country;
+      if (matches(index, token, director)) score += WEIGHTS.director;
+      if (matches(index, token, genres)) score += WEIGHTS.genreToken;
+      if (matches(index, token, keywords)) score += WEIGHTS.keyword;
+      if (pitch.length > 50 && matches(index, token, pitch)) score += WEIGHTS.pitch;
+      if (matches(index, token, country)) score += WEIGHTS.country;
       // Franchise searches need semantic coverage beyond a literal keyword.
       if (token === query.clean && franchiseAliases.some((alias) => containsPhrase(searchable, alias))) {
         score += franchiseTitle ? 80 : 36;
