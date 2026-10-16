@@ -119,8 +119,11 @@ Adaptadores das portas:
 - `shared/`: o que as telas reutilizam: escape de HTML, pôster (TMDB com
   fallback para o Letterboxd), meta e link do filme, leitura dos filtros,
   exportação em texto e usuário a partir da URL do Letterboxd.
-- `pages/popup`, `pages/options`, `pages/dashboard` (um módulo por aba) e
-  `content/`: controladores que renderizam e chamam `messaging/client`.
+- `pages/popup`, `pages/dashboard` (um módulo por aba, inclusive Configurações)
+  e `content/`: controladores que renderizam e chamam `messaging/client`.
+  `pages/options` só redireciona para a aba de Configurações do painel, para o
+  menu "Opções" do Chrome e links antigos continuarem funcionando; o painel
+  entende os endereços `#settings`, `#fontes` e `#recovery`.
 - `styles/app.css`: Tailwind CSS v4 com o tema do CineMatch (cores, fontes
   locais, animações) e os poucos componentes repetidos. As páginas usam
   utilitários; o content script tem CSS próprio, sem o reset do Tailwind.

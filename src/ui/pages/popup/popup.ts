@@ -249,7 +249,7 @@ onReady(async () => {
 
   // ── Wiring ────────────────────────────────────────────────────────────────
   onSyncProgress((progress) => (el.syncProgress.textContent = progress.message || 'Sincronizando…'));
-  byId('btnOpenSettings').addEventListener('click', () => void chrome.runtime.openOptionsPage());
+  byId('btnOpenSettings').addEventListener('click', () => void send('openDashboard', { hash: 'settings' }));
   byId('btnOpenDashboard').addEventListener('click', () => void send('openDashboard', {}));
   byId('btnDismissError').addEventListener('click', () => hide(el.errorBanner));
   byId('btnGenerateCustom').addEventListener('click', () => void generate());
