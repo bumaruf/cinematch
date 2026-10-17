@@ -1,14 +1,31 @@
 import type { CatalogInfo } from '../domain/catalog/catalog.ts';
 import type { ProfileFilm, UserProfile } from '../domain/film.ts';
-import { analyzeProfile, ratingHistogram, type AnalyzedProfile } from '../domain/profile/analyze.ts';
+import { analyzeProfile, ratingHistogram, type AnalyzedProfile, type RatedFilm } from '../domain/profile/analyze.ts';
 import { usernameKey } from '../domain/recommend/daily.ts';
 import { importProfileSnapshot, mergeProfileFilms, needsCsvRepair, parseProfileCsv } from '../domain/profile/csv-import.ts';
 import type { AppContext } from './context.ts';
 import type { SyncProgress } from './ports.ts';
 
+/**
+ * What pages show about the stored profile. The full history stays in the
+ * worker: pages only need its size, and copying it cost hundreds of KB per call.
+ */
+export type ProfileOverview = Omit<UserProfile, 'films' | 'thisYearFilms'> & { filmCount: number };
+
+/** The page header: no catalog needed, so it answers even while the worker wakes up. */
+export interface ProfileSummary {
+  profile: ProfileOverview;
+  avgRating: number;
+}
+
+/** The analysis the profile tab shows: statistics and the top films' titles and notes. */
+export type ProfileAnalysisView = Pick<AnalyzedProfile, 'totalLoggedFilms' | 'totalAnalyzed' | 'stats' | 'lastSync'> & {
+  topFilms: Pick<RatedFilm, 'title' | 'year' | 'rating' | 'slug' | 'isFavorite'>[];
+};
+
 export interface ActiveProfile {
-  profile: UserProfile;
-  analyzed: AnalyzedProfile;
+  profile: ProfileOverview;
+  analyzed: ProfileAnalysisView;
   ratingHistogram: { rating: number; count: number }[];
   catalogInfo: CatalogInfo;
 }
@@ -30,11 +47,22 @@ export interface ImportSummary extends ActiveProfile {
 
 export const GUEST_PROFILE: UserProfile = { username: 'Convidado', displayName: 'Cinéfilo', films: [], favorites: [] };
 
+function overview({ films, thisYearFilms: _thisYear, ...rest }: UserProfile): ProfileOverview {
+  return { ...rest, filmCount: films.length };
+}
+
 async function describe(ctx: AppContext, profile: UserProfile): Promise<ActiveProfile> {
   const catalog = await ctx.catalog();
+  const analyzed = analyzeProfile(profile, catalog, ctx.clock.now());
   return {
-    profile,
-    analyzed: analyzeProfile(profile, catalog, ctx.clock.now()),
+    profile: overview(profile),
+    analyzed: {
+      totalLoggedFilms: analyzed.totalLoggedFilms,
+      totalAnalyzed: analyzed.totalAnalyzed,
+      stats: analyzed.stats,
+      lastSync: analyzed.lastSync,
+      topFilms: analyzed.topFilms.map(({ title, year, rating, slug, isFavorite }) => ({ title, year, rating, slug, isFavorite })),
+    },
     ratingHistogram: ratingHistogram(profile),
     catalogInfo: catalog.info,
   };
@@ -43,6 +71,14 @@ async function describe(ctx: AppContext, profile: UserProfile): Promise<ActivePr
 export async function getActiveProfile(ctx: AppContext): Promise<ActiveProfile | null> {
   const profile = await ctx.profiles.get();
   return profile ? describe(ctx, profile) : null;
+}
+
+export async function getProfileSummary(ctx: AppContext): Promise<ProfileSummary | null> {
+  const profile = await ctx.profiles.get();
+  if (!profile) return null;
+  const ratings = profile.films.map((film) => film.rating).filter((rating): rating is number => typeof rating === 'number' && !Number.isNaN(rating));
+  const avgRating = ratings.length ? Number.parseFloat((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length).toFixed(2)) : 0;
+  return { profile: overview(profile), avgRating };
 }
 
 /**

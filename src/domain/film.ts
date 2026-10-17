@@ -19,10 +19,13 @@ export interface CatalogFilm {
   imdbRating: number;
   imdbVotes: number;
   imdbId: string;
-  themes: string[];
+  /** Generated labels in the source data; not shipped in the packaged catalog. */
+  themes?: string[];
   genres: string[];
   keywords: string[];
   pitch: string;
+  /** Precomputed by the build for the packaged catalog (see tasteTags). */
+  tasteTags?: string[];
 }
 
 export interface KeywordEvidence {
@@ -65,6 +68,8 @@ export interface ProfileFilm {
 
 /** A profile film completed with catalog metadata when its identity is safe. */
 export interface EnrichedFilm extends ProfileFilm {
+  /** The catalog match's precomputed tags, when its descriptive data came from the catalog. */
+  tasteTags?: readonly string[];
   catalogSlug: string;
   catalogTitleAmbiguous: boolean;
   director: string;
@@ -140,7 +145,8 @@ export interface Settings {
  * Who read the search: the on-device model, or the rule-based parser after
  * the model was requested but could not be used.
  */
-export type InterpretedBy = 'model' | 'rules-fallback';
+/** Who read a search: the on-device model, or the rules when it failed or was too slow. */
+export type InterpretedBy = 'model' | 'rules-fallback' | 'rules-slow-model';
 
 export interface Recommendation {
   /** Stable identity; older stored recommendations may not have it. */

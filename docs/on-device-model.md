@@ -19,8 +19,10 @@ O parser por regras continua como reserva. Ele responde sempre que:
   caracteres;
 - o contexto não expõe `LanguageModel`, ou `availability()` não retorna
   `available` (modelo não baixado, em download ou dispositivo sem suporte);
-- o modelo demora mais de 10 segundos, responde algo que não é JSON ou a
-  validação recusa a resposta.
+- o modelo responde algo que não é JSON ou a validação recusa a resposta;
+- o modelo demora mais de 2,5 segundos. A busca responde pelas regras e o modelo
+  continua por até 10 segundos; a resposta dele fica guardada, e repetir a mesma
+  busca a usa na hora ("Entendi pelas regras (o modelo demorou…)").
 
 A linha "Entendi" do popup e do painel mostra quem interpretou: "Entendi com o
 Gemini Nano, no seu dispositivo" ou "Entendi pelas regras (o modelo não pôde
@@ -122,8 +124,9 @@ medida.
 - Exposição em service worker não documentada. Se o Chrome não expuser a API
   ali, o protótipo nunca usa o modelo. A alternativa seria um documento
   offscreen, que exige a permissão `offscreen`.
-- Latência: a primeira sessão do dia pode levar segundos. A busca espera no
-  máximo 10 segundos e corre em paralelo com a carga do catálogo.
+- Latência: criar a sessão pode levar segundos. Com o ajuste ligado, o worker
+  cria a sessão quando o popup ou o painel abre. A busca espera no máximo
+  2,5 segundos, em paralelo com a carga do catálogo.
 - O vocabulário é fechado: só os 22 gêneros do catálogo e os países de
   `countries.ts`. Assuntos ("tribunal") continuam na busca lexical, como antes.
 - Alternativas compostas ("suspense italiano ou drama francês") não cabem no

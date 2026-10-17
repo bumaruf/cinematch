@@ -1,9 +1,8 @@
 import type { Catalog } from '../catalog/catalog.ts';
 import type { CatalogFilm, FilmIdentity, Filters, RecommendationResult, UserProfile } from '../film.ts';
-import { analyzeProfile } from '../profile/analyze.ts';
 import { createFilmIdentityIndex } from '../profile/identity.ts';
 import { catalogIdentity, createWatchedIndex, toWatchedEntry } from '../profile/watched.ts';
-import { createTasteMatcher } from '../taste/taste-match.ts';
+import { prepareProfile, type PreparedProfile } from './prepared.ts';
 import { containsPhrase, fold, foldWords, WORD_SEPARATORS } from '../text.ts';
 import { getThemeById, getThemeCriteria } from '../themes/themes.ts';
 import { constraintConflict, passesConstraints } from './filters.ts';
@@ -26,6 +25,8 @@ export interface RecommendationRequest {
    * similar rank. Searches stay strictly ordered by relevance.
    */
   seed?: string;
+  /** Derived profile data a caller kept from an earlier request with the same inputs. */
+  prepared?: PreparedProfile;
   /** A query already read from `customPrompt` (by the on-device model); parsed by rules otherwise. */
   searchQuery?: SearchQuery;
 }
@@ -82,7 +83,6 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
   const filters = request.filters ?? {};
   const prompt = request.customPrompt ?? '';
   const themeId = request.themeId ?? null;
-  const criteria = getThemeCriteria(themeId);
   const profile = request.profile;
   const query = request.searchQuery ?? parseSearchQuery(prompt);
   const conflict = query.issues[0] ?? constraintConflict(filters, query.constraints);
@@ -92,9 +92,8 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
   };
   const blocked = createFilmIdentityIndex([...(request.excludedFilms ?? []), ...(request.rejectedFilms ?? [])]);
 
-  const analyzed = analyzeProfile(profile, catalog, now);
-  const matchTaste = createTasteMatcher(profile ?? {}, catalog, { rejected: request.rejectedFilms });
-  const watched = createWatchedIndex(analyzed.watchedList);
+  const prepared = request.prepared ?? prepareProfile(profile, catalog, now, { rejected: request.rejectedFilms });
+  const { analyzed, matchTaste } = prepared;
   // Earlier recommendations are compared by slug and title only.
   const recent = createWatchedIndex(
     (filters.excludeRecent ?? []).filter((item) => item?.title).map((item) => ({ ...toWatchedEntry(item), catalogSlug: '' })),
@@ -103,7 +102,7 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
   const passesFilters = (film: CatalogFilm, { allowRecent = false } = {}): boolean => {
     const identity = catalogIdentity(film);
     if (blocked.has(identity)) return false;
-    if (filters.avoidWatched !== false && watched.has(identity)) return false;
+    if (filters.avoidWatched !== false && prepared.isWatched(film)) return false;
     // Keep thematic browsing varied, but never hide an unwatched film from an
     // explicit search merely because it appeared in an earlier recommendation.
     if (!allowRecent && !query.clean && recent.has(identity)) return false;
@@ -131,15 +130,7 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
   if (query.tokens.length > 0) {
     ranked = rankSearch(catalog, query, { passesFilters, qualityBonus, affinityBonus, themeId });
   } else if (themeId) {
-    const strict = criteria?.minSignals ?? 0;
-    const themePool = catalog.filmsWithAnyGenre(criteria?.requiredAnyGenres ?? []);
-    const eligible = (minSignals: number): { film: CatalogFilm; signalCount: number }[] =>
-      themePool.flatMap((film) => {
-        if (!matchesThemePacing(film, themeId)) return [];
-        const eligibility = themeEligibility(film, criteria, minSignals);
-        return eligibility.eligible ? [{ film, signalCount: eligibility.signalCount }] : [];
-      });
-    const strictCandidates = eligible(strict);
+    const { strict: strictCandidates, related } = themeCandidates(catalog, themeId);
     const collect = (candidates: readonly { film: CatalogFilm; signalCount: number }[], { allowRecent = false, related = false } = {}): Ranked[] =>
       candidates.flatMap(({ film, signalCount }) => {
         if (!passesFilters(film, { allowRecent })) return [];
@@ -154,12 +145,6 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
     }
     ranked.sort(byKeys);
     if (ranked.length < MAX_RECOMMENDATIONS) {
-      const exactIds = new Set(strictCandidates.map(candidate => candidate.film.slug));
-      const related = themePool.flatMap(film => {
-        if (exactIds.has(film.slug) || !matchesThemePacing(film, themeId)) return [];
-        const evidence = relatedThemeEligibility(film, criteria);
-        return evidence.eligible ? [{ film, signalCount: evidence.signalCount }] : [];
-      });
       let nearby = collect(related, { related: true }).sort(byKeys);
       if (!ranked.length && !nearby.length) {
         nearby = collect(related, { related: true, allowRecent: true }).sort(byKeys);
@@ -210,6 +195,39 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
     allowRecentFallback: fallback === 'recent',
     interpretation: query.interpretation,
   };
+}
+
+interface ThemeCandidate { film: CatalogFilm; signalCount: number }
+
+const themeCandidateCache = new WeakMap<Catalog, Map<string, { strict: ThemeCandidate[]; related: ThemeCandidate[] }>>();
+
+/**
+ * A climate's eligible films depend only on the catalog and the climate, not
+ * on the profile or filters, so they are computed once per catalog.
+ */
+function themeCandidates(catalog: Catalog, themeId: string): { strict: ThemeCandidate[]; related: ThemeCandidate[] } {
+  let byTheme = themeCandidateCache.get(catalog);
+  if (!byTheme) {
+    byTheme = new Map();
+    themeCandidateCache.set(catalog, byTheme);
+  }
+  const cached = byTheme.get(themeId);
+  if (cached) return cached;
+  const criteria = getThemeCriteria(themeId);
+  const pool = catalog.filmsWithAnyGenre(criteria?.requiredAnyGenres ?? []).filter((film) => matchesThemePacing(film, themeId));
+  const strict = pool.flatMap((film) => {
+    const eligibility = themeEligibility(film, criteria, criteria?.minSignals ?? 0);
+    return eligibility.eligible ? [{ film, signalCount: eligibility.signalCount }] : [];
+  });
+  const exactIds = new Set(strict.map((candidate) => candidate.film.slug));
+  const related = pool.flatMap((film) => {
+    if (exactIds.has(film.slug)) return [];
+    const evidence = relatedThemeEligibility(film, criteria);
+    return evidence.eligible ? [{ film, signalCount: evidence.signalCount }] : [];
+  });
+  const candidates = { strict, related };
+  byTheme.set(themeId, candidates);
+  return candidates;
 }
 
 /**
@@ -284,27 +302,39 @@ interface Scorers {
 }
 
 /** Relevance of each field: a title hit is exactly what the user searched for. */
-const WEIGHTS = { genre: 55, phrase: 60, title: 40, director: 28, genreToken: 20, keyword: 16, pitch: 12, country: 10 };
+const WEIGHTS = { themeHint: 18, allThemeHints: 25, genre: 55, phrase: 60, title: 40, director: 28, genreToken: 20, keyword: 16, pitch: 12, country: 10 };
 
-const tokenMatches = new WeakMap<Catalog, Map<string, ReadonlySet<CatalogFilm>>>();
+interface TokenIndex {
+  /** Films with at least one matching word. */
+  films: ReadonlySet<CatalogFilm>;
+  /** The vocabulary words the token matches. */
+  words: ReadonlySet<string>;
+}
 
-/** Films whose searchable words can match the token, memoized per catalog. */
-function filmsMatchingToken(catalog: Catalog, token: string): ReadonlySet<CatalogFilm> {
+const tokenMatches = new WeakMap<Catalog, Map<string, TokenIndex>>();
+
+/** The words and films a token can match, memoized per catalog. */
+function tokenIndex(catalog: Catalog, token: string): TokenIndex {
   let cache = tokenMatches.get(catalog);
   if (!cache) {
     cache = new Map();
     tokenMatches.set(catalog, cache);
   }
-  let films = cache.get(token);
-  if (films) return films;
-  const found = new Set<CatalogFilm>();
+  const cached = cache.get(token);
+  if (cached) return cached;
+  const films = new Set<CatalogFilm>();
+  const words = new Set<string>();
   for (const [word, holders] of catalog.searchVocabulary()) {
-    if (wordMatchesToken(token, word)) for (const film of holders) found.add(film);
+    if (!wordMatchesToken(token, word)) continue;
+    words.add(word);
+    for (const film of holders) films.add(film);
   }
-  films = found;
-  cache.set(token, films);
-  return films;
+  const index = { films, words };
+  cache.set(token, index);
+  return index;
 }
+
+const filmsMatchingToken = (catalog: Catalog, token: string): ReadonlySet<CatalogFilm> => tokenIndex(catalog, token).films;
 
 /**
  * Films that can score for at least one lexical token, or null when every
@@ -328,10 +358,25 @@ function rankSearch(catalog: Catalog, query: SearchQuery, scorers: Scorers): Ran
   const requiredGenre = query.genres.values().next().value;
   const candidates = requiredGenre ? catalog.filmsWithAnyGenre([requiredGenre]) : catalog.films;
   const lexical = lexicalCandidates(catalog, query);
+  // With the index, a field matches a token when one of its words is among the
+  // token's matching words: the same answer as fuzzyMatchInText, by lookup.
+  const wordSets = lexical ? lexicalTokens.map((token) => tokenIndex(catalog, token).words) : null;
 
   for (const film of candidates) {
     if (lexical && !lexical.has(film)) continue;
     if (!scorers.passesFilters(film) || !matchesThemePacing(film, scorers.themeId)) continue;
+    const fieldWords = new Map<string, string[]>();
+    const matches = (index: number, token: string, text: string): boolean => {
+      if (!wordSets) return fuzzyMatchInText(token, text);
+      if (!text) return false;
+      let words = fieldWords.get(text);
+      if (!words) {
+        words = text.split(WORD_SEPARATORS);
+        fieldWords.set(text, words);
+      }
+      const set = wordSets[index];
+      return words.some((word) => set.has(word));
+    };
     const searchDoc = catalog.searchDocument(film);
     const { title, originalTitle, director, country, pitch, genres, searchable } = searchDoc;
     const franchiseTitle = franchiseAliases.some((alias) => containsPhrase(title, alias) || containsPhrase(originalTitle, alias));
@@ -342,19 +387,22 @@ function rankSearch(catalog: Catalog, query: SearchQuery, scorers: Scorers): Ran
     let titleMatches = 0;
     for (const genre of query.genres) if (fuzzyMatchInText(genre, genres)) relevance += WEIGHTS.genre;
     for (const genre of query.preferredGenres) if (film.genres.some((value) => fold(value) === genre)) relevance += 14;
+    // "amor com assassinato": a romance that is also a crime film fits best.
+    const hinted = query.themeHints.filter((group) => film.genres.some((value) => group.includes(fold(value)))).length;
+    relevance += hinted * WEIGHTS.themeHint + (hinted > 1 && hinted === query.themeHints.length ? WEIGHTS.allThemeHints : 0);
     if (query.clean.length >= 4 && title.includes(query.clean)) relevance += WEIGHTS.phrase;
 
-    for (const token of lexicalTokens) {
+    for (const [index, token] of lexicalTokens.entries()) {
       let score = 0;
-      if (!franchiseAliases.length && (fuzzyMatchInText(token, title) || fuzzyMatchInText(token, originalTitle))) {
+      if (!franchiseAliases.length && (matches(index, token, title) || matches(index, token, originalTitle))) {
         score += WEIGHTS.title;
         titleMatches++;
       }
-      if (fuzzyMatchInText(token, director)) score += WEIGHTS.director;
-      if (fuzzyMatchInText(token, genres)) score += WEIGHTS.genreToken;
-      if (fuzzyMatchInText(token, keywords)) score += WEIGHTS.keyword;
-      if (pitch.length > 50 && fuzzyMatchInText(token, pitch)) score += WEIGHTS.pitch;
-      if (fuzzyMatchInText(token, country)) score += WEIGHTS.country;
+      if (matches(index, token, director)) score += WEIGHTS.director;
+      if (matches(index, token, genres)) score += WEIGHTS.genreToken;
+      if (matches(index, token, keywords)) score += WEIGHTS.keyword;
+      if (pitch.length > 50 && matches(index, token, pitch)) score += WEIGHTS.pitch;
+      if (matches(index, token, country)) score += WEIGHTS.country;
       // Franchise searches need semantic coverage beyond a literal keyword.
       if (token === query.clean && franchiseAliases.some((alias) => containsPhrase(searchable, alias))) {
         score += franchiseTitle ? 80 : 36;

@@ -36,7 +36,7 @@ export function chromeOnDeviceModel(
     return STATUSES.has(value) ? value : 'unavailable';
   };
 
-  const baseSession = (request: StructuredPrompt): Promise<LanguageModelSession> => {
+  const baseSession = (request: Pick<StructuredPrompt, 'instructions' | 'sessionOptions'>): Promise<LanguageModelSession> => {
     const key = JSON.stringify([request.instructions, request.sessionOptions]);
     if (base?.key !== key) {
       base?.session.then(session => session.destroy(), () => undefined);
@@ -49,6 +49,9 @@ export function chromeOnDeviceModel(
 
   return {
     status,
+    async prepare(request) {
+      if (await status(request.sessionOptions) === 'available') await baseSession(request);
+    },
     async promptJson(request) {
       if (await status(request.sessionOptions) !== 'available') throw new Error('O modelo no dispositivo não está pronto.');
       const signal = AbortSignal.timeout(request.timeoutMs);

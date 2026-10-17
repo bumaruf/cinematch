@@ -21,6 +21,7 @@
     "diagnostics:recommendations": "node tools/diagnostics/recommendation-quality.ts",
     "diagnostics:themes": "node tools/diagnostics/theme-quality.ts",
     "diagnostics:performance": "node --expose-gc tools/diagnostics/performance.ts",
+    "diagnostics:ui": "npm run build && node tools/diagnostics/ui-performance.mjs",
     "diagnostics:package": "node tools/diagnostics/catalog-package.ts",
     "package": "npm run check && node tools/package.js",
     "icons": "node tools/icons/generate-icons.js",

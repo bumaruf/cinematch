@@ -143,6 +143,8 @@ export interface SearchQuery {
   excludedCountries: Set<string>;
   constraints: Filters;
   preferredGenres: Set<string>;
+  /** Genre groups suggested by subject words (THEME_HINTS); each is favored, all together more. */
+  themeHints: string[][];
   interpretation: string[];
   franchiseAliases: string[];
   clauses: QueryClause[];
@@ -151,6 +153,16 @@ export interface SearchQuery {
   uncheckedExclusions: string[];
 }
 
+/**
+ * Subject words that suggest, without requiring, a genre: "amor com
+ * assassinato" favors romance and crime but still accepts a drama about a
+ * murder. The words also stay lexical terms, so synopses can match them.
+ */
+const THEME_HINTS: readonly { words: RegExp; genres: readonly string[]; label: string }[] = [
+  { words: /^(?:amor|amores|apaixonad\w*|paixao|paixoes|love|lovers?)$/, genres: ['romance'], label: 'romance' },
+  { words: /^(?:assassinat\w*|assassin\w*|homicidi\w*|matador\w*|murders?|killers?)$/, genres: ['crime', 'thriller'], label: 'crime e suspense' },
+];
+
 /** Extract explicit requirements before matching the remaining words. */
 export function parseSearchQuery(prompt: string): SearchQuery {
   const literalTitle = prompt.trim().match(/^["“](.+)["”]$/)?.[1];
@@ -158,7 +170,7 @@ export function parseSearchQuery(prompt: string): SearchQuery {
     const clean = fold(literalTitle);
     const tokens = foldWords(literalTitle).split(/\s+/).filter(Boolean);
     return { clean, tokens, lexicalTokens: tokens, genres: new Set(), excludedGenres: new Set(),
-      countries: new Set(), excludedCountries: new Set(), constraints: {}, preferredGenres: new Set(),
+      countries: new Set(), excludedCountries: new Set(), constraints: {}, preferredGenres: new Set(), themeHints: [],
       interpretation: [`Título: ${literalTitle}`], franchiseAliases: [], clauses: [], issues: [], uncheckedExclusions: [] };
   }
   const clean = fold(prompt.trim());
@@ -182,9 +194,17 @@ export function parseSearchQuery(prompt: string): SearchQuery {
     if (unknown.length) exclusionIssues.push(`Não consigo verificar a exclusão “sem ${unknown.join(' ')}” pelos dados disponíveis. Use gêneros ou países, como “sem terror”.`);
   }
   interpretation.push(...describeConstraints(constraints));
+  const themeHints: string[][] = [];
+  const excludedWords = new Set(uncheckedExclusions.flatMap((phrase) => phrase.split(' ')));
+  for (const hint of THEME_HINTS) {
+    if (!lexicalTokens.some((token) => !excludedWords.has(token) && hint.words.test(token))) continue;
+    const added = hint.genres.filter((genre) => !genres.has(genre) && !excludedGenres.has(genre));
+    if (added.length) themeHints.push(added);
+    if (added.length) interpretation.push(`Tema: favorecer ${hint.label}`);
+  }
   return {
     clean, tokens: foldWords(prompt).split(/\s+/).filter(Boolean), lexicalTokens, genres, excludedGenres,
-    countries, excludedCountries, constraints, preferredGenres, interpretation,
+    countries, excludedCountries, constraints, preferredGenres, themeHints, interpretation,
     franchiseAliases: FRANCHISE_ALIASES[clean] ?? [],
     clauses, issues: [...temporal.issues, ...requirements.issues, ...exclusionIssues], uncheckedExclusions,
   };

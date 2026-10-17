@@ -64,7 +64,7 @@ const watched = ['Date,Name,Year,Letterboxd URI', ...picked.map((f) => `2026-01-
 const rated = ['Date,Name,Year,Letterboxd URI,Rating', ...picked.map((f, i) => `2026-01-01,${quote(f.originalTitle)},${f.year},https://letterboxd.com/film/${f.slug}/,${ratings[i % 5]}`)].join('\n');
 
 const imported = await send('importCsvProfile', { files: [{ name: 'watched.csv', text: watched }, { name: 'ratings.csv', text: rated }] });
-check('importa CSV', imported.ok && imported.data.profile.films.length === picked.length, imported.ok ? `${imported.data.profile.films.length} filmes, autoritativo=${imported.data.authoritative}` : imported.error);
+check('importa CSV', imported.ok && imported.data.profile.filmCount === picked.length, imported.ok ? `${imported.data.profile.filmCount} filmes, autoritativo=${imported.data.authoritative}` : imported.error);
 
 const theme = await send('generateRecommendations', { themeId: 'mindfuck-broken-reality', customPrompt: '', filters: {} });
 check('recomenda por tema', theme.ok && theme.data.recommendations.length > 0, theme.ok ? theme.data.recommendations.map((r) => r.title).join(', ') : theme.error);
@@ -261,9 +261,10 @@ check('lista antiga do popup respeita o bloqueio ativado depois', regionalSessio
 const frequent = [...films].sort((a, b) => b.imdbVotes - a.imdbVotes).slice(0, 1500);
 const bigWatched = ['Date,Name,Year,Letterboxd URI', ...frequent.map(f => `2026-01-01,${quote(f.originalTitle)},${f.year},https://letterboxd.com/film/${f.slug}/`)].join('\n');
 const large = await send('importCsvProfile', { files: [{ name: 'watched.csv', text: bigWatched }, { name: 'ratings.csv', text: rated }] });
-check('importa histórico grande para reproduzir listas vazias', large.ok && large.data.profile.films.length >= 1500);
+check('importa histórico grande para reproduzir listas vazias', large.ok && large.data.profile.filmCount >= 1500);
 await send('updateSettings', { minVotes: 0, avoidWatched: true });
-const largeSeen = new Set(large.data.profile.films.map(f => f.slug));
+// watched.csv is authoritative, so the saved history is exactly these films.
+const largeSeen = new Set(frequent.map(f => f.slug));
 const { THEMES_CATALOG } = await import(pathToFileURL(join(repo, 'src/domain/themes/themes.ts')).href);
 const availability = [];
 for (const theme of THEMES_CATALOG) {
@@ -275,12 +276,18 @@ const automaticGeneral = await send('generateRecommendations', {});
 check('sugestões gerais automáticas com histórico grande', automaticGeneral.ok && automaticGeneral.data.recommendations.length > 0);
 const diagnostics = join(repo, 'e2e-screenshots');
 mkdirSync(diagnostics, { recursive: true });
-writeFileSync(join(diagnostics, 'recommendation-availability.json'), JSON.stringify({ watched: large.data.profile.films.length, availability, general: automaticGeneral.data?.recommendations.length ?? 0 }, null, 2));
+writeFileSync(join(diagnostics, 'recommendation-availability.json'), JSON.stringify({ watched: large.data.profile.filmCount, availability, general: automaticGeneral.data?.recommendations.length ?? 0 }, null, 2));
 
 await dashboard.reload();
 await dashboard.waitForSelector('[data-theme-id="claustrophobic-single-location"]');
-await dashboard.click('[data-theme-id="claustrophobic-single-location"]');
-await dashboard.waitForFunction(() => document.querySelector('#dashMoviesGrid[aria-busy="false"] [data-theme-fit="related"]'));
+// Climates vary between requests, so how many exact films earlier steps used
+// up varies too. Each request exhausts more; the nearby ones must then appear.
+for (let attempt = 0; attempt < 4; attempt++) {
+  await dashboard.click('[data-theme-id="claustrophobic-single-location"]');
+  await dashboard.waitForFunction(() => document.querySelector('#dashMoviesGrid[aria-busy="false"] article'));
+  if (await dashboard.locator('#dashMoviesGrid [data-theme-fit="related"]').count()) break;
+}
+await dashboard.waitForFunction(() => document.querySelector('#dashMoviesGrid[aria-busy="false"] [data-theme-fit="related"]'), null, { timeout: 5000 });
 check('painel identifica sugestões próximas ao clima', (await dashboard.locator('#dashMoviesGrid article').count()) > 0);
 await dashboard.screenshot({ path: `${shots}/dashboard-nearby.png` });
 

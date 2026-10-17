@@ -59,9 +59,14 @@ ficam no domínio, em pt-BR.
 Casos de uso que orquestram domínio e portas. Cada um é uma função que recebe
 suas dependências:
 
-- `profile.ts`: `getActiveProfile`, `syncProfile`, `importCsvProfile`,
-  `clearProfile`, `repairLegacyCsvProfile` (migração, roda no `onInstalled`).
-- `recommendations.ts`: `generateRecommendations`, `getDailyPick`.
+- `profile.ts`: `getProfileSummary` (cabeçalho, sem catálogo), `getActiveProfile`,
+  `syncProfile`, `importCsvProfile`, `clearProfile`, `repairLegacyCsvProfile`
+  (migração, roda no `onInstalled`). As respostas trazem um `ProfileOverview`:
+  o histórico completo fica no worker e as páginas recebem só a contagem.
+- `recommendations.ts`: `generateRecommendations`, `getDailyPick` e `warmUp`.
+  Guarda o perfil preparado (`domain/recommend/prepared.ts`) enquanto o perfil e
+  o "Não combina comigo" não mudam. `warmUp` carrega o catálogo quando uma página
+  abre e, com o usuário ocioso, prepara o filme do dia e o índice de busca.
 - `evaluation.ts`: registrar uma resposta para um filme efetivamente indicado,
   exportar o relatório do perfil ativo e apagar suas avaliações.
 - `library.ts`: filmes salvos, histórico, configurações e pôsteres.
@@ -90,7 +95,9 @@ Adaptadores das portas:
   parser de HTML/RSS e busca paginada com checkpoint.
 - `artwork.ts`: pôster via `og:image`, com cache limitado.
 - `catalog-resource.ts`: lê o catálogo comprimido dentro do pacote, descomprime
-  e cria os índices na primeira demanda. Pedidos simultâneos compartilham uma
+  e cria os índices na primeira demanda. O build gera esse arquivo com
+  `domain/catalog/packaged.ts`: filmes já normalizados, sem campos que o código
+  não lê e com as etiquetas de gosto pré-calculadas. Pedidos simultâneos compartilham uma
   Promise; falhas permitem uma nova tentativa. O cache dura até o worker parar.
 - `catalog.ts`: adaptador síncrono reservado a testes e diagnósticos Node.
 - `on-device-model.ts`: adaptador da Prompt API (`LanguageModel`). Só cria
@@ -112,8 +119,11 @@ Adaptadores das portas:
 - `shared/`: o que as telas reutilizam: escape de HTML, pôster (TMDB com
   fallback para o Letterboxd), meta e link do filme, leitura dos filtros,
   exportação em texto e usuário a partir da URL do Letterboxd.
-- `pages/popup`, `pages/options`, `pages/dashboard` (um módulo por aba) e
-  `content/`: controladores que renderizam e chamam `messaging/client`.
+- `pages/popup`, `pages/dashboard` (um módulo por aba, inclusive Configurações)
+  e `content/`: controladores que renderizam e chamam `messaging/client`.
+  `pages/options` só redireciona para a aba de Configurações do painel, para o
+  menu "Opções" do Chrome e links antigos continuarem funcionando; o painel
+  entende os endereços `#settings`, `#fontes` e `#recovery`.
 - `styles/app.css`: Tailwind CSS v4 com o tema do CineMatch (cores, fontes
   locais, animações) e os poucos componentes repetidos. As páginas usam
   utilitários; o content script tem CSS próprio, sem o reset do Tailwind.

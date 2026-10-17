@@ -1,10 +1,9 @@
 import type { Catalog } from '../catalog/catalog.ts';
 import type { DailyPick, FilmIdentity, UserProfile } from '../film.ts';
-import { analyzeProfile } from '../profile/analyze.ts';
-import { catalogIdentity, createWatchedIndex } from '../profile/watched.ts';
+import { catalogIdentity, } from '../profile/watched.ts';
 import { createFilmIdentityIndex } from '../profile/identity.ts';
 import { analyzeYearPhase } from '../profile/year-phase.ts';
-import { createTasteMatcher } from '../taste/taste-match.ts';
+import { prepareProfile, type PreparedProfile } from './prepared.ts';
 import { slugKey } from '../text.ts';
 import { toRecommendation } from './recommendation.ts';
 
@@ -59,23 +58,23 @@ export interface DailyOptions {
   excludedFilms?: readonly FilmIdentity[];
   /** Films marked "Não combina comigo", used as negative taste signals. */
   rejectedFilms?: readonly FilmIdentity[];
+  /** Derived profile data a caller kept from an earlier request with the same inputs. */
+  prepared?: PreparedProfile;
 }
 
 /**
  * One well-rated unwatched film per user and day. The choice is
  * deterministic for a date, and only strong taste matches compete.
  */
-export function pickDaily(profile: UserProfile | null, catalog: Catalog, { date, now, excludedSlugs = [], excludedFilms = [], rejectedFilms = [] }: DailyOptions): DailyPick {
+export function pickDaily(profile: UserProfile | null, catalog: Catalog, { date, now, excludedSlugs = [], excludedFilms = [], rejectedFilms = [], prepared }: DailyOptions): DailyPick {
   const seed = hashString(`${date}-${(profile?.username || 'cinefilo').toLowerCase()}`);
-  const analyzed = analyzeProfile(profile, catalog, now);
+  const { matchTaste, isWatched } = prepared ?? prepareProfile(profile, catalog, now, { rejected: rejectedFilms });
   const yearPhase = analyzeYearPhase(profile, catalog, now);
-  const matchTaste = createTasteMatcher(profile ?? {}, catalog, { rejected: rejectedFilms });
-  const watched = createWatchedIndex(analyzed.watchedList);
   const excluded = new Set(excludedSlugs.map(slugKey));
   const blocked = createFilmIdentityIndex(excludedFilms);
 
   const candidates = catalog.films.flatMap((film) => {
-    if (watched.has(catalogIdentity(film)) || blocked.has(catalogIdentity(film)) || excluded.has(slugKey(film.slug))) return [];
+    if (isWatched(film) || blocked.has(catalogIdentity(film)) || excluded.has(slugKey(film.slug))) return [];
     const taste = matchTaste(film);
     if (!taste.eligible || !film.imdbRating || film.imdbRating < 7) return [];
     return [{ film, score: taste.score + film.imdbRating * 0.1, reason: taste.reason }];

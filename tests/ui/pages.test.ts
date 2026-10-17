@@ -7,9 +7,17 @@ import { expect, test } from 'vitest';
 // lacks one, stopping the whole page. Catch that before the browser does.
 
 const PAGES = resolve(dirname(fileURLToPath(import.meta.url)), '../../src/ui/pages');
+/** Pages kept only so old links and Chrome's "Opções" menu keep working. */
+const REDIRECTS: Record<string, string> = { options: '../dashboard/index.html' };
 
 for (const page of readdirSync(PAGES)) {
-  test(`${page}: every element the controller needs exists in index.html`, () => {
+  if (REDIRECTS[page]) {
+    test(`${page}: forwards to ${REDIRECTS[page]}, keeping the section hash`, () => {
+      const controller = readFileSync(join(PAGES, page, `${page}.ts`), 'utf8');
+      expect(controller).toContain('location.replace(');
+      expect(controller).toContain(`${REDIRECTS[page]}\${location.hash || '#settings'}`);
+    });
+  } else test(`${page}: every element the controller needs exists in index.html`, () => {
     const html = readFileSync(join(PAGES, page, 'index.html'), 'utf8');
     const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]));
     const required = readdirSync(join(PAGES, page))

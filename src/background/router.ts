@@ -4,8 +4,8 @@ import { clearRecommendationEvaluations, getRecommendationEvaluationReport, reco
 import { getFilmArtwork, getPopupSession, getSettings, listHistory, listSavedFilms, savePopupSession, toggleSavedFilm, updateSettings } from '../application/library.ts';
 import type { SyncProgress } from '../application/ports.ts';
 import { getOnDeviceModelStatus } from '../application/query-model.ts';
-import { clearProfile, getActiveProfile, importCsvProfile, syncProfile } from '../application/profile.ts';
-import { generateRecommendations, getDailyPick, getSurprisePick } from '../application/recommendations.ts';
+import { clearProfile, getActiveProfile, getProfileSummary, importCsvProfile, syncProfile } from '../application/profile.ts';
+import { generateRecommendations, getDailyPick, getSurprisePick, warmUp } from '../application/recommendations.ts';
 import type { Action, RequestOf, ResponseOf } from '../messaging/contract.ts';
 
 export type Handlers = { [A in Action]: (payload: RequestOf<A>) => Promise<ResponseOf<A>> };
@@ -20,6 +20,8 @@ export interface Platform {
 export function createHandlers(ctx: AppContext, platform: Platform): Handlers {
   return {
     getActiveProfile: () => getActiveProfile(ctx),
+    getProfileSummary: () => getProfileSummary(ctx),
+    warmUp: async () => warmUp(ctx),
     syncProfile: (request) => platform.exclusiveSync(() => syncProfile(ctx, request, platform.broadcastProgress)),
     importCsvProfile: ({ files }) => importCsvProfile(ctx, files),
     clearProfile: () => clearProfile(ctx),

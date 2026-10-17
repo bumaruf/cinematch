@@ -168,4 +168,6 @@ export interface OnDeviceModel {
   status(sessionOptions: object): Promise<OnDeviceModelStatus>;
   /** The parsed JSON answer. Throws when the model is not ready or the answer is not JSON. */
   promptJson(request: StructuredPrompt): Promise<unknown>;
+  /** Creates the session ahead of the first prompt, when the model is ready; never downloads. */
+  prepare?(request: Pick<StructuredPrompt, 'instructions' | 'sessionOptions'>): Promise<void>;
 }

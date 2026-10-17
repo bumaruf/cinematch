@@ -202,3 +202,25 @@ test('the application persists the applied OR interpretation and conflict result
   expect(history[0].movies).toEqual([]);
   expect(history[0].evaluationContext?.filters.runtimeFilter).toBe('over-120');
 });
+
+test('subject words suggest genres without requiring them', () => {
+  const query = parseSearchQuery('amor com assassinato');
+  expect(query.themeHints).toEqual([['romance'], ['crime', 'thriller']]);
+  expect(query.genres.size).toBe(0);
+  expect(query.lexicalTokens).toEqual(['amor', 'assassinato']);
+  expect(query.interpretation).toEqual(['Tema: favorecer romance', 'Tema: favorecer crime e suspense']);
+  expect(parseSearchQuery('drama sem assassinato').themeHints).toEqual([]);
+  // An explicit genre is already a requirement, not a hint.
+  expect(parseSearchQuery('romance com assassinato').themeHints).toEqual([['crime', 'thriller']]);
+});
+
+test('a romance that is also a crime film ranks above one that is not', () => {
+  const pitch = 'Um amor intenso marcado por um assassinato misterioso na cidade grande.';
+  const catalog = createCatalog([
+    film('only-romance', { genres: ['Romance', 'Drama'], pitch, imdbRating: 8.5 }),
+    film('romance-crime', { genres: ['Romance', 'Crime'], pitch, imdbRating: 7 }),
+    film('only-crime', { genres: ['Crime'], pitch, imdbRating: 8.5 }),
+  ]);
+  const result = recommend({ profile: null, customPrompt: 'amor com assassinato' }, catalog, FIXED_NOW);
+  expect(result.recommendations[0].catalogSlug).toBe('romance-crime');
+});

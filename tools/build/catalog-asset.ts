@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { statSync } from 'node:fs';
 import type { Plugin } from 'vite';
+import { packageCatalog } from '../../src/domain/catalog/packaged.ts';
 
 /** Package data as data: MV3 service workers cannot use dynamic import(). */
 export function catalogAsset(): Plugin {
@@ -20,9 +21,9 @@ export function catalogAsset(): Plugin {
     // Refresh data regenerated while the dev server runs, without a new module
     // and gzip allocation for every request of an unchanged catalog.
     const modules = await Promise.all(sources.map((path, i) => import(`${pathToFileURL(path).href}?catalog=${stamps[i]}`)));
-    const bytes = gzipSync(JSON.stringify({
-      films: modules[0].EXPANDED_FILM_DATABASE, posters: modules[1].POSTER_PATHS_BY_IMDB_ID,
-    }));
+    // Normalized, trimmed and with precomputed taste tags: work every
+    // service worker start would otherwise repeat.
+    const bytes = gzipSync(JSON.stringify(packageCatalog(modules[0].EXPANDED_FILM_DATABASE, modules[1].POSTER_PATHS_BY_IMDB_ID)));
     cached = { stamp, bytes };
     return { sources, bytes };
   }

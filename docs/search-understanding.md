@@ -28,12 +28,17 @@ delimita negações e intersecta os limites informados.
 | `drama depois de 1980 a partir de 1990 até 1995` | Anos de 1990 a 1995, incluindo os limites. |
 | `não mais de 120 min, suspense` | Até 120 minutos e Thriller. A negação consumida pela duração não se espalha ao gênero. |
 | `“Brazil”` ou `“1984”` | Busca de título literal, sem interpretar país ou ano. |
+| `amor com assassinato` | Sem gênero obrigatório. “amor” favorece Romance e “assassinato” favorece Crime ou Thriller; os filmes que reúnem os dois sobem mais. As palavras continuam buscadas nas sinopses. |
 
 Dentro de cada alternativa, `e` e termos adjacentes acumulam requisitos.
 `ou` separa alternativas de gêneros e países. Vírgulas, ponto e vírgula e
 transições como `mas` encerram a cláusula anterior; uma nova cláusula positiva
 vale junto com as anteriores. Use uma vírgula para deixar explícito um critério
 compartilhado: `suspense ou ficção científica, japonês`.
+
+Palavras de assunto como “amor”, “paixão”, “assassinato”, “homicídio” e “serial killer”
+são dicas, não requisitos: favorecem gêneros, mas um drama sobre um assassinato
+continua elegível. Depois de “sem”, elas não viram dica.
 
 As exclusões reconhecidas valem para todos os resultados. Assim,
 `comédia ou drama, sem comédia` ainda pode retornar Drama, desde que não tenha
