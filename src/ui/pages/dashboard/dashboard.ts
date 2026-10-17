@@ -40,15 +40,21 @@ onReady(async () => {
   setupProfile({ state, notify, beforeChange: resetProfileSections });
   const settings = setupSettings({ state, notify, goToImport: () => openRecovery(), onProfileCleared: resetProfileSections });
 
-  function activateTab(tab: string): void {
+  /**
+   * Shows a tab from its top. A link that opened the panel at a section
+   * (#fontes, #recovery) keeps its address; a plain switch clears it, so a
+   * reload does not jump back.
+   */
+  function activateTab(tab: string, { keepHash = false } = {}): void {
     for (const item of navItems) item.classList.toggle('active', item.dataset.tab === tab);
     for (const pane of tabPanes) pane.classList.toggle('active', pane.id === `tab-${tab}`);
+    if (!keepHash && location.hash) history.replaceState(null, '', location.pathname + location.search);
+    window.scrollTo({ top: 0 });
     const active = state.get();
     if (tab === 'dna' && active) renderDna(active);
     if (tab === 'history') void renderHistory();
     if (tab === 'saved') void saved.renderSaved();
     if (tab === 'settings') void settings.refresh();
-    if (tab === 'curator') document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   // The daily pick only needs to know who is active, so it starts with the overview.
@@ -61,7 +67,7 @@ onReady(async () => {
   });
 
   function openRecovery(): void {
-    activateTab('dna');
+    activateTab('dna', { keepHash: true });
     const recovery = byId<HTMLDetailsElement>('profileRecovery');
     recovery.open = true;
     recovery.scrollIntoView();
@@ -70,15 +76,20 @@ onReady(async () => {
   /** Links into the panel: #settings, #fontes (the credits in Settings), #recovery. */
   function followHash(): void {
     if (location.hash === '#recovery') openRecovery();
-    else if (location.hash === '#settings') activateTab('settings');
+    else if (location.hash === '#settings') activateTab('settings', { keepHash: true });
     else if (location.hash === '#fontes') {
-      activateTab('settings');
+      activateTab('settings', { keepHash: true });
       byId('fontes').scrollIntoView({ block: 'start' });
     }
   }
 
   for (const item of navItems) item.addEventListener('click', () => activateTab(item.dataset.tab ?? 'curator'));
   window.addEventListener('hashchange', followHash);
+  // The logo goes back to the start: Descobrir, from the top.
+  byId('homeLink').addEventListener('click', (event) => {
+    event.preventDefault();
+    activateTab('curator');
+  });
 
   try {
     // The overview needs no catalog; the catalog warms up meanwhile, and the
