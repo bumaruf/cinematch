@@ -32,8 +32,9 @@ tem licença de uso pessoal é baixado pelo navegador de cada usuário.
   guarda o resultado no Cache Storage (`src/infrastructure/imdb-ratings.ts`).
   O catálogo aplica essas notas ao ser montado.
 - Sem notas (antes do primeiro download, ou se o IMDb estiver fora do ar), as
-  sugestões continuam: a nota de cada filme cai no valor neutro do motor, e
-  filtros de nota mínima não excluem filmes sem nota.
+  sugestões continuam: a nota de cada filme cai no valor neutro do motor,
+  filtros de nota mínima não excluem filmes sem nota, o filtro de popularidade
+  (mínimo de avaliações) é ignorado e o resultado avisa que as notas faltam.
 - `tools/package.js` só empacota um catálogo marcado com
   `CATALOG_SOURCE = "wikidata"`. `catalog:wikidata` grava a marca, e
   `catalog:enrich` e `catalog:dedup` a preservam. Os comandos que usam o IMDb

@@ -26,6 +26,15 @@ export async function getRatingsStatus(ctx: AppContext): Promise<RatingsStatus> 
 }
 
 /**
+ * True while this browser has no IMDb ratings yet (first download pending or
+ * failed). Contexts without a download carry their own ratings.
+ */
+export async function ratingsMissing(ctx: AppContext): Promise<boolean> {
+  if (!ctx.ratings) return false;
+  return !(await ctx.ratings.store.get().catch(() => null));
+}
+
+/**
  * Downloads IMDb's ratings for the catalog's films when they are missing or
  * old (or always, with force). The extension does not carry IMDb's data: the
  * user's browser fetches it from IMDb for the user's own use.

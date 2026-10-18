@@ -10,7 +10,7 @@ import {
   LetterboxdNotFoundError,
   type PageFetcher,
 } from '../../src/infrastructure/letterboxd/http.ts';
-import { cleanUsername, parseProfileHtml, parseRssFeed } from '../../src/infrastructure/letterboxd/parse.ts';
+import { cleanUsername, decodeEntities, parseFilmsListHtml, parseProfileHtml, parseRssFeed } from '../../src/infrastructure/letterboxd/parse.ts';
 import { collectFullProfile } from '../../src/infrastructure/letterboxd/sync.ts';
 
 const profileHtml = (count: number) => `<h1 class="person-display-name">Test User</h1><a href="/test/films/"><span>${count}</span></a>`;
@@ -202,4 +202,32 @@ test('a page past the end that repeats the last full page ends a complete collec
     return '<ul class="poster-list"></ul>';
   });
   assert.equal(profile.films.length, 72);
+});
+
+test('titles and display names decode HTML entities', () => {
+  assert.equal(decodeEntities('Schindler&#039;s List &amp; &#x2014; &quot;x&quot; &unknown;'), `Schindler's List & — "x" &unknown;`);
+  const [film] = parseFilmsListHtml('<li class="griditem"><div data-item-slug="schindlers-list" data-item-name="Schindler&#039;s List (1993)"></div></li>');
+  assert.equal(film.title, "Schindler's List");
+  assert.equal(film.year, 1993);
+  const [poster] = parseFilmsListHtml('<li class="poster-container"><img alt="Amélie &amp; Co" /><a href="/film/amelie/"></a></li>');
+  assert.equal(poster.title, 'Amélie & Co');
+  const [rss] = parseRssFeed('<item><title>Tom &amp; Jerry - ★★★</title><link>https://letterboxd.com/u/film/tom-and-jerry/</link></item>');
+  assert.equal(rss.title, 'Tom & Jerry');
+  assert.equal(parseProfileHtml('<h1 class="person-display-name">Ana &#039;Cine&#039; &amp; Co</h1>').displayName, "Ana 'Cine' & Co");
+});
+
+test('an unrated favorite keeps no rating instead of an invented 5', async () => {
+  const favorites = '<section id="favourites"><li class="griditem"><div data-item-slug="fav" data-item-name="Fav (2001)"></div></li><li class="griditem"><div data-item-slug="rated" data-item-name="Rated (2002)"></div></li></section>';
+  const profile = await extract('test', async (url) => {
+    if (url.endsWith('/test/')) return profileHtml(2) + favorites;
+    if (url.endsWith('/films/')) {
+      return '<li class="griditem"><div data-item-slug="fav" data-item-name="Fav (2001)"></div></li>' + filmHtml('rated', 'Rated', 2002);
+    }
+    return '<ul class="poster-list"></ul>';
+  });
+  const bySlug = new Map(profile.films.map((film) => [film.slug, film]));
+  assert.equal(bySlug.get('fav')?.rating, null);
+  assert.equal(bySlug.get('fav')?.isFavorite, true);
+  assert.equal(bySlug.get('rated')?.rating, 4);
+  assert.equal(bySlug.get('rated')?.isFavorite, true);
 });

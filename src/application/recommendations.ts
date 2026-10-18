@@ -13,7 +13,11 @@ import { activeFeedback, timeZoneOf } from './feedback.ts';
 import { CURATION_VERSION } from '../domain/recommend/evaluation.ts';
 import { isHistoryComplete } from '../domain/profile/completeness.ts';
 import { interpretSearch, prepareSearchModel } from './query-model.ts';
-import { refreshRatings } from './ratings.ts';
+import { ratingsMissing, refreshRatings } from './ratings.ts';
+
+/** Shown with every result until this browser has IMDb's ratings. */
+export const MISSING_RATINGS_NOTICE =
+  'As notas do IMDb ainda não foram baixadas, então as sugestões não usam a nota dos filmes e o filtro de popularidade ficou de fora. Para baixar agora, use Configurações → Notas do IMDb.';
 
 /** Batches of earlier recommendations kept out of new thematic results. */
 const RECENT_BATCHES = 20;
@@ -76,9 +80,10 @@ export async function generateRecommendations(ctx: AppContext, query: Recommenda
     .filter((movie) => movie?.title);
   const now = ctx.clock.now();
   // The model reads the prompt while the catalog loads.
-  const [interpretation, catalog] = await Promise.all([
+  const [interpretation, catalog, unrated] = await Promise.all([
     interpretSearch(ctx, query.customPrompt ?? '', settings.modelQuery),
     ctx.catalog(),
+    ratingsMissing(ctx),
   ]);
   const { excludedFilms, rejectedFilms } = splitFeedback(activeFeedback(await ctx.feedback.list(activeUser), now, timeZoneOf(ctx)));
   const requestId = ctx.identifiers.next();
@@ -98,6 +103,8 @@ export async function generateRecommendations(ctx: AppContext, query: Recommenda
         includeUnderrated: settings.includeUnderrated,
         minVotes: settings.minVotes,
         ...query.filters,
+        // Without ratings every film has 0 votes: a popularity floor would hide them all.
+        ...(unrated ? { minVotes: 0 } : {}),
         excludeRecent,
       },
     },
@@ -110,7 +117,8 @@ export async function generateRecommendations(ctx: AppContext, query: Recommenda
     avoidWatched: settings.avoidWatched,
   });
   const sessionId = `rec_${now.getTime()}_${requestId}`;
-  const final: RecommendationResult = { ...result, recommendations, evaluationSessionId: sessionId,
+  const notice = unrated ? [result.notice, MISSING_RATINGS_NOTICE].filter(Boolean).join(' ') : result.notice;
+  const final: RecommendationResult = { ...result, notice, recommendations, evaluationSessionId: sessionId,
     ...(interpretation.interpretedBy ? { interpretedBy: interpretation.interpretedBy } : {}) };
   if (query.username && usernameKey((await ctx.profiles.get())?.username ?? '') !== usernameKey(query.username)) throw new ProfileChangedError();
   await ctx.history.append({

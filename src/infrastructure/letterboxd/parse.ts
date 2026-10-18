@@ -21,6 +21,22 @@ export interface ProfileMetadata {
   favorites: ParsedFilm[];
 }
 
+const NAMED_ENTITIES: Readonly<Record<string, string>> = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+  ndash: '–', mdash: '—', hellip: '…', lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”',
+};
+
+/** Decodes the HTML entities Letterboxd leaves in attributes and text ("Schindler&#039;s List"). */
+export function decodeEntities(text: string): string {
+  return text.replace(/&(#x[\da-f]+|#\d+|[a-z]+);/gi, (entity, code: string) => {
+    if (code[0] === '#') {
+      const point = code[1] === 'x' || code[1] === 'X' ? Number.parseInt(code.slice(2), 16) : Number.parseInt(code.slice(1), 10);
+      return Number.isInteger(point) && point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : entity;
+    }
+    return NAMED_ENTITIES[code.toLowerCase()] ?? entity;
+  });
+}
+
 export function cleanUsername(input: string | null | undefined): string {
   if (!input) return '';
   let user = input.trim();
@@ -53,7 +69,7 @@ export function parseRssFeed(xmlText: string): ParsedFilm[] {
       block.match(/<link[^>]*>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/link>/i) ||
       block.match(/<link[^>]*>\s*(https?:\/\/[^\s<]+)\s*<\/link>/i);
 
-    let rawTitle = titleMatch ? titleMatch[1].trim() : '';
+    let rawTitle = titleMatch ? decodeEntities(titleMatch[1]).trim() : '';
     rawTitle = rawTitle.replace(/\s*[-–]\s*[★½\d\s.]+$/, '').trim();
 
     if (!rawTitle) continue;
@@ -96,7 +112,7 @@ export function parseFilmsListHtml(html: string, defaultRating: number | null = 
     let title = '';
     let year: number | null = null;
     if (nameM) {
-      const rawName = nameM[1];
+      const rawName = decodeEntities(nameM[1]);
       const yearMatch = rawName.match(/\((\d{4})\)$/);
       if (yearMatch) {
         year = parseInt(yearMatch[1], 10);
@@ -107,7 +123,7 @@ export function parseFilmsListHtml(html: string, defaultRating: number | null = 
     }
     if (!title) {
       const altM = content.match(/<img[^>]+alt="([^"]+)"/);
-      title = altM ? altM[1].trim() : (slug ? slug.replace(/-/g, ' ') : '');
+      title = altM ? decodeEntities(altM[1]).trim() : (slug ? slug.replace(/-/g, ' ') : '');
     }
 
     // Rating: rated-10 (5★), rated-9 (4.5★), rated-8 (4★), rated-7 (3.5★)...
@@ -148,7 +164,7 @@ export function parseFilmsListHtml(html: string, defaultRating: number | null = 
       let title = '';
       let year: number | null = null;
       if (nameM) {
-        const rawName = nameM[1];
+        const rawName = decodeEntities(nameM[1]);
         const yMatch = rawName.match(/\((\d{4})\)$/);
         if (yMatch) {
           year = parseInt(yMatch[1], 10);
@@ -158,7 +174,7 @@ export function parseFilmsListHtml(html: string, defaultRating: number | null = 
         }
       }
       if (!title) {
-        title = altMatch ? altMatch[1].trim() : (slugMatch ? slugMatch[1].replace(/-/g, ' ') : '');
+        title = altMatch ? decodeEntities(altMatch[1]).trim() : (slugMatch ? slugMatch[1].replace(/-/g, ' ') : '');
       }
 
       const slug = slugMatch ? slugMatch[1] : '';
@@ -176,7 +192,7 @@ export function parseFilmsListHtml(html: string, defaultRating: number | null = 
       const slug = slugMatch[1];
       const nearbyHtml = html.substring(slugMatch.index, slugMatch.index + 600);
       const altNearby = nearbyHtml.match(/<img[^>]+alt="([^"]+)"/);
-      const title = altNearby ? altNearby[1].trim() : slug.replace(/-/g, ' ');
+      const title = altNearby ? decodeEntities(altNearby[1]).trim() : slug.replace(/-/g, ' ');
 
       const nearbyBefore = html.substring(Math.max(0, slugMatch.index - 300), slugMatch.index + 500);
       const ratedNearby = nearbyBefore.match(/rated-(\d+)/);
@@ -208,9 +224,7 @@ export function parseProfileHtml(html: string): ProfileMetadata {
     html.match(/<h1\b[^>]*class=["'][^"']*\bperson-display-name\b[^"']*["'][^>]*>([\s\S]*?)<\/h1>/i) ||
     html.match(/<h1\b[^>]*class=["'][^"']*\btitle-1\b[^"']*["'][^>]*>([\s\S]*?)<\/h1>/i);
   if (nameMatch) {
-    displayName = nameMatch[1].replace(/<[^>]*>/g, '').replace(/&amp;/g, '&')
-      .replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"')
-      .replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    displayName = decodeEntities(nameMatch[1].replace(/<[^>]*>/g, '')).replace(/\s+/g, ' ').trim();
   }
 
   // Avatar URL
