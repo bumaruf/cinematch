@@ -1,19 +1,27 @@
 import { expect, test } from 'vitest';
 import { createCatalog } from '../../src/domain/catalog/catalog.ts';
 import { packageCatalog, UNPACKAGED_FIELDS } from '../../src/domain/catalog/packaged.ts';
+import { applyRatings, ratingsOf, withoutRatings } from '../../src/domain/catalog/ratings.ts';
 import { pickDaily, dateKey } from '../../src/domain/recommend/daily.ts';
 import { recommend } from '../../src/domain/recommend/engine.ts';
 import { tasteTags } from '../../src/domain/taste/taste-match.ts';
 import { EXPANDED_FILM_DATABASE } from '../../src/data/films-dataset.js';
 import { POSTER_PATHS_BY_IMDB_ID } from '../../src/data/poster-catalog.js';
-import { discoveryCatalog } from '../fixtures/catalog.ts';
+import { discoveryCatalog, film } from '../fixtures/catalog.ts';
 import { FIXED_NOW, testWithCatalog } from '../helpers.ts';
 
-/** The packaged catalog, as the worker reads it after JSON round-tripping. */
+/** The packaged catalog, as the worker reads it after JSON round-tripping and with the browser's downloaded ratings. */
 function shipped(films: Parameters<typeof packageCatalog>[0], posters = {}) {
   const data = JSON.parse(JSON.stringify(packageCatalog(films, posters)));
-  return createCatalog(data.films, data.posters, { normalized: data.normalized });
+  return createCatalog(applyRatings(data.films, ratingsOf(films)), data.posters, { normalized: data.normalized });
 }
+
+test('the package carries no IMDb score nor keywords derived from one', () => {
+  const films = [film('rated', { imdbRating: 8.7, imdbVotes: 700000, keywords: ['aclamado', 'máfia'], keywordEvidence: [{ term: 'aclamado', source: 'derived' }, { term: 'máfia', source: 'film' }] })];
+  const [packaged] = packageCatalog(films, {}).films;
+  expect(packaged).toMatchObject({ imdbRating: 0, imdbVotes: 0, keywords: ['máfia'] });
+  expect(JSON.stringify(packaged)).not.toMatch(/8\.7|700000|aclamado/);
+});
 
 test('packaged films carry exactly the taste tags the runtime would compute', () => {
   const raw = discoveryCatalog();
@@ -25,7 +33,8 @@ test('packaged films carry exactly the taste tags the runtime would compute', ()
 });
 
 testWithCatalog('the packaged real catalog recommends exactly what the raw catalog does', () => {
-  const raw = createCatalog(EXPANDED_FILM_DATABASE, POSTER_PATHS_BY_IMDB_ID);
+  // Ratings come back at the end of the keyword list, as in the browser.
+  const raw = createCatalog(applyRatings(EXPANDED_FILM_DATABASE.map(withoutRatings), ratingsOf(EXPANDED_FILM_DATABASE)), POSTER_PATHS_BY_IMDB_ID);
   const packaged = shipped(EXPANDED_FILM_DATABASE, POSTER_PATHS_BY_IMDB_ID);
   const ratings = [5, 4.5, 4, 3.5, 3, 2.5, 2, 4, 3.5, 1];
   // Synced profiles carry no keywords or synopsis, so they reuse the catalog's tags.

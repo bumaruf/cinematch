@@ -46,3 +46,22 @@ test('each worker starts fresh, and the empty development stub is supported', as
   expect((await restarted()).info.total).toBe(0);
   expect(request).toHaveBeenCalledTimes(2);
 });
+
+test('downloaded ratings reach the catalog, which is rebuilt only when they change', async () => {
+  const request = vi.fn<typeof fetch>().mockImplementation(async () => compressed());
+  let stored: { fetchedAt: string; ratings: Record<string, [number, number]> } | null = null;
+  const load = createPackagedCatalogLoader(url, request, async () => stored);
+  const unrated = await load();
+  expect(await load()).toBe(unrated);
+  stored = { fetchedAt: '2026-10-18', ratings: { 'tt-local': [8.2, 4000] } };
+  const rated = await load();
+  expect(rated).not.toBe(unrated);
+  expect(rated.bySlug('local')).toMatchObject({ imdbRating: 8.2, imdbVotes: 4000 });
+  expect(await load()).toBe(rated);
+  expect(request).toHaveBeenCalledTimes(1);
+});
+
+test('a failing ratings store does not keep the catalog from loading', async () => {
+  const load = createPackagedCatalogLoader(url, async () => compressed(), async () => { throw new Error('quota'); });
+  expect((await load()).info.total).toBe(1);
+});

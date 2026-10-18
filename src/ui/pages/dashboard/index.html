@@ -257,6 +257,17 @@
             </div>
           </section>
 
+          <section class="mt-12" aria-labelledby="ratingsTitle">
+            <h2 id="ratingsTitle" class="font-serif text-2xl font-medium">Notas do IMDb</h2>
+            <div class="mt-3 flex flex-wrap items-center justify-between gap-4 border-y border-line py-4">
+              <p class="flex flex-col gap-0.5 text-[13px] leading-relaxed text-muted">
+                <span>As notas não vêm na extensão: este navegador baixa o arquivo público do IMDb (cerca de 8 MB) e o atualiza uma vez por mês.</span>
+                <span id="ratingsStatus" role="status" aria-live="polite">Verificando as notas…</span>
+              </p>
+              <button id="refreshRatingsBtn" class="btn btn-quiet" type="button">Atualizar notas</button>
+            </div>
+          </section>
+
           <section class="mt-12" aria-labelledby="dataTitle">
             <h2 id="dataTitle" class="font-serif text-2xl font-medium">Dados salvos</h2>
             <div class="mt-3 flex flex-wrap items-center justify-between gap-4 border-y border-line py-4">
@@ -277,7 +288,7 @@
             </li>
             <li class="flex gap-3 py-4">
               <span class="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand [&_svg]:size-4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M12 4a12 12 0 0 1 0 16M12 4a12 12 0 0 0 0 16"/><circle cx="12" cy="12" r="8"/></svg></span>
-              <span class="flex flex-col gap-0.5"><strong class="font-semibold">Só o necessário sai daqui</strong><span class="text-[13px] leading-relaxed text-muted">O Letterboxd é consultado para sincronizar seu perfil, e o TMDB só para carregar pôsteres.</span></span>
+              <span class="flex flex-col gap-0.5"><strong class="font-semibold">Só o necessário sai daqui</strong><span class="text-[13px] leading-relaxed text-muted">O Letterboxd é consultado para sincronizar seu perfil, o IMDb para baixar as notas dos filmes e o TMDB só para carregar pôsteres.</span></span>
             </li>
             <li class="flex gap-3 py-4">
               <span class="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand [&_svg]:size-4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"/></svg></span>
@@ -288,8 +299,10 @@
 
           <section id="fontes" class="mt-12 scroll-mt-8 text-[12px] leading-relaxed text-faint" aria-labelledby="sourcesTitle">
             <h2 id="sourcesTitle" class="font-serif text-2xl font-medium text-ink">Fontes dos dados</h2>
-            <p class="mt-3">Dados de filmes do <a class="text-muted underline underline-offset-2 hover:text-ink" href="https://www.imdb.com" target="_blank" rel="noreferrer">IMDb</a>. Information courtesy of IMDb. Used with permission.</p>
-            <p class="mt-1">Sinopses e pôsteres do <a class="text-muted underline underline-offset-2 hover:text-ink" href="https://www.themoviedb.org" target="_blank" rel="noreferrer">TMDB</a>. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+            <p class="mt-3">Catálogo de filmes do <a class="text-muted underline underline-offset-2 hover:text-ink" href="https://www.wikidata.org" target="_blank" rel="noreferrer">Wikidata</a>, em domínio público (CC0).</p>
+            <p class="mt-1">Sinopses da <a class="text-muted underline underline-offset-2 hover:text-ink" href="https://pt.wikipedia.org" target="_blank" rel="noreferrer">Wikipédia</a>, resumidas dos artigos de cada filme, sob a licença <a class="text-muted underline underline-offset-2 hover:text-ink" href="https://creativecommons.org/licenses/by-sa/4.0/deed.pt-br" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>.</p>
+            <p class="mt-1">Notas do <a class="text-muted underline underline-offset-2 hover:text-ink" href="https://www.imdb.com" target="_blank" rel="noreferrer">IMDb</a>, baixadas por este navegador para seu uso pessoal. Information courtesy of IMDb (https://www.imdb.com). Used with permission.</p>
+            <p class="mt-1">Pôsteres do <a class="text-muted underline underline-offset-2 hover:text-ink" href="https://www.themoviedb.org" target="_blank" rel="noreferrer">TMDB</a>. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
             <p class="mt-1">O CineMatch não é afiliado ao Letterboxd, ao IMDb nem ao TMDB.</p>
           </section>
         </div>

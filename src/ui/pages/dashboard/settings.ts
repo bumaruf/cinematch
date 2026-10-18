@@ -1,4 +1,5 @@
 import type { OnDeviceModelStatus } from '../../../application/ports.ts';
+import type { RatingsStatus } from '../../../application/ratings.ts';
 import { send } from '../../../messaging/client.ts';
 import { byId } from '../../shared/dom.ts';
 import { html, render } from '../../shared/html.ts';
@@ -42,6 +43,8 @@ export function setupSettings({ state, notify, goToImport, onProfileCleared }: S
   const modelQuery = byId<HTMLInputElement>('modelQuery');
   const modelStatus = byId('modelStatus');
   const downloadModelButton = byId<HTMLButtonElement>('downloadModelBtn');
+  const ratingsStatus = byId('ratingsStatus');
+  const refreshRatingsButton = byId<HTMLButtonElement>('refreshRatingsBtn');
 
   const preset = () => POPULARITY_PRESETS[Number(popularityLevel.value || 0)] ?? POPULARITY_PRESETS[0];
 
@@ -67,6 +70,17 @@ export function setupSettings({ state, notify, goToImport, onProfileCleared }: S
     downloadModelButton.hidden = !(status === 'downloadable' || status === 'downloading') || !canDownloadOnDeviceModel();
   }
 
+  function describeRatings(status: RatingsStatus): string {
+    if (!status.fetchedAt) return 'As notas ainda não foram baixadas. Até lá, as sugestões não usam a nota dos filmes.';
+    const date = new Date(status.fetchedAt).toLocaleDateString('pt-BR', { dateStyle: 'long' });
+    return `${status.rated.toLocaleString('pt-BR')} filmes com nota, baixadas em ${date}.`;
+  }
+
+  async function renderRatingsStatus(): Promise<void> {
+    const status = await send('getRatingsStatus').catch(() => null);
+    ratingsStatus.textContent = status ? describeRatings(status) : 'Não foi possível verificar as notas.';
+  }
+
   async function save(): Promise<void> {
     try {
       await send('updateSettings', {
@@ -89,7 +103,7 @@ export function setupSettings({ state, notify, goToImport, onProfileCleared }: S
     const level = POPULARITY_PRESETS.findIndex((item) => item.minVotes === settings.minVotes);
     popularityLevel.value = String(Math.max(0, level));
     popularityValue.textContent = preset().label;
-    await renderModelStatus();
+    await Promise.all([renderModelStatus(), renderRatingsStatus()]);
   }
 
   state.onOverview(renderCacheInfo);
@@ -107,6 +121,19 @@ export function setupSettings({ state, notify, goToImport, onProfileCleared }: S
     } finally {
       downloadModelButton.disabled = false;
       await renderModelStatus();
+    }
+  });
+  refreshRatingsButton.addEventListener('click', async () => {
+    refreshRatingsButton.disabled = true;
+    ratingsStatus.textContent = 'Baixando as notas do IMDb…';
+    try {
+      ratingsStatus.textContent = describeRatings(await send('refreshRatings', { force: true }));
+      notify.toast('Notas atualizadas ✓');
+    } catch (error) {
+      notify.error((error as Error).message);
+      await renderRatingsStatus();
+    } finally {
+      refreshRatingsButton.disabled = false;
     }
   });
   for (const control of [avoidWatched, includeUnderrated, popularityLevel, modelQuery]) control.addEventListener('change', () => void save());

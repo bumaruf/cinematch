@@ -16,7 +16,8 @@ export default defineManifest({
   description:
     'Extensão não oficial para recomendações personalizadas de filmes para usuários do Letterboxd, com análise de perfil e sugestões temáticas.',
   permissions: ['storage', 'activeTab', 'scripting', 'tabs'],
-  host_permissions: [...LETTERBOXD, 'https://image.tmdb.org/*'],
+  // IMDb's ratings are downloaded by each browser instead of shipped (see docs/data-sources.md).
+  host_permissions: [...LETTERBOXD, 'https://image.tmdb.org/*', 'https://datasets.imdbws.com/*'],
   background: {
     service_worker: 'src/background/service-worker.ts',
     type: 'module',
