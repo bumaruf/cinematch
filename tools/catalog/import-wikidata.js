@@ -27,7 +27,7 @@ import readline from 'node:readline';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { selectCatalogCandidates, selectionSummary } from './selection.js';
-import { catalogSourceLine, PUBLISHABLE_SOURCE } from './catalog-source.js';
+import { catalogSourceLine, filmRows, PUBLISHABLE_SOURCE } from './catalog-source.js';
 import {
   buildFilm, canonicalGenres, candidatesQuery, DETAIL_QUERIES, entityLabelsQuery, groupByFilm, parseCandidates, parseRows,
   pitchFromArticle, sitelinkScore, WIKIDATA_SPARQL, WIKIPEDIA_API,
@@ -238,7 +238,7 @@ async function run() {
  */
 
 export const EXPANDED_FILM_DATABASE = `;
-  fs.writeFileSync(datasetPath, header + JSON.stringify(films, null, 2) + ';\n' + catalogSourceLine(PUBLISHABLE_SOURCE), 'utf8');
+  fs.writeFileSync(datasetPath, header + filmRows(films) + ';\n' + catalogSourceLine(PUBLISHABLE_SOURCE), 'utf8');
   console.log(`\n✓ ${films.length} filmes (${withPitch} com sinopse da Wikipédia) gravados em ${datasetPath}`);
   console.log('Próximo passo: npm run catalog:enrich (palavras-chave por regras locais).');
 }

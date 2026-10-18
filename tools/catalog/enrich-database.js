@@ -7,7 +7,7 @@ import { EXPANDED_FILM_DATABASE } from '../../src/data/films-dataset.js';
 import { writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { catalogSourceLine, readCatalogSource } from './catalog-source.js';
+import { catalogSourceLine, filmRows, readCatalogSource } from './catalog-source.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -324,5 +324,5 @@ const header = `/**
 export const EXPANDED_FILM_DATABASE = `;
 
 // Local rules only: the dataset keeps its provenance.
-writeFileSync(outputPath, header + JSON.stringify(enriched, null, 2) + ';\n' + catalogSourceLine(await readCatalogSource()), 'utf-8');
+writeFileSync(outputPath, header + filmRows(enriched) + ';\n' + catalogSourceLine(await readCatalogSource()), 'utf-8');
 console.log(`\n✅ Banco de dados enriquecido gravado: ${enriched.length} filmes → ${outputPath}`);

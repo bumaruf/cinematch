@@ -15,3 +15,12 @@ export async function readCatalogSource() {
 export function catalogSourceLine(source) {
   return source ? `\nexport const CATALOG_SOURCE = ${JSON.stringify(source)};\n` : '';
 }
+
+/**
+ * The films as a JSON array with one film per line: much smaller than an
+ * indented array, and still readable in diffs.
+ * @param {readonly unknown[]} films
+ */
+export function filmRows(films) {
+  return films.length ? `[\n${films.map((film) => `  ${JSON.stringify(film)}`).join(',\n')}\n]` : '[]';
+}
