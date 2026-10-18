@@ -4,6 +4,8 @@ import { getSettings, listHistory, listSavedFilms, getPopupSession } from '../..
 import { generateRecommendations } from '../../src/application/recommendations.ts';
 import { createCatalog } from '../../src/domain/catalog/catalog.ts';
 import { createTestContext } from '../helpers.ts';
+import { memoryKeyValueStore } from '../../src/infrastructure/storage/key-value.ts';
+import { profileAnalysisStore } from '../../src/infrastructure/storage/stores.ts';
 import { film } from '../fixtures/catalog.ts';
 
 test('settings, history, empty saved films and an absent profile do not load the catalog', async () => {
@@ -26,4 +28,21 @@ test('a recommendation waits for local data and still blocks watched films', asy
   await vi.waitFor(() => expect(provide).toBeTypeOf('function'));
   provide(createCatalog([film('seen'), film('new')]));
   expect((await result).recommendations.map(movie => movie.catalogSlug)).toEqual(['new']);
+});
+
+test('a restarted worker answers the profile analysis from session storage without the catalog', async () => {
+  const profile = { username: 'test', films: [{ title: 'seen', slug: 'seen', rating: 4 }] };
+  const session = memoryKeyValueStore();
+  const { ctx } = await createTestContext({ profile });
+  ctx.profileAnalysis = profileAnalysisStore(session);
+  ctx.catalog = async () => createCatalog([film('seen', { genres: ['Drama'] })]);
+  const first = await getActiveProfile(ctx);
+
+  ctx.catalog = vi.fn(async () => { throw new Error('Unnecessary catalog load'); });
+  expect(await getActiveProfile(ctx)).toEqual(first);
+  expect(ctx.catalog).not.toHaveBeenCalled();
+
+  // Any change to the profile computes the analysis again.
+  await ctx.profiles.save({ ...profile, films: [...profile.films, { title: 'new', slug: 'new', rating: 5 }] });
+  await expect(getActiveProfile(ctx)).rejects.toThrow('Unnecessary catalog load');
 });

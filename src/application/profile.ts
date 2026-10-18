@@ -51,11 +51,37 @@ function overview({ films, thisYearFilms: _thisYear, ...rest }: UserProfile): Pr
   return { ...rest, filmCount: films.length };
 }
 
+/** Identifies a stored profile: any change to it gives another key. */
+function profileVersion(profile: UserProfile): string {
+  const text = JSON.stringify(profile);
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193);
+  return `${usernameKey(profile.username)}|${text.length}|${(hash >>> 0).toString(36)}`;
+}
+
+/**
+ * The analysis needs the catalog, which a stopped worker takes a while to
+ * read again. The packaged catalog only changes with an extension update,
+ * which clears session storage, so the profile's version is enough of a key.
+ */
 async function describe(ctx: AppContext, profile: UserProfile): Promise<ActiveProfile> {
+  const key = profileVersion(profile);
+  const cached = await ctx.profileAnalysis?.get().catch(() => null);
+  if (cached?.key === key) {
+    const { value } = cached;
+    return { ...value, profile: overview(profile),
+      analyzed: { ...value.analyzed, lastSync: profile.lastSync || ctx.clock.now().toISOString() } };
+  }
+  const value = await analyze(ctx, profile);
+  // Best effort: without the cache the next cold worker only waits longer.
+  await ctx.profileAnalysis?.save({ key, value }).catch(() => {});
+  return { ...value, profile: overview(profile) };
+}
+
+async function analyze(ctx: AppContext, profile: UserProfile): Promise<Omit<ActiveProfile, 'profile'>> {
   const catalog = await ctx.catalog();
   const analyzed = analyzeProfile(profile, catalog, ctx.clock.now());
   return {
-    profile: overview(profile),
     analyzed: {
       totalLoggedFilms: analyzed.totalLoggedFilms,
       totalAnalyzed: analyzed.totalAnalyzed,

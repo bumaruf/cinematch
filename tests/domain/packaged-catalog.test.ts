@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { createCatalog } from '../../src/domain/catalog/catalog.ts';
-import { packageCatalog, UNPACKAGED_FIELDS } from '../../src/domain/catalog/packaged.ts';
+import { packageCatalog, unpackFilms, UNPACKAGED_FIELDS } from '../../src/domain/catalog/packaged.ts';
 import { applyRatings, ratingsOf, withoutRatings } from '../../src/domain/catalog/ratings.ts';
 import { pickDaily, dateKey } from '../../src/domain/recommend/daily.ts';
 import { recommend } from '../../src/domain/recommend/engine.ts';
@@ -13,7 +13,7 @@ import { FIXED_NOW, testWithCatalog } from '../helpers.ts';
 /** The packaged catalog, as the worker reads it after JSON round-tripping and with the browser's downloaded ratings. */
 function shipped(films: Parameters<typeof packageCatalog>[0], posters = {}) {
   const data = JSON.parse(JSON.stringify(packageCatalog(films, posters)));
-  return createCatalog(applyRatings(data.films, ratingsOf(films)), data.posters, { normalized: data.normalized });
+  return createCatalog(applyRatings(unpackFilms(data.films), ratingsOf(films)), data.posters, { normalized: data.normalized });
 }
 
 test('the package carries no IMDb score nor keywords derived from one', () => {
@@ -47,3 +47,23 @@ testWithCatalog('the packaged real catalog recommends exactly what the raw catal
   const date = dateKey(FIXED_NOW);
   expect(pickDaily(profile, packaged, { date, now: FIXED_NOW })).toEqual(pickDaily(profile, raw, { date, now: FIXED_NOW }));
 }, 120_000);
+
+test('keyword evidence ships as one code per keyword and reads back unchanged', () => {
+  const aligned = film('aligned', { keywords: ['máfia', 'drama'], keywordEvidence: [{ term: 'máfia', source: 'film' }, { term: 'drama', source: 'genre' }] });
+  const unaligned = film('unaligned', { keywords: ['máfia', 'drama'], keywordEvidence: [{ term: 'drama', source: 'genre' }] });
+  const data = JSON.parse(JSON.stringify(packageCatalog([aligned, unaligned], {})));
+  expect(data.films[0]).toMatchObject({ keywordSources: 'fg' });
+  expect(data.films[0]).not.toHaveProperty('keywordEvidence');
+  // Evidence that does not mirror the keywords ships as it is.
+  expect(data.films[1]).not.toHaveProperty('keywordSources');
+  const [first, second] = unpackFilms(data.films);
+  expect(first.keywordEvidence).toEqual(aligned.keywordEvidence);
+  expect(first).not.toHaveProperty('keywordSources');
+  expect(second.keywordEvidence).toEqual(unaligned.keywordEvidence);
+});
+
+test('a package with unknown keyword codes is rejected', () => {
+  const [packaged] = JSON.parse(JSON.stringify(packageCatalog([film('a', { keywords: ['x'], keywordEvidence: [{ term: 'x', source: 'film' }] })], {}))).films;
+  expect(() => unpackFilms([{ ...packaged, keywordSources: '?' }])).toThrow(/inválido/);
+  expect(() => unpackFilms([{ ...packaged, keywordSources: 'ff' }])).toThrow(/inválido/);
+});

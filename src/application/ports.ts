@@ -1,6 +1,7 @@
 import type { DailyPick, FilmFeedback, InterpretedBy, ProfileFilm, Recommendation, Settings, UserProfile } from '../domain/film.ts';
 import type { EvaluationContext, RecommendationEvaluation } from '../domain/recommend/evaluation.ts';
 import type { FilmRatings, StoredRatings } from '../domain/catalog/ratings.ts';
+import type { ActiveProfile } from './profile.ts';
 
 /** Source of the current time, so use cases stay deterministic in tests. */
 export interface Clock {
@@ -73,6 +74,21 @@ export interface PopupSessionStore {
   get(): Promise<PopupSession | null>;
   save(session: PopupSession): Promise<void>;
   clear(): Promise<void>;
+}
+
+/** The profile analysis of one version of the profile; `key` identifies that version. */
+export interface CachedProfileAnalysis {
+  key: string;
+  value: Omit<ActiveProfile, 'profile'>;
+}
+
+/**
+ * Keeps the latest profile analysis while the browser runs, so a worker that
+ * Chrome stopped can answer the profile tab without reading the catalog.
+ */
+export interface ProfileAnalysisStore {
+  get(): Promise<CachedProfileAnalysis | null>;
+  save(entry: CachedProfileAnalysis): Promise<void>;
 }
 
 /** Saved films may predate the current Recommendation shape. */
