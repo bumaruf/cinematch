@@ -57,6 +57,9 @@ const DAILY_LIMIT = 180;
 export const PROFILE_FILMS_LIMIT = 20_000;
 
 const BACKUP_KEYS = { import: KEYS.importBackup, repair: KEYS.repairBackup, switch: KEYS.switchBackup } as const;
+const ALL_BACKUP_KEYS: readonly string[] = Object.values(BACKUP_KEYS);
+
+interface ProfileBackup { profile: UserProfile | null; savedAt: string }
 
 export function profileStore(kv: KeyValueStore, clock: () => Date = () => new Date()): ProfileStore {
   return {
@@ -65,12 +68,18 @@ export function profileStore(kv: KeyValueStore, clock: () => Date = () => new Da
       assertProfileSize(profile);
       return kv.set({ [KEYS.profile]: profile });
     },
-    replace: (profile, previous, reason) => {
+    // Only the latest previous history is kept: a full history can take
+    // megabytes, and three backups plus the profile used to fill the storage.
+    // A previous profile without films has nothing worth keeping, so it
+    // leaves the existing backup in place.
+    replace: async (profile, previous, reason) => {
       assertProfileSize(profile);
-      return kv.set({
+      if (!previous?.films.length) return kv.set({ [KEYS.profile]: profile });
+      await kv.set({
         [KEYS.profile]: profile,
-        [BACKUP_KEYS[reason]]: { profile: previous, savedAt: clock().toISOString() },
+        [BACKUP_KEYS[reason]]: { profile: previous, savedAt: clock().toISOString() } satisfies ProfileBackup,
       });
+      await kv.remove(ALL_BACKUP_KEYS.filter((key) => key !== BACKUP_KEYS[reason]));
     },
     clear: () => kv.remove([KEYS.profile, KEYS.syncCheckpoint, KEYS.importBackup, KEYS.repairBackup, KEYS.switchBackup, KEYS.watchlist]),
   };
@@ -177,10 +186,20 @@ export function evaluationStore(kv: KeyValueStore): EvaluationStore {
 /** Drops keys and settings that earlier versions wrote and nothing reads. */
 export async function removeObsoleteData(kv: KeyValueStore): Promise<void> {
   await kv.remove(OBSOLETE_KEYS);
+  await keepNewestBackup(kv);
   const saved = await kv.get<Record<string, unknown>>(KEYS.settings);
   if (saved && OBSOLETE_SETTINGS.some((key) => key in saved)) {
     const cleaned = { ...saved };
     for (const key of OBSOLETE_SETTINGS) delete cleaned[key];
     await kv.set({ [KEYS.settings]: cleaned });
   }
+}
+
+/** Earlier versions kept one backup per reason; only the newest is still useful. */
+async function keepNewestBackup(kv: KeyValueStore): Promise<void> {
+  const backups = await Promise.all(ALL_BACKUP_KEYS.map(async (key) => ({ key, backup: await kv.get<ProfileBackup>(key) })));
+  const stored = backups.filter(({ backup }) => backup);
+  if (stored.length < 2) return;
+  const newest = stored.reduce((best, entry) => (Date.parse(entry.backup!.savedAt) > Date.parse(best.backup!.savedAt) ? entry : best));
+  await kv.remove(stored.filter((entry) => entry !== newest).map(({ key }) => key));
 }
