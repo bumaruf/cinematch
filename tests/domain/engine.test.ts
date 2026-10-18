@@ -53,7 +53,7 @@ testWithCatalog('motor local: temas, filtro de duração, busca livre e máfia i
   const mafiaTitles = mafiaResult.recommendations.map((r) => r.title);
   assert.ok(
     mafiaTitles.some(
-      (t) => t.includes('Chefão') || t.includes('Gomorra') || t.includes('Companheiros') || t.includes('Suburra') || t.includes('Traidor') || t.includes('América'),
+      (t) => t.includes('Godfather') || t.includes('Gomorra') || t.includes('Goodfellas') || t.includes('Suburra') || t.includes('Traitor') || t.includes('America'),
     ),
     'Filmes de máfia clássicos/italianos incluídos',
   );
@@ -144,8 +144,8 @@ testWithCatalog('explicit searches return unwatched films even when they appeare
 testWithCatalog('franchise search recognizes Black Panther as Marvel and ignores incidental word fragments', () => {
   const result = run({ profile: emptyProfile, customPrompt: 'marvel' });
   const titles = result.recommendations.map((film) => film.title);
-  assert.ok(titles.some((title) => /Vingadores|Homem-Aranha|Guardiões|Quarteto Fantástico|Capitã Marvel|Pantera Negra/.test(title)));
-  assert.ok(!titles.includes('O Homem Elefante'));
+  assert.ok(titles.some((title) => /Avengers|Spider-Man|Guardians|Fantastic Four|Captain Marvel|Black Panther/.test(title)));
+  assert.ok(!titles.includes('The Elephant Man'));
 });
 
 testWithCatalog('terror search is constrained to the Horror genre, not incidental title matches', () => {

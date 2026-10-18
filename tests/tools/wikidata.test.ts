@@ -97,7 +97,11 @@ describe('Wikidata catalog import', () => {
       countryLabels: [{ film: 'Q47703', label: 'Estados Unidos' }],
       languages: [{ film: 'Q47703', label: 'en' }],
       letterboxd: [{ film: 'Q47703', label: 'the-godfather' }],
-      subjectLabels: [{ film: 'Q47703', label: 'crime organizado' }, { film: 'Q47703', label: 'Q123' }],
+      subjectTerms: [
+        { film: 'Q47703', en: 'organized crime', label: 'crime organizado' },
+        { film: 'Q47703', en: 'crime drama', label: 'crime drama' },
+        { film: 'Q47703', en: 'Q123' },
+      ],
     };
     const localized = new Map([['Q959790', 'filme de gângster']]);
     const film = buildFilm(candidate, details, genreLabels, 'Uma sinopse real da Wikipédia, longa o bastante.', localized);
@@ -107,8 +111,13 @@ describe('Wikidata catalog import', () => {
       imdbRating: 0, imdbVotes: 0, genres: ['Crime', 'Drama'], pitch: 'Uma sinopse real da Wikipédia, longa o bastante.',
     });
     expect(film!.keywordEvidence!.find(entry => entry.term === 'drama')?.source).toBe('genre');
-    // Wikidata's specific labels feed theme matching as film keywords.
-    expect(film!.keywordEvidence!.filter(entry => entry.source === 'film').map(entry => entry.term)).toEqual(['gângster', 'crime organizado']);
+    // Wikidata's specific labels are shown in Portuguese (from Wikidata, else a
+    // short dictionary); the English form still feeds theme matching.
+    expect(film!.keywordEvidence!.filter(entry => entry.source === 'film' || entry.source === 'film-en')).toEqual([
+      { term: 'gângster', source: 'film' }, { term: 'gangster', source: 'film-en' },
+      { term: 'crime organizado', source: 'film' }, { term: 'organized crime', source: 'film-en' },
+      { term: 'drama policial', source: 'film' }, { term: 'crime drama', source: 'film-en' },
+    ]);
     // Letterboxd's English title matches the user's history; the Brazilian one stays searchable.
     expect(film!.keywords).toContain('o poderoso chefão');
     expect(normalizeCatalogFilm(film!).country).toBe('Estados Unidos');

@@ -30,7 +30,8 @@ export interface CatalogFilm {
 
 export interface KeywordEvidence {
   term: string;
-  source: 'film' | 'genre' | 'director' | 'derived' | 'legacy';
+  /** 'film-en': the English form of a 'film' keyword shown in Portuguese; read by theme matching only. */
+  source: 'film' | 'film-en' | 'genre' | 'director' | 'derived' | 'legacy';
 }
 
 export type FeedbackKind = 'later' | 'not-for-me' | 'watched';

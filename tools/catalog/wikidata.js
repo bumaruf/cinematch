@@ -70,7 +70,12 @@ export const DETAIL_QUERIES = {
   FILTER(?rank != wikibase:DeprecatedRank) }`,
   countryLabels: (ids) => `SELECT ?film ?label WHERE { ${values(ids)} ?film wdt:P495 ?country. ${portugueseLabel('?country')} }`,
   languages: (ids) => `SELECT ?film ?label WHERE { ${values(ids)} ?film wdt:P364/wdt:P218 ?label. }`,
-  subjectLabels: (ids) => `SELECT ?film ?label WHERE { ${values(ids)} ?film wdt:P921 ?subject. ${portugueseLabel('?subject')} }`,
+  // English label (theme matching) and Portuguese one (shown) of each subject.
+  subjectTerms: (ids) => `SELECT ?film ?en ?label WHERE { ${values(ids)}
+  ?film wdt:P921 ?subject. ?subject rdfs:label ?en. FILTER(LANG(?en) = "en")
+  OPTIONAL { ?subject rdfs:label ?ptBr. FILTER(LANG(?ptBr) = "pt-br") }
+  OPTIONAL { ?subject rdfs:label ?pt. FILTER(LANG(?pt) = "pt") }
+  BIND(COALESCE(?ptBr, ?pt) AS ?label) }`,
   letterboxd: (ids) => `SELECT ?film ?label WHERE { ${values(ids)} ?film wdt:P6127 ?label. }`,
   articles: (ids) => `SELECT ?film ?lang ?label WHERE { ${values(ids)}
   ?article schema:about ?film; schema:isPartOf ?site; schema:name ?label.
@@ -89,11 +94,12 @@ export function localizedLabelsQuery(ids) {
   return `SELECT ?film ?label WHERE { ${values(ids)} ${portugueseLabel('?film')} }`;
 }
 
-/** Rows of a detail query as { film, label, lang, links, seconds }. */
+/** Rows of a detail query as { film, label, en, lang, links, seconds }. */
 export function parseRows(json) {
   return (json?.results?.bindings ?? []).map((binding) => ({
     film: entityId(value(binding, 'film')),
     label: value(binding, 'label'),
+    en: value(binding, 'en'),
     lang: value(binding, 'lang'),
     links: Number(value(binding, 'links')) || 0,
     seconds: Number(value(binding, 'seconds')),
@@ -266,10 +272,30 @@ export function buildFilm(candidate, details, genreLabels, pitch, localizedLabel
   const keywords = [...new Set([title, originalTitle, portuguese, director, ...genres, String(candidate.year), `${Math.floor(candidate.year / 10) * 10}s`].filter(Boolean).map((term) => term.toLowerCase()))].slice(0, 15);
   // Wikidata's own genre and subject labels ("psychological horror", "coming of
   // age") are facts about this film: theme matching reads them like keywords.
-  const filmKeywords = [...new Set([
-    ...candidate.genreIds.map((id) => filmKeyword(localizedLabels.get(id) || genreLabels.get(id))),
-    ...(details.subjectLabels ?? details.subjects ?? []).map((row) => filmKeyword(row.label)),
-  ].filter((term) => term && !keywords.includes(term)))].slice(0, 12);
+  // The Portuguese term is the one shown ("Relacionado a … por terror
+  // psicológico"); its English form ('film-en') only feeds theme matching.
+  const terms = [
+    ...candidate.genreIds.map((id) => ({ en: genreLabels.get(id), pt: localizedLabels.get(id) })),
+    ...(details.subjectTerms ?? details.subjects ?? []).map((row) => ({ en: row.en ?? row.label, pt: row.en ? row.label : undefined })),
+  ];
+  /** @type {import('../../src/domain/film.ts').KeywordEvidence[]} */
+  const filmEvidence = [];
+  const seen = new Set(keywords);
+  for (const { en, pt } of terms) {
+    const english = filmKeyword(en);
+    if (!english || seen.has(english) || filmEvidence.length >= 14) continue;
+    // Localized genre labels fall back to English: that is no translation.
+    const localized = filmKeyword(pt);
+    const portugueseTerm = (localized !== english && localized) || PORTUGUESE_KEYWORDS[english] || '';
+    seen.add(english);
+    if (portugueseTerm && portugueseTerm !== english && !seen.has(portugueseTerm)) {
+      seen.add(portugueseTerm);
+      filmEvidence.push({ term: portugueseTerm, source: 'film' }, { term: english, source: 'film-en' });
+    } else {
+      filmEvidence.push({ term: english, source: 'film' });
+    }
+  }
+  const filmKeywords = filmEvidence.map((entry) => entry.term);
   return {
     title,
     originalTitle,
@@ -291,11 +317,38 @@ export function buildFilm(candidate, details, genreLabels, pitch, localizedLabel
         term,
         source: /** @type {'genre' | 'director' | 'derived'} */ (genres.some((genre) => genre.toLowerCase() === term) ? 'genre' : term === director.toLowerCase() ? 'director' : 'derived'),
       })),
-      ...filmKeywords.map((term) => ({ term, source: /** @type {const} */ ('film') })),
+      ...filmEvidence,
     ],
     pitch: pitch || genericPitch(genres, candidate.year, director),
   };
 }
+
+/** pt-BR for frequent keywords Wikidata has no Portuguese label for. */
+const PORTUGUESE_KEYWORDS = {
+  teen: 'adolescentes', 'romantic comedy': 'comédia romântica', 'coming-of-age': 'amadurecimento', 'coming of age': 'amadurecimento',
+  'crime thriller': 'suspense policial', 'association football': 'futebol', parody: 'paródia', 'psychological thriller': 'suspense psicológico',
+  'crime drama': 'drama policial', 'political thriller': 'suspense político', trial: 'julgamento', 'science fiction comedy': 'comédia de ficção científica',
+  'buddy cop': 'dupla policial', 'psychological drama': 'drama psicológico', 'action thriller': 'suspense de ação', 'psychological horror': 'terror psicológico',
+  flashback: 'flashback', vigilante: 'justiceiro', medieval: 'medieval', 'comedy thriller': 'comédia de suspense', detective: 'detetive',
+  'time-travel': 'viagem no tempo', 'comedy horror': 'terror cômico', 'female buddy': 'amizade feminina', survival: 'sobrevivência',
+  hood: 'periferia', supernatural: 'sobrenatural', 'crime comedy': 'comédia policial', 'science fiction action': 'ação e ficção científica',
+  'american football': 'futebol americano', rockumentary: 'documentário de rock', satanic: 'satanismo', 'arthouse science fiction': 'ficção científica de arte',
+  'romantic drama': 'drama romântico', sexploitation: 'sexploitation', 'sword and sorcery': 'espada e feitiçaria', 'music documentary': 'documentário musical',
+  'self-discovery': 'autodescoberta', 'human bonding': 'laços humanos', 'historical drama': 'drama histórico', 'natural horror': 'terror da natureza',
+  'sibling relationship': 'relação entre irmãos', 'coming to terms with the past': 'acerto com o passado', 'submarine warfare': 'guerra submarina',
+  'magic realist': 'realismo mágico', 'body swap': 'troca de corpos', 'lesbian-related': 'temática lésbica', 'parental death': 'morte dos pais',
+  rurality: 'vida rural', 'sex comedy': 'comédia sexual', 'techno-thriller': 'suspense tecnológico', 'police procedural': 'procedimento policial',
+  'comedy of remarriage': 'comédia de recasamento', 'political drama': 'drama político', 'music-themed': 'música', 'summer camp program': 'acampamento de verão',
+  'criminal investigation': 'investigação criminal', "death of one's child": 'morte de um filho', espionage: 'espionagem', 'fleeting relationship': 'relação passageira',
+  partisan: 'guerrilheiros', secrecy: 'segredos', 'war drama': 'drama de guerra', cannibal: 'canibalismo', transgender: 'transgênero',
+  'sexual morality': 'moral sexual', 'romantic horror': 'terror romântico', dying: 'morte', flight: 'fuga', 'falling in love': 'paixão',
+  'gender relations': 'relações de gênero', mortality: 'mortalidade', 'class relations': 'relações de classe', 'marital breakdown': 'fim do casamento',
+  chase: 'perseguição', 'artistic creation': 'criação artística', 'religious horror': 'terror religioso', 'family relation': 'relações familiares',
+  'upward social mobility': 'ascensão social', 'high society': 'alta sociedade', 'forbidden love': 'amor proibido', 'teen horror': 'terror adolescente',
+  filmmaking: 'cinema', 'social comedy': 'comédia social', 'star-crossed lovers': 'amantes desafortunados', 'male bonding': 'amizade masculina',
+  'fantasy comedy': 'comédia fantástica', breakup: 'término', 'child abduction': 'sequestro de criança', 'drug-related crime': 'crime e drogas',
+  'intercultural relationship': 'relação intercultural', 'black comedy': 'humor negro', 'dark comedy': 'humor negro', 'action-adventure': 'ação e aventura',
+};
 
 /** A genre or subject label as a keyword: "psychological horror film" → "psychological horror". */
 export function filmKeyword(label) {

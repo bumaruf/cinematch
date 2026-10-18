@@ -195,7 +195,7 @@ function enrichFilm(film) {
   const addKeyword = (term, source) => {
     const keyword = term.toLowerCase();
     keywordsSet.add(keyword);
-    if (evidence.get(keyword) !== 'film') evidence.set(keyword, source);
+    if (!['film', 'film-en'].includes(evidence.get(keyword))) evidence.set(keyword, source);
   };
 
   // Keep existing keywords (from curated db or previous enrichment)

@@ -31,7 +31,7 @@ export function themeEligibility(film: CatalogFilm, criteria: ThemeCriteria | nu
   const reviewed = REVIEWED_THEME_EVIDENCE[film.imdbId];
   const reviewedText = reviewed && (!reviewed.themes || reviewed.themes.includes(criteriaThemeId(criteria) ?? '')) ? reviewed.text : '';
   const texts = [film.pitch.startsWith('Um dos grandes marcos do gênero') ? '' : film.pitch,
-    ...(film.keywordEvidence ?? []).filter(entry => entry.source === 'film').map(entry => entry.term),
+    ...(film.keywordEvidence ?? []).filter(entry => entry.source === 'film' || entry.source === 'film-en').map(entry => entry.term),
     reviewedText].filter(Boolean).map(foldWords);
   const matches = (signal: string): boolean => texts.some(text => positivePhrase(text, foldWords(signal)));
   if ([...new Set((criteria.excludedSignals ?? []).map(fold))].some(matches)) return INELIGIBLE;
