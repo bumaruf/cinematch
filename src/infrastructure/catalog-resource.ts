@@ -1,7 +1,8 @@
 import { createCatalog, type Catalog, type PosterPaths, type RawCatalogFilm } from '../domain/catalog/catalog.ts';
+import { unpackFilms, type PackagedFilm } from '../domain/catalog/packaged.ts';
 import { applyRatings, type StoredRatings } from '../domain/catalog/ratings.ts';
 
-interface CatalogData { films: RawCatalogFilm[]; posters: PosterPaths; normalized?: boolean }
+interface CatalogData { films: RawCatalogFilm[] | PackagedFilm[]; posters: PosterPaths; normalized?: boolean }
 
 /**
  * One local read per worker lifetime, shared by concurrent requests. The
@@ -22,6 +23,7 @@ export function createPackagedCatalogLoader(
     if (!Array.isArray(parsed.films) || !parsed.posters || typeof parsed.posters !== 'object') {
       throw new Error('O catálogo local está inválido. Reinstale ou recarregue a extensão.');
     }
+    if (parsed.normalized === true) unpackFilms(parsed.films as PackagedFilm[]);
     return parsed;
   })().catch((error: unknown) => {
     // A failed read must not poison every subsequent request until Chrome restarts.

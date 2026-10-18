@@ -9,6 +9,7 @@ import type {
   HistoryStore,
   LetterboxdSync,
   PopupSessionStore,
+  ProfileAnalysisStore,
   ProfileStore,
   SavedFilmsStore,
   SettingsStore,
@@ -27,6 +28,8 @@ export interface AppContext {
   settings: SettingsStore;
   history: HistoryStore;
   popupSession: PopupSessionStore;
+  /** Absent in tests: the analysis is then always computed. */
+  profileAnalysis?: ProfileAnalysisStore;
   saved: SavedFilmsStore;
   daily: DailyPickStore;
   feedback: FeedbackStore;

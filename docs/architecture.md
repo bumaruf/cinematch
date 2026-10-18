@@ -61,7 +61,9 @@ suas dependências:
 
 - `profile.ts`: `getProfileSummary` (cabeçalho, sem catálogo), `getActiveProfile`,
   `syncProfile`, `importCsvProfile`, `clearProfile`, `repairLegacyCsvProfile`
-  (migração, roda no `onInstalled`). As respostas trazem um `ProfileOverview`:
+  (migração, roda no `onInstalled`). A análise do perfil fica guardada em
+  `chrome.storage.session` para a versão atual do perfil: um worker reiniciado
+  responde a aba de perfil sem ler o catálogo. As respostas trazem um `ProfileOverview`:
   o histórico completo fica no worker e as páginas recebem só a contagem.
 - `recommendations.ts`: `generateRecommendations`, `getDailyPick` e `warmUp`.
   Guarda o perfil preparado (`domain/recommend/prepared.ts`) enquanto o perfil e
@@ -104,7 +106,8 @@ Adaptadores das portas:
   aplica as notas baixadas e cria os índices na primeira demanda; refaz os
   índices quando as notas mudam. O build gera esse arquivo com
   `domain/catalog/packaged.ts`: filmes já normalizados, sem campos que o código
-  não lê e com as etiquetas de gosto pré-calculadas. Pedidos simultâneos compartilham uma
+  não lê, com as etiquetas de gosto pré-calculadas e a origem de cada palavra-chave
+  num código de uma letra (`keywordSources`), que a leitura volta a `keywordEvidence`. Pedidos simultâneos compartilham uma
   Promise; falhas permitem uma nova tentativa. O cache dura até o worker parar.
 - `catalog.ts`: adaptador síncrono reservado a testes e diagnósticos Node.
 - `on-device-model.ts`: adaptador da Prompt API (`LanguageModel`). Só cria

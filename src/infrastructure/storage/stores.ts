@@ -7,6 +7,8 @@ import type {
   HistoryStore,
   PopupSession,
   PopupSessionStore,
+  ProfileAnalysisStore,
+  CachedProfileAnalysis,
   ProfileStore,
   SavedFilm,
   SavedFilmsStore,
@@ -133,6 +135,19 @@ export function popupSessionStore(kv: KeyValueStore): PopupSessionStore {
     get: async () => (await kv.get<PopupSession>(KEYS.popupSession)) ?? null,
     save: (session) => kv.set({ [KEYS.popupSession]: session }),
     clear: () => kv.remove(KEYS.popupSession),
+  };
+}
+
+/** Session storage only: a key nobody else reads, cleared with the browser session. */
+export const PROFILE_ANALYSIS_KEY = 'lb_curator_profile_analysis';
+
+export function profileAnalysisStore(kv: KeyValueStore): ProfileAnalysisStore {
+  return {
+    get: async () => {
+      const entry = await kv.get<CachedProfileAnalysis>(PROFILE_ANALYSIS_KEY);
+      return typeof entry?.key === 'string' && entry.value ? entry : null;
+    },
+    save: (entry) => kv.set({ [PROFILE_ANALYSIS_KEY]: entry }),
   };
 }
 
