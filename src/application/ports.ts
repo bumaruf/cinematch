@@ -1,5 +1,6 @@
 import type { DailyPick, FilmFeedback, InterpretedBy, ProfileFilm, Recommendation, Settings, UserProfile } from '../domain/film.ts';
 import type { EvaluationContext, RecommendationEvaluation } from '../domain/recommend/evaluation.ts';
+import type { FilmRatings, StoredRatings } from '../domain/catalog/ratings.ts';
 
 /** Source of the current time, so use cases stay deterministic in tests. */
 export interface Clock {
@@ -170,4 +171,15 @@ export interface OnDeviceModel {
   promptJson(request: StructuredPrompt): Promise<unknown>;
   /** Creates the session ahead of the first prompt, when the model is ready; never downloads. */
   prepare?(request: Pick<StructuredPrompt, 'instructions' | 'sessionOptions'>): Promise<void>;
+}
+
+/** IMDb ratings this browser downloaded; never part of the extension package. */
+export interface RatingsStore {
+  get(): Promise<StoredRatings | null>;
+  save(ratings: StoredRatings): Promise<void>;
+}
+
+/** Downloads IMDb's ratings file and keeps only the given films. */
+export interface RatingsSource {
+  download(imdbIds: ReadonlySet<string>): Promise<FilmRatings>;
 }

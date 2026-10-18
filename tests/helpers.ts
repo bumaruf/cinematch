@@ -17,7 +17,7 @@ import {
 import { test } from 'vitest';
 
 /**
- * The film catalog is derived from IMDb's non-commercial datasets and is not
+ * The film catalog is generated (npm run catalog:wikidata) and not
  * versioned; a fresh clone has an empty stub (npm run catalog:stub). Tests
  * that check recommendations against real films run only with the catalog.
  */

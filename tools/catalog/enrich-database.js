@@ -7,6 +7,7 @@ import { EXPANDED_FILM_DATABASE } from '../../src/data/films-dataset.js';
 import { writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { catalogSourceLine, filmRows, readCatalogSource } from './catalog-source.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -194,7 +195,7 @@ function enrichFilm(film) {
   const addKeyword = (term, source) => {
     const keyword = term.toLowerCase();
     keywordsSet.add(keyword);
-    if (evidence.get(keyword) !== 'film') evidence.set(keyword, source);
+    if (!['film', 'film-en'].includes(evidence.get(keyword))) evidence.set(keyword, source);
   };
 
   // Keep existing keywords (from curated db or previous enrichment)
@@ -322,5 +323,6 @@ const header = `/**
 
 export const EXPANDED_FILM_DATABASE = `;
 
-writeFileSync(outputPath, header + JSON.stringify(enriched, null, 2) + ';\n', 'utf-8');
+// Local rules only: the dataset keeps its provenance.
+writeFileSync(outputPath, header + filmRows(enriched) + ';\n' + catalogSourceLine(await readCatalogSource()), 'utf-8');
 console.log(`\n✅ Banco de dados enriquecido gravado: ${enriched.length} filmes → ${outputPath}`);

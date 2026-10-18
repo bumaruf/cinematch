@@ -18,7 +18,8 @@ export default defineManifest({
   // unlimitedStorage lifts the 10 MB cap of chrome.storage.local: a large
   // Letterboxd history and its backup can approach it. It shows no warning.
   permissions: ['storage', 'unlimitedStorage', 'activeTab', 'scripting', 'tabs'],
-  host_permissions: [...LETTERBOXD, 'https://image.tmdb.org/*'],
+  // IMDb's ratings are downloaded by each browser instead of shipped (see docs/data-sources.md).
+  host_permissions: [...LETTERBOXD, 'https://image.tmdb.org/*', 'https://datasets.imdbws.com/*'],
   background: {
     service_worker: 'src/background/service-worker.ts',
     type: 'module',

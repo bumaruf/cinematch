@@ -16,6 +16,8 @@ assert.equal(packaged.films.length, EXPANDED_FILM_DATABASE.length, 'Packaging mu
 // fields no runtime code reads, and with precomputed taste tags.
 assert.deepEqual(packaged, JSON.parse(JSON.stringify(packageCatalog(EXPANDED_FILM_DATABASE, POSTER_PATHS_BY_IMDB_ID))), 'Packaging must match packageCatalog');
 assert.deepEqual(packaged.posters, POSTER_PATHS_BY_IMDB_ID, 'Packaging must preserve every poster');
+// IMDb's scores are downloaded by each browser, never shipped.
+assert.ok(packaged.films.every((film: { imdbRating: number; imdbVotes: number }) => film.imdbRating === 0 && film.imdbVotes === 0), 'The package must not carry IMDb ratings');
 const scripts = assets.filter(name => name.endsWith('.js'));
 for (const name of scripts) {
   assert.ok(statSync(`dist/assets/${name}`).size < 500_000, `${name} must not embed the generated catalog`);

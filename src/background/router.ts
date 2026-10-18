@@ -4,6 +4,7 @@ import { clearRecommendationEvaluations, getRecommendationEvaluationReport, reco
 import { getFilmArtwork, getPopupSession, getSettings, listHistory, listSavedFilms, savePopupSession, toggleSavedFilm, updateSettings } from '../application/library.ts';
 import type { SyncProgress } from '../application/ports.ts';
 import { getOnDeviceModelStatus } from '../application/query-model.ts';
+import { getRatingsStatus, refreshRatings } from '../application/ratings.ts';
 import { clearProfile, getActiveProfile, getProfileSummary, importCsvProfile, syncProfile } from '../application/profile.ts';
 import { generateRecommendations, getDailyPick, getSurprisePick, warmUp } from '../application/recommendations.ts';
 import type { Action, RequestOf, ResponseOf } from '../messaging/contract.ts';
@@ -41,6 +42,8 @@ export function createHandlers(ctx: AppContext, platform: Platform): Handlers {
     getSettings: () => getSettings(ctx),
     updateSettings: (changes) => updateSettings(ctx, changes),
     getOnDeviceModelStatus: () => getOnDeviceModelStatus(ctx),
+    getRatingsStatus: () => getRatingsStatus(ctx),
+    refreshRatings: ({ force } = {}) => refreshRatings(ctx, { force }),
     getFilmArtwork: ({ slug }) => getFilmArtwork(ctx, slug),
     openDashboard: ({ hash } = {}) => platform.openDashboard(hash),
   };

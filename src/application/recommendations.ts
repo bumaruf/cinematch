@@ -13,6 +13,7 @@ import { activeFeedback, timeZoneOf } from './feedback.ts';
 import { CURATION_VERSION } from '../domain/recommend/evaluation.ts';
 import { isHistoryComplete } from '../domain/profile/completeness.ts';
 import { interpretSearch, prepareSearchModel } from './query-model.ts';
+import { refreshRatings } from './ratings.ts';
 
 /** Batches of earlier recommendations kept out of new thematic results. */
 const RECENT_BATCHES = 20;
@@ -304,6 +305,9 @@ export function warmUp(ctx: AppContext): void {
   void (async () => {
     // Creating the model session is the slow part of a first AI search.
     void prepareSearchModel(ctx, (await ctx.settings.get()).modelQuery);
+    // Scores missing or a month old are fetched in the background; the catalog
+    // works without them meanwhile.
+    void refreshRatings(ctx).catch(() => {});
     const profile = await ctx.profiles.get();
     const catalog = await ctx.catalog();
     if (!profile?.films.length) return;

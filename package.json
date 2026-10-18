@@ -26,6 +26,7 @@
     "package": "npm run check && node tools/package.js",
     "icons": "node tools/icons/generate-icons.js",
     "catalog:stub": "node tools/catalog/stub.js",
+    "catalog:wikidata": "node tools/catalog/import-wikidata.js",
     "catalog:import": "node tools/catalog/import-imdb.js",
     "catalog:enrich": "node tools/catalog/enrich-database.js",
     "catalog:pitches": "node tools/catalog/enrich-pitches.js",

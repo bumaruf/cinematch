@@ -70,6 +70,9 @@ suas dependências:
 - `evaluation.ts`: registrar uma resposta para um filme efetivamente indicado,
   exportar o relatório do perfil ativo e apagar suas avaliações.
 - `library.ts`: filmes salvos, histórico, configurações e pôsteres.
+- `ratings.ts`: `refreshRatings` e `getRatingsStatus`. Baixa as notas do IMDb
+  quando faltam ou têm mais de 30 dias (na instalação, ao abrir uma página e pelo
+  botão em Configurações); downloads simultâneos são compartilhados.
 - `ports.ts`: interfaces que a infraestrutura implementa (`ProfileStore`,
   `SettingsStore`, `HistoryStore`, `SavedFilmsStore`, `DailyPickStore`,
   `SyncCheckpointStore`, `EvaluationStore`, `LetterboxdSync`, `ArtworkSource`,
@@ -94,8 +97,12 @@ Adaptadores das portas:
 - `letterboxd/`: cliente HTTP (erros tipados, sem `SKIP_404:` em string),
   parser de HTML/RSS e busca paginada com checkpoint.
 - `artwork.ts`: pôster via `og:image`, com cache limitado.
-- `catalog-resource.ts`: lê o catálogo comprimido dentro do pacote, descomprime
-  e cria os índices na primeira demanda. O build gera esse arquivo com
+- `imdb-ratings.ts`: baixa o arquivo de notas do IMDb no navegador, guarda só
+  os filmes do catálogo no Cache Storage e devolve o mesmo objeto até um novo
+  download.
+- `catalog-resource.ts`: lê o catálogo comprimido dentro do pacote, descomprime,
+  aplica as notas baixadas e cria os índices na primeira demanda; refaz os
+  índices quando as notas mudam. O build gera esse arquivo com
   `domain/catalog/packaged.ts`: filmes já normalizados, sem campos que o código
   não lê e com as etiquetas de gosto pré-calculadas. Pedidos simultâneos compartilham uma
   Promise; falhas permitem uma nova tentativa. O cache dura até o worker parar.
@@ -144,9 +151,10 @@ registrados de forma síncrona, antes de qualquer leitura do catálogo.
   pôsteres em JSON gzip, com hash no nome. A composição recebe a URL do asset;
   não usa `import()` dinâmico no service worker Manifest V3. No desenvolvimento,
   o Vite serve o recurso local e atualiza os dados quando suas fontes mudam.
-- `tools/catalog`: pipeline que gera os dados. O catálogo de filmes vem dos
-  datasets não comerciais do IMDb e não é versionado; `npm run catalog:stub`
-  cria um vazio para compilar e testar. `catalog:verify` compara durações por
+- `tools/catalog`: pipeline que gera os dados. O catálogo de filmes vem do
+  Wikidata (`catalog:wikidata`) e não é versionado; `npm run catalog:stub`
+  cria um vazio para compilar e testar. As notas do IMDb não vão no pacote:
+  cada navegador as baixa ([data-sources.md](data-sources.md)). `catalog:verify` compara durações por
   IMDb ID sem substituir a seleção do catálogo; o enriquecimento TMDB pode
   acrescentar palavras-chave específicas com a origem preservada.
 - `tools/diagnostics/theme-quality.ts`: verifica os contratos dos resultados

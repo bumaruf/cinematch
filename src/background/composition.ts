@@ -1,5 +1,6 @@
 import type { AppContext } from '../application/context.ts';
 import { createPackagedCatalogLoader } from '../infrastructure/catalog-resource.ts';
+import { cacheRatingsStore, imdbRatingsSource } from '../infrastructure/imdb-ratings.ts';
 import catalogUrl from 'virtual:cinematch-catalog-url';
 import { letterboxdArtwork } from '../infrastructure/letterboxd/artwork.ts';
 import { chromeOnDeviceModel } from '../infrastructure/on-device-model.ts';
@@ -27,8 +28,10 @@ export function createContext(kv: KeyValueStore, sessionKv: KeyValueStore = kv):
     timeZone: () => Intl.DateTimeFormat().resolvedOptions().timeZone,
   };
   const checkpoints = syncCheckpointStore(kv);
+  const ratings = { store: cacheRatingsStore(), source: imdbRatingsSource() };
   return {
-    catalog: createPackagedCatalogLoader(catalogUrl),
+    catalog: createPackagedCatalogLoader(catalogUrl, fetch, () => ratings.store.get()),
+    ratings,
     clock,
     identifiers: { next: () => crypto.randomUUID() },
     profiles: profileStore(kv, clock.now),

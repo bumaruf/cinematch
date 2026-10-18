@@ -4,6 +4,7 @@ import type { EvaluationInput, getRecommendationEvaluationReport } from '../appl
 import type { HistoryEntry, OnDeviceModelStatus, PopupSession, SavedFilm, SyncProgress } from '../application/ports.ts';
 import type { ActiveProfile, CsvFile, ImportSummary, ProfileSummary, SyncResult } from '../application/profile.ts';
 import type { DailyPickResponse, RecommendationQuery } from '../application/recommendations.ts';
+import type { RatingsStatus } from '../application/ratings.ts';
 import type { FilmFeedback, RecommendationResult, Settings } from '../domain/film.ts';
 
 /**
@@ -35,6 +36,9 @@ export interface Contract {
   getSettings: { request: void; response: Settings };
   updateSettings: { request: Partial<Settings>; response: Settings };
   getOnDeviceModelStatus: { request: void; response: OnDeviceModelStatus };
+  /** IMDb scores this browser downloaded; they are not part of the package. */
+  getRatingsStatus: { request: void; response: RatingsStatus };
+  refreshRatings: { request: { force?: boolean }; response: RatingsStatus };
   getFilmArtwork: { request: { slug: string }; response: string };
   openDashboard: { request: { hash?: string }; response: void };
 }
@@ -79,6 +83,8 @@ export const ACTIONS: readonly Action[] = [
   'getSettings',
   'updateSettings',
   'getOnDeviceModelStatus',
+  'getRatingsStatus',
+  'refreshRatings',
   'getFilmArtwork',
   'openDashboard',
 ];

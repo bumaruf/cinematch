@@ -3,9 +3,10 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 import manifest from './manifest.config.ts';
 import { catalogAsset } from './tools/build/catalog-asset.ts';
+import { testDataset } from './tools/build/test-dataset.ts';
 
 export default defineConfig({
-  plugins: [catalogAsset(), tailwindcss(), crx({ manifest })],
+  plugins: [...(process.env.VITEST ? [testDataset()] : []), catalogAsset(), tailwindcss(), crx({ manifest })],
   build: {
     outDir: 'dist',
     emptyOutDir: true,

@@ -19,15 +19,15 @@ testWithCatalog('recomendação do dia: qualidade, justificativa, nunca assistid
     thisYearFilms: [
       { title: 'Alien', director: 'Ridley Scott', genres: ['Sci-Fi', 'Horror'], rating: 5.0 },
       { title: 'Blade Runner', director: 'Ridley Scott', genres: ['Sci-Fi'], rating: 4.5 },
-      { title: 'O Iluminado', director: 'Stanley Kubrick', genres: ['Horror'], rating: 5.0 },
+      { title: 'The Shining', director: 'Stanley Kubrick', genres: ['Horror'], rating: 5.0 },
     ],
     films: [
       { title: 'Stalker', rating: 5.0 },
-      { title: 'Solaris', rating: 4.5 },
+      { title: 'Solaris', year: 1972, rating: 4.5 },
     ],
     favorites: [],
   };
-  const seen = ['Alien', 'Blade Runner', 'O Iluminado', 'Stalker', 'Solaris'];
+  const seen = ['Alien', 'Blade Runner', 'The Shining', 'Stalker', 'Solaris'];
 
   const dailyRec1 = daily(mockYearProfile, '2026-09-17');
   assert.ok(dailyRec1?.film?.title, 'Recomendação do Dia gerada com sucesso');

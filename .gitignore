@@ -15,4 +15,5 @@ e2e-screenshots/
 src/data/films-dataset.js
 tools/catalog/pitch-checkpoint.json
 tools/catalog/tmdb-checkpoint.json
+tools/catalog/wikidata-checkpoint.json
 cinematch-v*.zip
