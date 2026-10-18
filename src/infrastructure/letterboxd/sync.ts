@@ -168,7 +168,7 @@ export async function collectFullProfile(rawUsername: string, fetchPage: PageFet
   if (resumable && checkpoint) {
     for (const film of checkpoint.films) films.set(film.slug || film.title.toLowerCase(), { ...film, slug: film.slug ?? '', isFavorite: false });
   }
-  for (const favorite of metadata.favorites) setFilm({ ...favorite, year: null, rating: 5 }, true, 'favorite');
+  for (const favorite of metadata.favorites) setFilm({ ...favorite, year: null, rating: null }, true, 'favorite');
 
   onProgress({ stage: 'rss', message: 'Lendo RSS (diário e avaliações recentes)...', percent: 15 });
   try {

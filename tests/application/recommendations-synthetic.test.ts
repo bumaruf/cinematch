@@ -1,7 +1,10 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import type { HistoryEntry } from '../../src/application/ports.ts';
-import { generateRecommendations, getDailyPick, getSurprisePick, ProfileChangedError } from '../../src/application/recommendations.ts';
+import { generateRecommendations, getDailyPick, getSurprisePick, MISSING_RATINGS_NOTICE, ProfileChangedError } from '../../src/application/recommendations.ts';
+import { createCatalog } from '../../src/domain/catalog/catalog.ts';
+import { withoutRatings } from '../../src/domain/catalog/ratings.ts';
+import { memoryRatingsStore } from '../../src/infrastructure/imdb-ratings.ts';
 import { recordFilmFeedback } from '../../src/application/feedback.ts';
 import type { Recommendation, UserProfile } from '../../src/domain/film.ts';
 import { DAILY_MATCHING_VERSION, profileKey } from '../../src/domain/recommend/daily.ts';
@@ -190,4 +193,19 @@ test('synthetic: a daily request for another username fails with ProfileChangedE
   const { ctx } = await context({ profile: tasteProfile });
   await assert.rejects(getDailyPick(ctx, { username: 'someone-else' }), ProfileChangedError);
   assert.equal((await getDailyPick(ctx, { username: ' TASTE ' })).username, 'taste');
+});
+
+test('synthetic: before IMDb ratings are downloaded, the popularity floor is skipped and the user is told why', async () => {
+  const unrated = createCatalog(catalog.films.map(withoutRatings));
+  const { ctx } = await context({ profile: tasteProfile, catalog: unrated });
+  await ctx.settings.update({ minVotes: 50_000 });
+  ctx.ratings = { store: memoryRatingsStore(null), source: { download: async () => ({}) } };
+  const result = await generateRecommendations(ctx, {});
+  assert.ok(result.recommendations.length > 0);
+  assert.ok(result.notice.endsWith(MISSING_RATINGS_NOTICE));
+  // With ratings in place the saved floor applies again and the notice goes away.
+  ctx.ratings.store = memoryRatingsStore({ fetchedAt: FIXED_NOW.toISOString(), ratings: {} });
+  const rated = await generateRecommendations(ctx, {});
+  assert.equal(rated.recommendations.length, 0);
+  assert.ok(!rated.notice.includes(MISSING_RATINGS_NOTICE));
 });

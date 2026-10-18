@@ -45,7 +45,7 @@ function showDailyModal({ film, curatorReason, phaseInfo }: StoredDailyPick, off
           <div class="lb-ai-film-content">
             <div class="lb-ai-film-headline">
               <h2 id="lb-ai-daily-title" class="lb-ai-film-title">${film.title}${original ? html`<span class="lb-ai-original-title">${original}</span>` : ''}</h2>
-              ${Number.isFinite(film.imdbRating) ? html`<div class="lb-ai-film-rating">★ ${film.imdbRating.toFixed(1)}</div>` : ''}
+              ${film.imdbRating ? html`<div class="lb-ai-film-rating">★ ${film.imdbRating.toFixed(1)}</div>` : ''}
             </div>
             <div class="lb-ai-film-meta">${meta}</div>
             <div class="lb-ai-curator-box">
