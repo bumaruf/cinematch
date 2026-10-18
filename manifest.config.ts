@@ -15,7 +15,9 @@ export default defineManifest({
   version: pkg.version,
   description:
     'Extensão não oficial para recomendações personalizadas de filmes para usuários do Letterboxd, com análise de perfil e sugestões temáticas.',
-  permissions: ['storage', 'activeTab', 'scripting', 'tabs'],
+  // unlimitedStorage lifts the 10 MB cap of chrome.storage.local: a large
+  // Letterboxd history and its backup can approach it. It shows no warning.
+  permissions: ['storage', 'unlimitedStorage', 'activeTab', 'scripting', 'tabs'],
   host_permissions: [...LETTERBOXD, 'https://image.tmdb.org/*'],
   background: {
     service_worker: 'src/background/service-worker.ts',

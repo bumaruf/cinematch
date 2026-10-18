@@ -39,13 +39,14 @@ Propósito único: ajudar usuários do Letterboxd a escolher filmes com base em 
 | Permissão | Uso concreto |
 |---|---|
 | storage | Guardar perfil, configurações, salvos, histórico, feedback, avaliações opcionais da curadoria e progresso de sincronização no navegador. |
+| unlimitedStorage | Remover o limite de 10 MB do armazenamento local: um histórico grande do Letterboxd e o backup do perfil anterior podem passar desse limite. Não mostra aviso na instalação. |
 | activeTab | Identificar o perfil do Letterboxd na aba ativa quando o usuário abre o popup. |
 | tabs | Encontrar uma aba aberta do Letterboxd e abrir o painel do CineMatch. |
 | scripting | Consultar o Letterboxd na aba aberta para completar a sincronização quando o site pede verificação. |
 | https://letterboxd.com/* e https://*.letterboxd.com/* | Consultar perfil, histórico e pôsteres e mostrar o atalho de indicação nas páginas do Letterboxd. |
 | https://image.tmdb.org/* | Exibir pôsteres dos filmes. |
 
-Nenhuma permissão foi acrescentada nesta rodada.
+A permissão unlimitedStorage foi acrescentada em 2026-10-18; ela não gera aviso na instalação.
 
 ## Privacidade
 
