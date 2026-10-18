@@ -73,9 +73,12 @@ clique em **Carregar sem compactação** e selecione a pasta `dist/`.
 
 ### CI
 
-O GitHub Actions roda typecheck, testes e build a cada push e pull request,
-com o catálogo vazio. O teste de ponta a ponta e o empacotamento precisam do
-catálogo real e rodam localmente.
+O GitHub Actions roda lint, typecheck, testes e build a cada push e pull
+request, com o catálogo vazio. Os fluxos de recomendação, filme do dia e
+feedback também rodam lá, sobre um catálogo de filmes fictícios
+(`tests/fixtures/synthetic-catalog.ts`). Os testes que conferem filmes reais,
+o teste de ponta a ponta e o empacotamento precisam do catálogo real e rodam
+localmente.
 
 ## Arquitetura
 

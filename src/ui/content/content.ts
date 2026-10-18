@@ -106,10 +106,12 @@ function injectBadge(): void {
   );
   const label = badge.querySelector('.lb-ai-label')!;
   let busy = false;
+  let restoreTimer: ReturnType<typeof setTimeout> | undefined;
 
   badge.addEventListener('click', async () => {
     if (busy) return;
     busy = true;
+    clearTimeout(restoreTimer);
     let completionLabel = BADGE_LABEL;
     badge.classList.add('syncing');
     label.textContent = 'Buscando sugestão…';
@@ -143,6 +145,8 @@ function injectBadge(): void {
       busy = false;
       badge.classList.remove('syncing');
       label.textContent = completionLabel;
+      // A failure message is read once, then the button is itself again.
+      if (completionLabel !== BADGE_LABEL) restoreTimer = setTimeout(() => (label.textContent = BADGE_LABEL), 6000);
     }
   });
   document.body.append(badge);

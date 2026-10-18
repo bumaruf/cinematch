@@ -53,7 +53,6 @@ onReady(async () => {
   let selectedThemeId: string | null = null;
   let current: Recommendation[] = [];
   let syncing = false;
-  let generating = false;
   let generation = 0;
 
   const showError = (message: string): void => {
@@ -130,7 +129,10 @@ onReady(async () => {
     byId<HTMLButtonElement>('btnGenerateCustom').disabled = !hasSearchIntent();
   }
 
+  let draftTimer: ReturnType<typeof setTimeout> | undefined;
+
   function saveDraft(): void {
+    clearTimeout(draftTimer);
     if (!profileUsername) return;
     void send('savePopupSession', { username: profileUsername, view: 'home', prompt: el.prompt.value }).catch(() => {
       // A draft must never prevent the current search from being used.
@@ -183,13 +185,10 @@ onReady(async () => {
       el.films.querySelector<HTMLButtonElement>('[data-general-recovery]')!.addEventListener('click', async event => {
         const button = event.currentTarget as HTMLButtonElement;
         button.disabled = true;
-        try {
-          await send('updateSettings', { minVotes: 0 });
-          el.prompt.value = ''; selectedThemeId = null;
-          el.decade.value = ''; el.runtime.value = ''; el.niche.checked = false;
-          markSelected(); updateGenerateState();
-          await generate();
-        } catch (error) { button.disabled = false; showError((error as Error).message); }
+        el.prompt.value = ''; selectedThemeId = null;
+        el.decade.value = ''; el.runtime.value = ''; el.niche.checked = false;
+        markSelected(); updateGenerateState();
+        await generate({ ignoreMinVotes: true });
       });
     } else {
       el.films.replaceChildren(...films.map((film, i) => filmCard(film, { onToggleSave: toggleSave, saved: isSaved(film), feedbackUsername: expected, index: i })));
@@ -202,11 +201,14 @@ onReady(async () => {
     }
   }
 
-  async function generate(): Promise<void> {
+  /**
+   * A new request replaces one still running (for example after "Nova busca"):
+   * the late answer of the earlier one is ignored. `ignoreMinVotes` drops the
+   * saved popularity floor for this request only.
+   */
+  async function generate({ ignoreMinVotes = false } = {}): Promise<void> {
     if (!hasProfile) return showError('Conecte seu perfil do Letterboxd primeiro.');
-    if (generating) return;
     const customPrompt = el.prompt.value.trim();
-    generating = true;
     const requestId = ++generation;
     const username = profileUsername;
     hide(el.errorBanner);
@@ -216,22 +218,19 @@ onReady(async () => {
         themeId: customPrompt ? null : selectedThemeId,
         customPrompt,
         username,
-        filters: readFilters({ decade: el.decade, runtime: el.runtime, nicheOnly: el.niche }),
+        filters: { ...readFilters({ decade: el.decade, runtime: el.runtime, nicheOnly: el.niche }), ...(ignoreMinVotes ? { minVotes: 0 } : {}) },
       });
       if (requestId !== generation) return;
       await showResults({ title: result.themeName, note: result.notice, films: result.recommendations, interpretation: result.interpretation, interpretedBy: result.interpretedBy });
     } catch (error) {
+      if (requestId !== generation) return;
       view('home');
       showError((error as Error).message);
-    } finally {
-      generating = false;
     }
   }
 
   async function surprise(): Promise<void> {
     if (!hasProfile) return showError('Conecte seu perfil do Letterboxd primeiro.');
-    if (generating) return;
-    generating = true;
     const requestId = ++generation;
     hide(el.errorBanner);
     view('loading');
@@ -240,10 +239,9 @@ onReady(async () => {
       if (requestId !== generation) return;
       await showResults({ title: 'Uma sugestão para você', note: '', films: [data.film] });
     } catch (error) {
+      if (requestId !== generation) return;
       view('home');
       showError((error as Error).message);
-    } finally {
-      generating = false;
     }
   }
 
@@ -275,7 +273,9 @@ onReady(async () => {
       markSelected();
     }
     updateGenerateState();
-    saveDraft();
+    // One write when typing pauses, not one per key.
+    clearTimeout(draftTimer);
+    draftTimer = setTimeout(saveDraft, 300);
   });
   el.profileEmpty.addEventListener('submit', (event) => {
     event.preventDefault();
