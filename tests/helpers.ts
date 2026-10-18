@@ -1,5 +1,6 @@
 import type { AppContext } from '../src/application/context.ts';
 import type { ArtworkSource, LetterboxdSync, OnDeviceModel } from '../src/application/ports.ts';
+import type { Catalog } from '../src/domain/catalog/catalog.ts';
 import type { UserProfile } from '../src/domain/film.ts';
 import { loadCatalog } from '../src/infrastructure/catalog.ts';
 import { memoryKeyValueStore } from '../src/infrastructure/storage/key-value.ts';
@@ -54,6 +55,8 @@ export interface TestContextOptions {
   letterboxd?: LetterboxdSync;
   artwork?: ArtworkSource;
   onDeviceModel?: OnDeviceModel;
+  /** Defaults to the generated catalog (an empty stub in CI). */
+  catalog?: Catalog;
 }
 
 /** A fully in-memory AppContext; every call gets its own storage. */
@@ -64,7 +67,7 @@ export async function createTestContext(options: TestContextOptions = {}) {
   const clock = { now };
   let identifier = 0;
   const ctx: AppContext = {
-    catalog: async () => loadCatalog(),
+    catalog: async () => options.catalog ?? loadCatalog(),
     clock,
     identifiers: { next: () => `test_${++identifier}` },
     profiles: profileStore(kv, clock.now),

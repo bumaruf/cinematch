@@ -40,8 +40,11 @@ function preparedFor(profile: UserProfile, catalog: Catalog, now: Date, rejected
 export interface RecommendationQuery {
   themeId?: string | null;
   customPrompt?: string;
-  /** Per-request filters; saved settings fill in the rest. */
-  filters?: Pick<Filters, 'minYear' | 'maxYear' | 'runtimeFilter' | 'nicheOnly'>;
+  /**
+   * Per-request filters; saved settings fill in the rest. A minVotes here
+   * applies to this request only and leaves the saved setting unchanged.
+   */
+  filters?: Pick<Filters, 'minYear' | 'maxYear' | 'runtimeFilter' | 'nicheOnly' | 'minVotes'>;
   username?: string;
 }
 

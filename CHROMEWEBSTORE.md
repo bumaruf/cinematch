@@ -39,6 +39,7 @@ Propósito único: ajudar usuários do Letterboxd a escolher filmes com base em 
 | Permissão | Uso concreto |
 |---|---|
 | storage | Guardar perfil, configurações, salvos, histórico, feedback, avaliações opcionais da curadoria e progresso de sincronização no navegador. |
+| unlimitedStorage | Remover o limite de 10 MB do armazenamento local: um histórico grande do Letterboxd e o backup do perfil anterior podem passar desse limite. Não mostra aviso na instalação. |
 | activeTab | Identificar o perfil do Letterboxd na aba ativa quando o usuário abre o popup. |
 | tabs | Encontrar uma aba aberta do Letterboxd e abrir o painel do CineMatch. |
 | scripting | Consultar o Letterboxd na aba aberta para completar a sincronização quando o site pede verificação. |
@@ -46,7 +47,7 @@ Propósito único: ajudar usuários do Letterboxd a escolher filmes com base em 
 | https://image.tmdb.org/* | Exibir pôsteres dos filmes. |
 | https://datasets.imdbws.com/* | Baixar o arquivo público de notas do IMDb na instalação e uma vez por mês; as notas não vêm no pacote. |
 
-Permissão acrescentada nesta rodada: `https://datasets.imdbws.com/*`.
+A permissão unlimitedStorage foi acrescentada em 2026-10-18; ela não gera aviso na instalação. A permissão `https://datasets.imdbws.com/*` também foi acrescentada nesta rodada.
 
 ## Privacidade
 

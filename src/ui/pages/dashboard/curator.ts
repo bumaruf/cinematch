@@ -70,7 +70,6 @@ export function setupCurator({
   };
   const evaluation = setupRecommendationEvaluation(notify, currentUsername);
   let selectedThemeId: string | null = null;
-  let generating = false;
   let current: Recommendation[] = [];
   let generation = 0;
 
@@ -91,12 +90,15 @@ export function setupCurator({
     }
   };
 
-  async function generate(): Promise<void> {
-    if (generating) return;
+  /**
+   * Requests a list. A new request (another climate, say) replaces one still
+   * running: the late answer of the earlier one is ignored.
+   * `ignoreMinVotes` drops the saved popularity floor for this request only.
+   */
+  async function generate({ ignoreMinVotes = false } = {}): Promise<void> {
     const customPrompt = el.prompt.value.trim();
     const requestId = ++generation;
     const username = currentUsername() ?? 'convidado';
-    generating = true;
     evaluation.reset();
     el.generate.disabled = true;
     // Poster-shaped placeholders hold the grid while the worker searches.
@@ -114,7 +116,7 @@ export function setupCurator({
         themeId: customPrompt ? null : selectedThemeId,
         customPrompt,
         username,
-        filters: readFilters({ decade: el.decade, runtime: el.runtime, nicheOnly: el.niche }),
+        filters: { ...readFilters({ decade: el.decade, runtime: el.runtime, nicheOnly: el.niche }), ...(ignoreMinVotes ? { minVotes: 0 } : {}) },
       }), send('listSavedFilms')]);
       if (requestId !== generation || username !== (currentUsername() ?? 'convidado')) return;
       const isSaved = savedMatcher(saved);
@@ -129,13 +131,10 @@ export function setupCurator({
         el.list.querySelector<HTMLButtonElement>('[data-general-recovery]')!.addEventListener('click', async event => {
           const button = event.currentTarget as HTMLButtonElement;
           button.disabled = true;
-          try {
-            await send('updateSettings', { minVotes: 0 });
-            el.prompt.value = ''; selectedThemeId = null;
-            el.decade.value = ''; el.runtime.value = ''; el.niche.checked = false;
-            markSelected();
-            await generate();
-          } catch (error) { button.disabled = false; notify.error((error as Error).message); }
+          el.prompt.value = ''; selectedThemeId = null;
+          el.decade.value = ''; el.runtime.value = ''; el.niche.checked = false;
+          markSelected();
+          await generate({ ignoreMinVotes: true });
         });
       } else {
         el.list.replaceChildren(...current.map((film, index) => filmCard(film, { variant: 'poster', onToggleSave: toggleSave, saved: isSaved(film), feedbackUsername: username, index })));
@@ -146,9 +145,11 @@ export function setupCurator({
       show(el.daily, hasDaily());
       notify.error((error as Error).message);
     } finally {
-      generating = false;
-      el.generate.disabled = false;
-      el.list.setAttribute('aria-busy', 'false');
+      // A newer request still running keeps the busy state.
+      if (requestId === generation) {
+        el.generate.disabled = false;
+        el.list.setAttribute('aria-busy', 'false');
+      }
     }
   }
 
@@ -250,6 +251,9 @@ export function setupCurator({
       current = [];
       evaluation.reset();
       hide(el.results);
+      // A request still running for the previous profile no longer counts.
+      el.generate.disabled = false;
+      el.list.setAttribute('aria-busy', 'false');
     },
   };
 }

@@ -87,21 +87,45 @@ test('settings store returns defaults and merges partial updates', async () => {
   assert.deepEqual(await partial.get(), { ...DEFAULT_SETTINGS, avoidWatched: false });
 });
 
-test('profile store keeps backups on replace and clears everything profile-related', async () => {
+test('profile store keeps only the latest backup and clears everything profile-related', async () => {
   const kv = memoryKeyValueStore();
   const profiles = profileStore(kv, () => FIXED_NOW);
-  const first = { username: 'a', films: [] };
-  const second = { username: 'b', films: [] };
+  const first = { username: 'a', films: [{ title: 'Alien', slug: 'alien' }] };
+  const second = { username: 'b', films: [{ title: 'Heat', slug: 'heat' }] };
   await profiles.save(first);
   await profiles.replace(second, first, 'import');
   assert.deepEqual(await profiles.get(), second);
   assert.deepEqual(await kv.get(KEYS.importBackup), { profile: first, savedAt: FIXED_NOW.toISOString() });
   await profiles.replace(first, second, 'repair');
   assert.deepEqual(await kv.get(KEYS.repairBackup), { profile: second, savedAt: FIXED_NOW.toISOString() });
+  assert.equal(await kv.get(KEYS.importBackup), undefined, 'an older backup is replaced, never accumulated');
   await kv.set({ [KEYS.syncCheckpoint]: { username: 'a' } });
   await profiles.clear();
   assert.equal(await profiles.get(), null);
   for (const key of [KEYS.syncCheckpoint, KEYS.importBackup, KEYS.repairBackup]) assert.equal(await kv.get(key), undefined);
+});
+
+test('replacing an empty profile keeps the existing backup', async () => {
+  const kv = memoryKeyValueStore();
+  const profiles = profileStore(kv, () => FIXED_NOW);
+  const history = { username: 'a', films: [{ title: 'Alien', slug: 'alien' }] };
+  await profiles.replace({ username: 'b', films: [] }, history, 'switch');
+  await profiles.replace({ username: 'c', films: [{ title: 'Heat', slug: 'heat' }] }, { username: 'b', films: [] }, 'import');
+  assert.deepEqual((await kv.get<{ profile: unknown }>(KEYS.switchBackup))?.profile, history);
+  assert.equal(await kv.get(KEYS.importBackup), undefined);
+});
+
+test('cleanup keeps only the newest of the backups written by earlier versions', async () => {
+  const backup = (username: string, savedAt: string) => ({ profile: { username, films: [{ title: 'Alien', slug: 'alien' }] }, savedAt });
+  const kv = memoryKeyValueStore({
+    [KEYS.importBackup]: backup('import', '2026-10-01T00:00:00.000Z'),
+    [KEYS.repairBackup]: backup('repair', '2026-10-03T00:00:00.000Z'),
+    [KEYS.switchBackup]: backup('switch', '2026-10-02T00:00:00.000Z'),
+  });
+  await removeObsoleteData(kv);
+  assert.equal(await kv.get(KEYS.importBackup), undefined);
+  assert.equal(await kv.get(KEYS.switchBackup), undefined);
+  assert.deepEqual(await kv.get(KEYS.repairBackup), backup('repair', '2026-10-03T00:00:00.000Z'));
 });
 
 test('profile storage rejects imports that exceed the local safety limit', async () => {

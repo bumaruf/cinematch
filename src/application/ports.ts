@@ -12,7 +12,7 @@ export interface Clock {
 export interface ProfileStore {
   get(): Promise<UserProfile | null>;
   save(profile: UserProfile): Promise<void>;
-  /** Replaces the profile and keeps the previous one as a recoverable backup. */
+  /** Replaces the profile and keeps the previous one (when it has films) as the only backup. */
   replace(profile: UserProfile, previous: UserProfile | null, reason: 'import' | 'repair' | 'switch'): Promise<void>;
   clear(): Promise<void>;
 }
