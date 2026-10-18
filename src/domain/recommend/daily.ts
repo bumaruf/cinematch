@@ -63,7 +63,7 @@ export interface DailyOptions {
 }
 
 /**
- * One well-rated unwatched film per user and day. The choice is
+ * One well-rated (or not yet rated) unwatched film per user and day. The choice is
  * deterministic for a date, and only strong taste matches compete.
  */
 export function pickDaily(profile: UserProfile | null, catalog: Catalog, { date, now, excludedSlugs = [], excludedFilms = [], rejectedFilms = [], prepared }: DailyOptions): DailyPick {
@@ -76,7 +76,8 @@ export function pickDaily(profile: UserProfile | null, catalog: Catalog, { date,
   const candidates = catalog.films.flatMap((film) => {
     if (isWatched(film) || blocked.has(catalogIdentity(film)) || excluded.has(slugKey(film.slug))) return [];
     const taste = matchTaste(film);
-    if (!taste.eligible || !film.imdbRating || film.imdbRating < 7) return [];
+    // A score the browser has not downloaded yet is unknown, not low.
+    if (!taste.eligible || (film.imdbVotes > 0 && film.imdbRating < 7)) return [];
     return [{ film, score: taste.score + film.imdbRating * 0.1, reason: taste.reason }];
   });
 

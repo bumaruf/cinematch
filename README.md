@@ -40,10 +40,9 @@ Não é afiliada ao Letterboxd, ao IMDb nem ao TMDB.
 
 Requer Node.js 24 ou mais recente.
 
-O catálogo de filmes é derivado dos datasets do IMDb, licenciados apenas para
-uso pessoal e não comercial, por isso não é versionado. Gere-o localmente antes
-de usar a extensão (veja [Catálogo](#catálogo)). Para só compilar e testar,
-um catálogo vazio basta:
+O catálogo de filmes é gerado a partir do Wikidata e não é versionado. Gere-o
+localmente antes de usar a extensão (veja [Catálogo](#catálogo)). Para só
+compilar e testar, um catálogo vazio basta:
 
 ```sh
 npm install
@@ -127,16 +126,27 @@ Mudanças no HTML do Letterboxd podem exigir ajustes em
 
 ## Catálogo
 
-`src/data/films-dataset.js` é gerado pelos scripts de `tools/catalog`:
+`src/data/films-dataset.js` é gerado pelos scripts de `tools/catalog`. Para um
+catálogo que pode ir para a loja:
+
+```sh
+npm run catalog:wikidata  # filmes do Wikidata e sinopses da Wikipédia (CATALOG_LIMIT, padrão 25000; retoma do checkpoint)
+npm run catalog:enrich    # termos temáticos
+npm run catalog:dedup
+```
+
+As notas do IMDb não entram no pacote: cada navegador as baixa do IMDb. Detalhes
+em [docs/data-sources.md](docs/data-sources.md).
+
+Os comandos abaixo usam os datasets do IMDb ou a API do TMDB e servem só para uso
+local; depois deles, `npm run package` recusa o catálogo:
 
 ```sh
 npm run catalog:import    # títulos, anos, gêneros, diretores e notas dos datasets do IMDb (IMDB_CATALOG_LIMIT, padrão 10000)
-npm run catalog:enrich    # termos temáticos
 npm run catalog:pitches   # sinopses em português via TMDB (TMDB_API_KEY)
 npm run catalog:posters   # pôsteres via TMDB (TMDB_READ_ACCESS_TOKEN)
 npm run catalog:tmdb      # completa sinopses, países, idioma e duração via TMDB
 npm run catalog:verify    # audita durações por IMDb ID; acrescente -- --apply para gravar
-npm run catalog:dedup
 ```
 
 Os mapas de pôsteres (`src/data/poster-catalog.js`) são versionados; o
@@ -156,18 +166,22 @@ O script não grava a credencial no catálogo ou no checkpoint.
 
 ### Fontes e atribuição
 
-- Informações do [IMDb](https://www.imdb.com), dos datasets para uso pessoal e
-  não comercial. Information courtesy of IMDb. Used with permission.
-- Sinopses e pôsteres do [TMDB](https://www.themoviedb.org). This product uses
-  the TMDB API but is not endorsed or certified by TMDB.
+- Catálogo do [Wikidata](https://www.wikidata.org), em domínio público (CC0).
+- Sinopses da [Wikipédia](https://pt.wikipedia.org), sob a licença
+  [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+- Notas do [IMDb](https://www.imdb.com), baixadas por cada navegador para uso
+  pessoal e não comercial. Information courtesy of IMDb (https://www.imdb.com).
+  Used with permission.
+- Pôsteres do [TMDB](https://www.themoviedb.org). This product uses the TMDB API
+  but is not endorsed or certified by TMDB.
 
 ## Dados e privacidade
 
 Perfil, preferências, histórico, filmes salvos, feedback e avaliações da curadoria ficam em `chrome.storage.local`.
 Hoje não expira na virada do dia em São Paulo. Já assisti é uma marcação local;
 não modifica o histórico sincronizado nem publica uma atividade no Letterboxd.
-A extensão acessa apenas o Letterboxd (sincronização e pôsteres) e o CDN de
-imagens do TMDB. Textos dinâmicos são escapados antes de entrar no HTML, e links
+A extensão acessa apenas o Letterboxd (sincronização e pôsteres), o arquivo
+público de notas do IMDb e o CDN de imagens do TMDB. Textos dinâmicos são escapados antes de entrar no HTML, e links
 aceitam somente HTTP/HTTPS.
 
 As palavras-chave novas registram sua origem (filme, gênero, diretor ou derivação).

@@ -25,7 +25,8 @@ export function themeEligibility(film: CatalogFilm, criteria: ThemeCriteria | nu
   if ((criteria.excludedAnyGenres ?? []).map(fold).some((genre) => genres.has(genre))) return INELIGIBLE;
   if (criteria.minYear && film.year < criteria.minYear) return INELIGIBLE;
   if (criteria.maxImdbVotes && (film.imdbVotes || 0) > criteria.maxImdbVotes) return INELIGIBLE;
-  if (criteria.minImdbRating && (film.imdbRating || 0) < criteria.minImdbRating) return INELIGIBLE;
+  // Without votes the score is unknown (ratings not downloaded yet), not low.
+  if (criteria.minImdbRating && (film.imdbVotes || 0) > 0 && (film.imdbRating || 0) < criteria.minImdbRating) return INELIGIBLE;
 
   const reviewed = REVIEWED_THEME_EVIDENCE[film.imdbId];
   const reviewedText = reviewed && (!reviewed.themes || reviewed.themes.includes(criteriaThemeId(criteria) ?? '')) ? reviewed.text : '';

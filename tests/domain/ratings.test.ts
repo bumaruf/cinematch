@@ -40,3 +40,11 @@ test('stripping then applying the original ratings gives back the scores', () =>
   const restored = applyRatings(films.map(withoutRatings), ratingsOf(films));
   expect(restored.map(f => [f.imdbRating, f.imdbVotes])).toEqual([[7.4, 1234], [0, 0]]);
 });
+
+test('before the ratings are downloaded, a theme with a minimum score does not exclude every film', async () => {
+  const { themeEligibility } = await import('../../src/domain/recommend/theme-eligibility.ts');
+  const { getThemeCriteria } = await import('../../src/domain/themes/themes.ts');
+  const criteria = getThemeCriteria('hidden-gems-underrated');
+  expect(themeEligibility(withoutRatings(film('unrated')), criteria).eligible).toBe(true);
+  expect(themeEligibility(film('low', { imdbRating: 6, imdbVotes: 2000 }), criteria).eligible).toBe(false);
+});

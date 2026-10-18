@@ -28,8 +28,9 @@ camadas (`domain` → `application` → `infrastructure`/`messaging` → `backgr
   `tools/catalog/pitch-checkpoint.json` inteiros. Para entender a estrutura, use
   os `.d.ts` ao lado ou uma amostra pequena.
 - Não altere os dados gerados em `src/data`, salvo quando pedido; use `tools/catalog`.
-- O catálogo (`src/data/films-dataset.js`) não é versionado: vem dos datasets
-  não comerciais do IMDb. Sem ele, use `npm run catalog:stub`; testes que
+- O catálogo (`src/data/films-dataset.js`) não é versionado: vem do Wikidata
+  (`npm run catalog:wikidata`). As notas do IMDb nunca entram no pacote; veja
+  `docs/data-sources.md`. Sem o catálogo, use `npm run catalog:stub`; testes que
   precisam de filmes reais usam `testWithCatalog` (`tests/helpers.ts`).
 
 ## Verificação

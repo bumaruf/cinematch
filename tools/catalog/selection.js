@@ -24,14 +24,14 @@ export function yearlyQuota(year) {
   return 320;
 }
 
-function qualityScore(movie) {
+export function qualityScore(movie) {
   // Logarithmic popularity keeps blockbusters strong without erasing older
   // and international films whose IMDb audiences are naturally smaller.
   return movie.rating * 12 + Math.log10(movie.numVotes + 1) * 10;
 }
 
-function compareMovies(a, b) {
-  return qualityScore(b) - qualityScore(a) || b.numVotes - a.numVotes || b.rating - a.rating || a.tconst.localeCompare(b.tconst);
+function comparer(score) {
+  return (a, b) => score(b) - score(a) || (b.numVotes ?? 0) - (a.numVotes ?? 0) || (b.rating ?? 0) - (a.rating ?? 0) || a.tconst.localeCompare(b.tconst);
 }
 
 function scaledGenreTargets(limit) {
@@ -41,9 +41,15 @@ function scaledGenreTargets(limit) {
 
 /**
  * Selects a historically balanced catalog, then fills weak genres and finally
- * uses global quality. Input records are never mutated.
+ * uses global quality. Input records are never mutated. `score` ranks films
+ * (IMDb rating and votes by default; the Wikidata importer uses sitelinks).
+ * @param {{ tconst: string, year: number, genres: string[], rating?: number, numVotes?: number }[]} movies
+ * @param {number} limit
+ * @param {number} endYear
+ * @param {(movie: any) => number} [score]
  */
-export function selectCatalogCandidates(movies, limit, endYear) {
+export function selectCatalogCandidates(movies, limit, endYear, score = qualityScore) {
+  const compareMovies = comparer(score);
   const eligible = movies.filter((movie) => movie.year >= 1895 && movie.year <= endYear);
   const selected = [];
   const selectedIds = new Set();

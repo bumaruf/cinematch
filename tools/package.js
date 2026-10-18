@@ -3,12 +3,20 @@
 import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { PUBLISHABLE_SOURCE, readCatalogSource } from './catalog/catalog-source.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const { EXPANDED_FILM_DATABASE } = await import('../src/data/films-dataset.js');
 if (EXPANDED_FILM_DATABASE.length === 0) {
-  console.error('O catálogo está vazio. Gere-o com npm run catalog:import antes de empacotar.');
+  console.error('O catálogo está vazio. Gere-o com npm run catalog:wikidata antes de empacotar.');
+  process.exit(1);
+}
+// The IMDb datasets are for personal use, and TMDB's synopses are not ours to
+// redistribute: only a catalog built from Wikidata may go to the store.
+const source = await readCatalogSource();
+if (source !== PUBLISHABLE_SOURCE) {
+  console.error(`O catálogo não veio do Wikidata (origem: ${source || 'desconhecida'}). Gere-o com npm run catalog:wikidata e, se quiser, npm run catalog:enrich; os comandos do IMDb e do TMDB são só para uso local.`);
   process.exit(1);
 }
 const zip = `cinematch-v${version}.zip`;

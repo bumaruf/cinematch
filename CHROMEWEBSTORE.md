@@ -44,12 +44,13 @@ Propósito único: ajudar usuários do Letterboxd a escolher filmes com base em 
 | scripting | Consultar o Letterboxd na aba aberta para completar a sincronização quando o site pede verificação. |
 | https://letterboxd.com/* e https://*.letterboxd.com/* | Consultar perfil, histórico e pôsteres e mostrar o atalho de indicação nas páginas do Letterboxd. |
 | https://image.tmdb.org/* | Exibir pôsteres dos filmes. |
+| https://datasets.imdbws.com/* | Baixar o arquivo público de notas do IMDb na instalação e uma vez por mês; as notas não vêm no pacote. |
 
-Nenhuma permissão foi acrescentada nesta rodada.
+Permissão acrescentada nesta rodada: `https://datasets.imdbws.com/*`.
 
 ## Privacidade
 
-O produto processa informações do perfil, conteúdo do Letterboxd, filmes vistos, avaliações, salvos e feedback para gerar recomendações. O armazenamento é local; não há servidor do CineMatch ou serviço externo de recomendação. Consultas ao Letterboxd e carregamento de pôsteres usam esses serviços; buscas de filme ou trailer abrem links externos somente quando o usuário os aciona.
+O produto processa informações do perfil, conteúdo do Letterboxd, filmes vistos, avaliações, salvos e feedback para gerar recomendações. O armazenamento é local; não há servidor do CineMatch ou serviço externo de recomendação. Consultas ao Letterboxd, o download das notas do IMDb (um arquivo público, sem dados do usuário) e o carregamento de pôsteres usam esses serviços; buscas de filme ou trailer abrem links externos somente quando o usuário os aciona.
 
 O piloto opcional armazena pedidos, contexto das indicações e respostas no navegador. A exportação ocorre por ação do usuário, sem envio automático; exclui o identificador do perfil e seu histórico importado, mas inclui o pedido e os comentários fornecidos. Há um botão para apagar as avaliações do perfil ativo.
 
