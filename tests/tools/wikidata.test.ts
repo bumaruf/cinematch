@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { normalizeCatalogFilm } from '../../src/domain/catalog/catalog.ts';
 import { selectCatalogCandidates } from '../../tools/catalog/selection.js';
 import {
-  buildFilm, canonicalGenres, candidatesQuery, countryName, DETAIL_QUERIES, groupByFilm, parseCandidates, parseRows,
+  buildFilm, canonicalGenres, candidatesQuery, countryName, DETAIL_QUERIES, filmKeyword, groupByFilm, localizedLabelsQuery, parseCandidates, parseRows,
   pitchFromArticle, runtimeMinutes, sitelinkScore,
 } from '../../tools/catalog/wikidata.js';
 
@@ -47,6 +47,17 @@ describe('Wikidata catalog import', () => {
     expect(countryName("People's Republic of China")).toBe('China');
     expect(countryName('West Germany')).toBe('Germany');
     expect(countryName('Brazil')).toBe('Brazil');
+    expect(countryName('Alemanha Ocidental')).toBe('Alemanha');
+    expect(countryName('Estados Unidos')).toBe('Estados Unidos');
+  });
+
+  test('countries, subjects and genre keywords use Portuguese labels, else English', () => {
+    const query = DETAIL_QUERIES.countryLabels(['Q1']);
+    expect(query).toContain('"pt-br"');
+    expect(query).toContain('COALESCE(?ptBr, ?pt, ?en)');
+    expect(localizedLabelsQuery(['Q2'])).toContain('VALUES ?film { wd:Q2 }');
+    expect(filmKeyword('filme de terror psicológico')).toBe('terror psicológico');
+    expect(filmKeyword('filme')).toBe('');
   });
 
   test('the main runtime ignores short versions and longer cuts', () => {
@@ -83,21 +94,24 @@ describe('Wikidata catalog import', () => {
       originalTitle: [{ film: 'Q47703', label: 'The Godfather' }],
       directors: [{ film: 'Q47703', label: 'Francis Ford Coppola', links: 90 }, { film: 'Q47703', label: 'Uncredited', links: 1 }],
       durations: [{ film: 'Q47703', seconds: 10_500 }],
-      countries: [{ film: 'Q47703', label: 'United States' }],
+      countryLabels: [{ film: 'Q47703', label: 'Estados Unidos' }],
       languages: [{ film: 'Q47703', label: 'en' }],
       letterboxd: [{ film: 'Q47703', label: 'the-godfather' }],
-      subjects: [{ film: 'Q47703', label: 'organized crime' }, { film: 'Q47703', label: 'Q123' }],
+      subjectLabels: [{ film: 'Q47703', label: 'crime organizado' }, { film: 'Q47703', label: 'Q123' }],
     };
-    const film = buildFilm(candidate, details, genreLabels, 'Uma sinopse real da Wikipédia, longa o bastante.');
+    const localized = new Map([['Q959790', 'filme de gângster']]);
+    const film = buildFilm(candidate, details, genreLabels, 'Uma sinopse real da Wikipédia, longa o bastante.', localized);
     expect(film).toMatchObject({
-      title: 'O Poderoso Chefão', originalTitle: 'The Godfather', year: 1972, director: 'Francis Ford Coppola', slug: 'the-godfather',
-      runtime: 175, runtimeKnown: true, country: 'United States', originalLanguage: 'en', imdbId: 'tt0068646',
+      title: 'The Godfather', originalTitle: 'The Godfather', year: 1972, director: 'Francis Ford Coppola', slug: 'the-godfather',
+      runtime: 175, runtimeKnown: true, country: 'Estados Unidos', originalLanguage: 'en', imdbId: 'tt0068646',
       imdbRating: 0, imdbVotes: 0, genres: ['Crime', 'Drama'], pitch: 'Uma sinopse real da Wikipédia, longa o bastante.',
     });
     expect(film!.keywordEvidence!.find(entry => entry.term === 'drama')?.source).toBe('genre');
     // Wikidata's specific labels feed theme matching as film keywords.
-    expect(film!.keywordEvidence!.filter(entry => entry.source === 'film').map(entry => entry.term)).toEqual(['gangster', 'organized crime']);
-    expect(normalizeCatalogFilm(film!).country).toBe('United States');
+    expect(film!.keywordEvidence!.filter(entry => entry.source === 'film').map(entry => entry.term)).toEqual(['gângster', 'crime organizado']);
+    // Letterboxd's English title matches the user's history; the Brazilian one stays searchable.
+    expect(film!.keywords).toContain('o poderoso chefão');
+    expect(normalizeCatalogFilm(film!).country).toBe('Estados Unidos');
   });
 
   test('without a Letterboxd id the slug comes from the English title; shorts and untitled films are skipped', () => {

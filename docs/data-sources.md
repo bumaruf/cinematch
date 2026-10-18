@@ -11,6 +11,17 @@ tem licença de uso pessoal é baixado pelo navegador de cada usuário.
 | Notas e votos | IMDb (`title.ratings.tsv.gz`) | Uso pessoal e não comercial | Baixadas pelo navegador na instalação e uma vez por mês |
 | Pôsteres | TMDB | API gratuita para uso não comercial, com crédito | Caminhos no pacote; imagens carregadas do CDN do TMDB |
 
+## Idiomas
+
+- Títulos em inglês, como o Letterboxd mostra: é assim que o histórico do
+  usuário casa com o catálogo. O título em português entra nas palavras-chave,
+  para a busca.
+- Países e palavras-chave de gênero e assunto em português quando o Wikidata tem
+  o rótulo, senão em inglês. Sinopses em português, ou em inglês quando falta.
+- Pôsteres em inglês (`npm run catalog:posters`, com `TMDB_READ_ACCESS_TOKEN`).
+  Um mapa gravado em outro idioma é baixado de novo; o filme sem pôster em inglês
+  mantém o que tinha.
+
 ## Como funciona
 
 - `src/domain/catalog/packaged.ts` zera notas e votos e remove as palavras-chave

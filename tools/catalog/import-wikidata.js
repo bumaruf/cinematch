@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url';
 import { selectCatalogCandidates, selectionSummary } from './selection.js';
 import { catalogSourceLine, filmRows, PUBLISHABLE_SOURCE } from './catalog-source.js';
 import {
-  buildFilm, canonicalGenres, candidatesQuery, DETAIL_QUERIES, entityLabelsQuery, groupByFilm, parseCandidates, parseRows,
+  buildFilm, canonicalGenres, candidatesQuery, DETAIL_QUERIES, entityLabelsQuery, groupByFilm, LEGACY_DETAILS, localizedLabelsQuery, parseCandidates, parseRows,
   pitchFromArticle, sitelinkScore, WIKIDATA_SPARQL, WIKIPEDIA_API,
 } from './wikidata.js';
 
@@ -53,8 +53,15 @@ const USER_AGENT = 'CineMatchCatalogBuilder/1.0 (https://github.com/bumaruf/cine
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function readCheckpoint() {
-  if (!fs.existsSync(checkpointPath)) return { candidates: {}, genreLabels: {}, details: {}, pitches: {} };
-  return JSON.parse(fs.readFileSync(checkpointPath, 'utf8'));
+  if (!fs.existsSync(checkpointPath)) return { version: 2, candidates: {}, genreLabels: {}, localizedLabels: {}, details: {}, pitches: {} };
+  const checkpoint = JSON.parse(fs.readFileSync(checkpointPath, 'utf8'));
+  if (!checkpoint.version) {
+    // Older checkpoints kept a film's details only for queries with results,
+    // and ran every query of that time for each film they hold.
+    for (const details of Object.values(checkpoint.details ?? {})) for (const name of LEGACY_DETAILS) details[name] ??= [];
+    checkpoint.version = 2;
+  }
+  return checkpoint;
 }
 
 function writeCheckpoint(checkpoint) {
@@ -126,18 +133,32 @@ async function collectGenreLabels(checkpoint, candidates) {
   return new Map(Object.entries(checkpoint.genreLabels));
 }
 
-async function collectDetails(checkpoint, selected) {
-  const missing = selected.filter((candidate) => !checkpoint.details[candidate.id]);
-  const batches = chunks(missing, DETAIL_BATCH);
-  for (const [index, batch] of batches.entries()) {
-    const ids = batch.map((candidate) => candidate.id);
-    const details = Object.fromEntries(ids.map((id) => [id, {}]));
-    for (const [name, query] of Object.entries(DETAIL_QUERIES)) {
-      for (const [film, rows] of groupByFilm(parseRows(await sparql(query(ids))))) if (details[film]) details[film][name] = rows;
-    }
-    Object.assign(checkpoint.details, details);
+/** Portuguese genre labels for the keywords the panel shows; English stays for genre mapping. */
+async function collectLocalizedLabels(checkpoint, candidates) {
+  checkpoint.localizedLabels ??= {};
+  const ids = [...new Set(candidates.flatMap((candidate) => candidate.genreIds))].filter((id) => !(id in checkpoint.localizedLabels));
+  for (const batch of chunks(ids, LABEL_BATCH)) {
+    for (const row of parseRows(await sparql(localizedLabelsQuery(batch)))) checkpoint.localizedLabels[row.film] = row.label;
+    for (const id of batch) checkpoint.localizedLabels[id] ??= '';
     writeCheckpoint(checkpoint);
-    console.log(`  detalhes: lote ${index + 1}/${batches.length}`);
+  }
+  return new Map(Object.entries(checkpoint.localizedLabels));
+}
+
+const fetched = (details, name) => Boolean(details) && name in details;
+
+async function collectDetails(checkpoint, selected) {
+  for (const [name, query] of Object.entries(DETAIL_QUERIES)) {
+    const missing = selected.filter((candidate) => !fetched(checkpoint.details[candidate.id], name));
+    if (!missing.length) continue;
+    const batches = chunks(missing, DETAIL_BATCH);
+    for (const [index, batch] of batches.entries()) {
+      const ids = batch.map((candidate) => candidate.id);
+      for (const id of ids) checkpoint.details[id] = { ...checkpoint.details[id], [name]: [] };
+      for (const [film, rows] of groupByFilm(parseRows(await sparql(query(ids))))) if (checkpoint.details[film]) checkpoint.details[film][name] = rows;
+      writeCheckpoint(checkpoint);
+      console.log(`  ${name}: lote ${index + 1}/${batches.length}`);
+    }
   }
 }
 
@@ -210,6 +231,7 @@ async function run() {
 
   console.log('\n3/5 Títulos, diretores, durações, países e idiomas');
   await collectDetails(checkpoint, selected);
+  const localizedLabels = await collectLocalizedLabels(checkpoint, selected);
 
   console.log('\n4/5 Sinopses da Wikipédia');
   if (WITH_PITCHES) await collectPitches(checkpoint, selected);
@@ -219,7 +241,7 @@ async function run() {
   const films = [];
   const slugs = new Set();
   for (const candidate of selected) {
-    const film = buildFilm(candidate, checkpoint.details[candidate.id] ?? {}, genreLabels, checkpoint.pitches[candidate.id] ?? '');
+    const film = buildFilm(candidate, checkpoint.details[candidate.id] ?? {}, genreLabels, checkpoint.pitches[candidate.id] ?? '', localizedLabels);
     if (!film || slugs.has(film.slug)) continue;
     slugs.add(film.slug);
     films.push(film);

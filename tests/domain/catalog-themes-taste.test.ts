@@ -37,7 +37,7 @@ testWithCatalog('catalog indexes genres and normalized search fields without cha
   const bladeRunner = catalog.bySlug('blade-runner');
   assert.ok(bladeRunner);
   const document = catalog.searchDocument(bladeRunner);
-  assert.equal(document.title, 'blade runner: o cacador de androides');
+  assert.equal(document.title, 'blade runner');
   assert.ok(document.searchable.includes('blade runner'));
 });
 
@@ -51,15 +51,15 @@ const tasteProfile = { ...emptyProfile, films: [{ title: 'The Dark Knight', slug
 
 testWithCatalog('generic action tags never establish affinity for KGF, Pushpa or Black Friday', () => {
   const match = createTasteMatcher(tasteProfile, catalog);
-  for (const slug of ['k-g-f-chapter-2', 'pushpa-the-rise-part-1', 'black-friday']) {
+  for (const slug of ['kgf-chapter-2', 'pushpa-the-rise', 'black-friday']) {
     const film = catalog.bySlug(slug);
     assert.ok(film);
     assert.equal(match(film).eligible, false);
   }
-  const kgf = catalog.bySlug('k-g-f-chapter-2');
+  const kgf = catalog.bySlug('kgf-chapter-2');
   assert.ok(kgf);
-  const fan = createTasteMatcher({ films: [{ title: 'K.G.F: Chapter 1', slug: 'k-g-f-chapter-1', rating: 5 }] }, catalog);
+  const fan = createTasteMatcher({ films: [{ title: 'K.G.F: Chapter 1', slug: 'kgf-chapter-1', rating: 5 }] }, catalog);
   assert.equal(fan(kgf).eligible, true);
-  const disliked = createTasteMatcher({ films: [{ title: 'K.G.F: Chapter 1', slug: 'k-g-f-chapter-1', rating: 1 }] }, catalog);
+  const disliked = createTasteMatcher({ films: [{ title: 'K.G.F: Chapter 1', slug: 'kgf-chapter-1', rating: 1 }] }, catalog);
   assert.equal(disliked(kgf).eligible, false);
 });

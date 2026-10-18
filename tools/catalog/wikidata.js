@@ -47,6 +47,17 @@ export function parseCandidates(json) {
 
 const values = (ids) => `VALUES ?film { ${ids.map((id) => `wd:${id}`).join(' ')} }`;
 
+/**
+ * The entity's Brazilian Portuguese label, else Portuguese, else English: the
+ * panel shows countries and themes in Portuguese where Wikidata has them.
+ */
+function portugueseLabel(entity) {
+  return `OPTIONAL { ${entity} rdfs:label ?ptBr. FILTER(LANG(?ptBr) = "pt-br") }
+  OPTIONAL { ${entity} rdfs:label ?pt. FILTER(LANG(?pt) = "pt") }
+  OPTIONAL { ${entity} rdfs:label ?en. FILTER(LANG(?en) = "en") }
+  BIND(COALESCE(?ptBr, ?pt, ?en) AS ?label) FILTER(BOUND(?label))`;
+}
+
 /** One query per property keeps results flat: no cross product of optional values. */
 export const DETAIL_QUERIES = {
   labels: (ids) => `SELECT ?film ?lang ?label WHERE { ${values(ids)}
@@ -57,19 +68,25 @@ export const DETAIL_QUERIES = {
   durations: (ids) => `SELECT ?film ?seconds WHERE { ${values(ids)}
   ?film p:P2047 ?statement. ?statement psn:P2047/wikibase:quantityAmount ?seconds; wikibase:rank ?rank.
   FILTER(?rank != wikibase:DeprecatedRank) }`,
-  countries: (ids) => `SELECT ?film ?label WHERE { ${values(ids)}
-  ?film wdt:P495 ?country. ?country rdfs:label ?label. FILTER(LANG(?label) = "en") }`,
+  countryLabels: (ids) => `SELECT ?film ?label WHERE { ${values(ids)} ?film wdt:P495 ?country. ${portugueseLabel('?country')} }`,
   languages: (ids) => `SELECT ?film ?label WHERE { ${values(ids)} ?film wdt:P364/wdt:P218 ?label. }`,
-  subjects: (ids) => `SELECT ?film ?label WHERE { ${values(ids)}
-  ?film wdt:P921 ?subject. ?subject rdfs:label ?label. FILTER(LANG(?label) = "en") }`,
+  subjectLabels: (ids) => `SELECT ?film ?label WHERE { ${values(ids)} ?film wdt:P921 ?subject. ${portugueseLabel('?subject')} }`,
   letterboxd: (ids) => `SELECT ?film ?label WHERE { ${values(ids)} ?film wdt:P6127 ?label. }`,
   articles: (ids) => `SELECT ?film ?lang ?label WHERE { ${values(ids)}
   ?article schema:about ?film; schema:isPartOf ?site; schema:name ?label.
   VALUES (?site ?lang) { (<https://pt.wikipedia.org/> "pt") (<https://en.wikipedia.org/> "en") } }`,
 };
 
+/** Detail queries a checkpoint written before localized labels already holds for every film. */
+export const LEGACY_DETAILS = ['labels', 'originalTitle', 'directors', 'durations', 'countries', 'languages', 'subjects', 'letterboxd', 'articles'];
+
 export function entityLabelsQuery(ids) {
   return `SELECT ?film ?label WHERE { ${values(ids)} ?film rdfs:label ?label. FILTER(LANG(?label) = "en") }`;
+}
+
+/** Portuguese labels of entities (genres), with the English one as fallback. */
+export function localizedLabelsQuery(ids) {
+  return `SELECT ?film ?label WHERE { ${values(ids)} ${portugueseLabel('?film')} }`;
 }
 
 /** Rows of a detail query as { film, label, lang, links, seconds }. */
@@ -125,6 +142,23 @@ export function canonicalGenres(labels) {
 
 /** Wikidata labels that differ from how the catalog names a production country. */
 const COUNTRY_NAMES = {
+  'Estados Unidos da América': 'Estados Unidos',
+  'República Popular da China': 'China',
+  'Reino dos Países Baixos': 'Países Baixos',
+  'Alemanha Ocidental': 'Alemanha',
+  'Alemanha Oriental': 'Alemanha',
+  'República Federal da Alemanha': 'Alemanha',
+  'República Democrática Alemã': 'Alemanha',
+  'República da Irlanda': 'Irlanda',
+  'República de Weimar': 'Alemanha',
+  'Alemanha Nazi': 'Alemanha',
+  'Alemanha nazista': 'Alemanha',
+  'Império Alemão': 'Alemanha',
+  'Império do Japão': 'Japão',
+  'Império Russo': 'Rússia',
+  'Reino de Itália': 'Itália',
+  'Reino da Itália': 'Itália',
+  'Hong Kong britânico': 'Hong Kong',
   "People's Republic of China": 'China',
   'Kingdom of the Netherlands': 'Netherlands',
   'West Germany': 'Germany',
@@ -212,26 +246,29 @@ function pickLabel(rows, langs) {
  * IMDb's scores in each browser, and only a local build may add them.
  * @returns {import('../../src/domain/catalog/catalog.ts').RawCatalogFilm | null}
  */
-export function buildFilm(candidate, details, genreLabels, pitch) {
+export function buildFilm(candidate, details, genreLabels, pitch, localizedLabels = new Map()) {
   const labels = details.labels ?? [];
   const english = pickLabel(labels, ['en']);
-  const originalTitle = details.originalTitle?.[0]?.label || english || pickLabel(labels, ['pt-br', 'pt']);
-  const title = pickLabel(labels, ['pt-br', 'pt']) || originalTitle;
+  const portuguese = pickLabel(labels, ['pt-br', 'pt']);
+  const originalTitle = details.originalTitle?.[0]?.label || english || portuguese;
+  // Letterboxd names films in English: so does the catalog, which is how a
+  // user's history matches it. The Portuguese title stays searchable.
+  const title = english || portuguese || originalTitle;
   if (!title) return null;
   const director = [...(details.directors ?? [])].sort((a, b) => b.links - a.links || a.label.localeCompare(b.label))[0]?.label || 'Diretor Desconhecido';
   const runtime = runtimeMinutes((details.durations ?? []).map((row) => row.seconds));
   if (runtime > 0 && runtime < 40) return null;
   const genres = canonicalGenres([...candidate.genreIds, ...candidate.classIds].map((id) => genreLabels.get(id)).filter(Boolean));
-  const countries = [...new Set((details.countries ?? []).map((row) => countryName(row.label)).filter(Boolean))];
+  const countries = [...new Set((details.countryLabels ?? details.countries ?? []).map((row) => countryName(row.label)).filter(Boolean))];
   const letterboxd = details.letterboxd?.[0]?.label;
   const slug = letterboxd && /^[a-z0-9-]+$/.test(letterboxd) ? letterboxd : slugify(english || originalTitle);
   if (!slug) return null;
-  const keywords = [...new Set([title, originalTitle, director, ...genres, String(candidate.year), `${Math.floor(candidate.year / 10) * 10}s`].map((term) => term.toLowerCase()))].slice(0, 15);
+  const keywords = [...new Set([title, originalTitle, portuguese, director, ...genres, String(candidate.year), `${Math.floor(candidate.year / 10) * 10}s`].filter(Boolean).map((term) => term.toLowerCase()))].slice(0, 15);
   // Wikidata's own genre and subject labels ("psychological horror", "coming of
   // age") are facts about this film: theme matching reads them like keywords.
   const filmKeywords = [...new Set([
-    ...candidate.genreIds.map((id) => filmKeyword(genreLabels.get(id))),
-    ...(details.subjects ?? []).map((row) => filmKeyword(row.label)),
+    ...candidate.genreIds.map((id) => filmKeyword(localizedLabels.get(id) || genreLabels.get(id))),
+    ...(details.subjectLabels ?? details.subjects ?? []).map((row) => filmKeyword(row.label)),
   ].filter((term) => term && !keywords.includes(term)))].slice(0, 12);
   return {
     title,
@@ -262,9 +299,9 @@ export function buildFilm(candidate, details, genreLabels, pitch) {
 
 /** A genre or subject label as a keyword: "psychological horror film" → "psychological horror". */
 export function filmKeyword(label) {
-  const term = String(label ?? '').toLowerCase().replace(/\s+film$/, '').trim();
+  const term = String(label ?? '').toLowerCase().replace(/\s+film$/, '').replace(/^filme\s+(?:de\s+|do\s+|da\s+)?/, '').trim();
   // Generic classes and Wikidata's internal labels say nothing about the film.
-  return term && term !== 'film' && !/^q\d+$/.test(term) && term.length <= 40 ? term : '';
+  return term && term !== 'film' && term !== 'filme' && !/^q\d+$/.test(term) && term.length <= 40 ? term : '';
 }
 
 /** Groups detail rows by film id. */
