@@ -25,8 +25,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      # The film catalog comes from IMDb's non-commercial datasets and is not
-      # versioned. An empty stub is enough to typecheck, test and build; the
+      # The film catalog is built from Wikidata (npm run catalog:wikidata) and is
+      # not versioned. An empty stub is enough to typecheck, test and build; the
       # tests that need real films are skipped.
       - run: npm run catalog:stub
       - run: npm run lint

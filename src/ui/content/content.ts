@@ -108,8 +108,9 @@ function injectBadge(): void {
   let busy = false;
   let restoreTimer: ReturnType<typeof setTimeout> | undefined;
 
-  badge.addEventListener('click', async () => {
-    if (busy) return;
+  badge.addEventListener('click', async (event) => {
+    // A script on the page could click the button; only the user may start a sync.
+    if (busy || !event.isTrusted) return;
     busy = true;
     clearTimeout(restoreTimer);
     let completionLabel = BADGE_LABEL;
