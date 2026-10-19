@@ -316,9 +316,9 @@ console.log(`⚔️  Filmes com keyword 'guerra bélica': ${warCount} (esperado:
 // Write
 const outputPath = resolve(__dirname, '..', '..', 'src', 'data', 'films-dataset.js');
 const header = `/**
- * Letterboxd AI Curator - Massive Official IMDb Curated Film Database
- * ${enriched.length} 100% REAL feature films officially imported from IMDb Datasets.
- * Enriched with precise thematic keywords, director styles, country tags, and decade context.
+ * CineMatch film catalog: ${enriched.length} feature films, enriched with
+ * thematic keywords, director styles, country tags and decade context.
+ * Provenance is the CATALOG_SOURCE line at the end of this file.
  */
 
 export const EXPANDED_FILM_DATABASE = `;

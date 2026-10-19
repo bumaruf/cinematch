@@ -1,5 +1,8 @@
 // Regenerates the README screenshots (docs/screenshots) from the built
 // extension: a synthetic CSV profile, no personal data, real catalog posters.
+// The page captures are 1280 × 800, the Chrome Web Store size; loja-popup.png
+// frames the popup at that size and loja-promo-440x280.png is the store's
+// small promo tile.
 //
 //   npm run build
 //   CHROMIUM_PATH=/path/to/chromium npm run screenshots
@@ -7,7 +10,7 @@
 // Like e2e-smoke, it needs a browser that loads unpacked extensions from the
 // command line: a Chromium build or Microsoft Edge, not branded Chrome.
 import { chromium } from 'playwright-core';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -24,7 +27,7 @@ const context = await chromium.launchPersistentContext(mkdtempSync(join(tmpdir()
   ignoreDefaultArgs: ['--disable-extensions'],
   headless: true,
   args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`, '--headless=new'],
-  viewport: { width: 1280, height: 860 },
+  viewport: { width: 1280, height: 800 },
 });
 
 /** Lets posters (TMDB) and fonts finish before a capture. */
@@ -92,7 +95,26 @@ try {
   await popup.click('.chip >> nth=1');
   await popup.waitForSelector('#moviesContainer article', { timeout: 20000 });
   await settle(popup);
-  await popup.screenshot({ path: join(out, 'popup.png') });
+  const popupShot = await popup.screenshot({ path: join(out, 'popup.png') });
+
+  // Store artwork: the popup framed at 1280 × 800 and the 440 × 280 promo tile.
+  const logo = readFileSync(join(repo, 'src/ui/assets/cinematch-logo.svg'), 'utf8');
+  const canvas = await context.newPage();
+  const frame = (body, width, height) =>
+    `<body style="margin:0;width:${width}px;height:${height}px;display:flex;align-items:center;justify-content:center;gap:56px;background:#15171a;overflow:hidden">${body}</body>`;
+  await canvas.setViewportSize({ width: 1280, height: 800 });
+  await canvas.setContent(
+    frame(
+      `<div style="width:340px">${logo.replace('<svg', '<svg style="width:100%;height:auto"')}</div>` +
+        `<img style="width:400px;height:600px;border-radius:12px;box-shadow:0 24px 64px rgba(0,0,0,.55)" src="data:image/png;base64,${popupShot.toString('base64')}">`,
+      1280,
+      800,
+    ),
+  );
+  await canvas.screenshot({ path: join(out, 'loja-popup.png') });
+  await canvas.setViewportSize({ width: 440, height: 280 });
+  await canvas.setContent(frame(`<div style="width:300px">${logo.replace('<svg', '<svg style="width:100%;height:auto"')}</div>`, 440, 280));
+  await canvas.screenshot({ path: join(out, 'loja-promo-440x280.png') });
 
   // Configurações.
   const options = await context.newPage();

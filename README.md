@@ -108,7 +108,7 @@ docs/              arquitetura e screenshots
 ```
 
 A UI conversa com o service worker só pelo contrato de `src/messaging`. Por isso
-o catálogo (cerca de 27 MB no catálogo expandido atual) fica apenas no bundle do service worker, e as páginas abrem
+o catálogo (um arquivo gzip de cerca de 6,6 MB) só é lido pelo service worker, e as páginas abrem
 sem carregá-lo.
 
 ## Sincronização com o Letterboxd
@@ -181,7 +181,7 @@ O script não grava a credencial no catálogo ou no checkpoint.
 ## Dados e privacidade
 
 Perfil, preferências, histórico, filmes salvos, feedback e avaliações da curadoria ficam em `chrome.storage.local`.
-Hoje não expira na virada do dia em São Paulo. Já assisti é uma marcação local;
+Hoje não expira na virada do dia, no fuso do usuário. Já assisti é uma marcação local;
 não modifica o histórico sincronizado nem publica uma atividade no Letterboxd.
 A extensão acessa apenas o Letterboxd (sincronização e pôsteres), o arquivo
 público de notas do IMDb e o CDN de imagens do TMDB. Textos dinâmicos são escapados antes de entrar no HTML, e links

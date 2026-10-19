@@ -1,6 +1,6 @@
 # Privacidade do CineMatch
 
-Atualizado em 10 de outubro de 2026.
+Atualizado em 19 de outubro de 2026.
 
 O CineMatch guarda o perfil sincronizado do Letterboxd, preferências, filmes salvos, histórico de recomendações e feedback no armazenamento local da extensão, dentro do navegador do usuário. O feedback inclui o filme, o perfil ativo, a ação (Hoje não, Não combina comigo ou Já assisti) e o momento do registro.
 
@@ -8,7 +8,7 @@ Esses dados não são enviados para um servidor do CineMatch. Durante a sincroni
 
 A avaliação opcional da curadoria guarda localmente o perfil ativo, a lista apresentada, o pedido, filtros, versão da curadoria e contagens do perfil e do catálogo, além das respostas e comentários de até 500 caracteres. Registros anteriores podem manter o modo de descoberta usado na época. Não há envio automático nem treinamento com essas respostas. **Seu perfil → Avaliações da curadoria** permite exportar um arquivo JSON ou apagar as avaliações do perfil ativo. O arquivo exclui o nome do perfil e o histórico de filmes e notas importados; inclui o pedido e os comentários escritos pelo usuário, que podem conter informações pessoais se ele as inserir.
 
-O usuário pode apagar o perfil sincronizado a qualquer momento em **Configurações → Apagar perfil salvo**. Pode remover filmes da coleção pelos botões Salvo e desfazer um feedback na indicação em que o registrou ou no painel **Seu perfil → Revisar feedback de sugestões**. Hoje não deixa de excluir o filme no dia seguinte, pela data de São Paulo; os outros feedbacks continuam valendo até serem desfeitos. O feedback não publica atividades no Letterboxd nem altera as avaliações importadas ou sincronizadas.
+O usuário pode apagar o perfil sincronizado a qualquer momento em **Configurações → Apagar perfil salvo**. Pode remover filmes da coleção pelos botões Salvo e desfazer um feedback na indicação em que o registrou ou no painel **Seu perfil → Revisar feedback de sugestões**. Hoje não deixa de excluir o filme no dia seguinte, pela data do computador do usuário; os outros feedbacks continuam valendo até serem desfeitos. O feedback não publica atividades no Letterboxd nem altera as avaliações importadas ou sincronizadas.
 
 O recurso de consulta à watchlist foi removido. Cópias de consulta deixadas pela integração anterior são descartadas na limpeza de dados obsoletos e pelo botão de apagar perfil.
 

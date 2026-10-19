@@ -1,6 +1,6 @@
 # Chrome Web Store — CineMatch for Letterboxd (unofficial)
 
-Atualizado: 2026-10-12. Rascunho local; esta rodada não foi publicada na loja.
+Atualizado: 2026-10-19. Rascunho local; ainda não publicado na loja.
 
 ## Listagem
 
@@ -28,11 +28,17 @@ Propósito único: ajudar usuários do Letterboxd a escolher filmes com base em 
 
 ## Imagens
 
+A loja aceita capturas de 1280 × 800 ou 640 × 400 (de 1 a 5) e exige o bloco
+promocional pequeno de 440 × 280. `npm run screenshots` gera tudo em
+`docs/screenshots` nesses tamanhos; rode num computador com internet, para os
+pôsteres e as notas do IMDb aparecerem.
+
 | Arte | Arquivo | Estado |
 |---|---|---|
-| Ícone 128 × 128 | public/icons/icon128.png | Existente |
-| Painel e resultados | docs/screenshots/dashboard.png, docs/screenshots/resultados.png | Atualizar com a descoberta automática, critérios e feedback |
-| Popup | docs/screenshots/popup.png | Atualizar sem o seletor de modos antes de enviar |
+| Ícone 128 × 128 | public/icons/icon128.png | Pronto |
+| Bloco promocional 440 × 280 | docs/screenshots/loja-promo-440x280.png | Pronto |
+| Painel, resultados, perfil e opções | docs/screenshots/dashboard.png, resultados.png, perfil.png, options.png | Regenerar em 1280 × 800 (as atuais têm 1280 × 860) |
+| Popup | docs/screenshots/loja-popup.png | Gerar (popup enquadrado em 1280 × 800); popup.png, de 400 × 600, fica só no README |
 
 ## Justificativas de permissões
 
@@ -41,13 +47,12 @@ Propósito único: ajudar usuários do Letterboxd a escolher filmes com base em 
 | storage | Guardar perfil, configurações, salvos, histórico, feedback, avaliações opcionais da curadoria e progresso de sincronização no navegador. |
 | unlimitedStorage | Remover o limite de 10 MB do armazenamento local: um histórico grande do Letterboxd e o backup do perfil anterior podem passar desse limite. Não mostra aviso na instalação. |
 | activeTab | Identificar o perfil do Letterboxd na aba ativa quando o usuário abre o popup. |
-| tabs | Encontrar uma aba aberta do Letterboxd e abrir o painel do CineMatch. |
 | scripting | Consultar o Letterboxd na aba aberta para completar a sincronização quando o site pede verificação. |
 | https://letterboxd.com/* e https://*.letterboxd.com/* | Consultar perfil, histórico e pôsteres e mostrar o atalho de indicação nas páginas do Letterboxd. |
 | https://image.tmdb.org/* | Exibir pôsteres dos filmes. |
 | https://datasets.imdbws.com/* | Baixar o arquivo público de notas do IMDb na instalação e uma vez por mês; as notas não vêm no pacote. |
 
-A permissão unlimitedStorage foi acrescentada em 2026-10-18; ela não gera aviso na instalação. A permissão `https://datasets.imdbws.com/*` também foi acrescentada nesta rodada.
+A permissão `tabs` saiu em 2026-10-19: as permissões de host do Letterboxd já dão acesso às abas do site, e `tabs` mostraria o aviso de leitura do histórico de navegação.
 
 ## Privacidade
 
@@ -61,7 +66,7 @@ Não há coleta de credenciais, pagamentos, saúde, localização, comunicaçõe
 
 URL pública da política de privacidade, nome do publicador, e-mail de contato, endereço de suporte, visibilidade e regiões: a definir pelo mantenedor. Validar as dimensões das novas screenshots e preencher as declarações da loja a partir do comportamento descrito acima. Estes campos não foram inventados e nenhum envio foi realizado.
 
-O catálogo IMDb tem licença de uso pessoal e não comercial; o código GPL não muda a licença dos dados. O funcionamento dos climas depende da qualidade dos metadados disponíveis.
+O pacote leva só dados que podem ser redistribuídos: catálogo do Wikidata (CC0), sinopses da Wikipédia (CC BY-SA 4.0, com crédito em Configurações → Fontes dos dados) e caminhos dos pôsteres do TMDB, com o aviso exigido pelo TMDB. As notas do IMDb (uso pessoal e não comercial) são baixadas pelo navegador de cada usuário. Detalhes em docs/data-sources.md. O código GPL não muda a licença dos dados.
 
 ## Histórico
 
