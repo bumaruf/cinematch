@@ -56,7 +56,7 @@ function assertUsableHistory(profile: UserProfile): void {
   const synced = profile.films.length;
   const expected = Number(profile.totalFilms || 0);
   if (profile.username && profile.username !== GUEST_PROFILE.username && synced === 0 && !(profile.filmCountKnown && expected === 0)) {
-    throw new Error('Não há filmes sincronizados neste perfil. Sincronize seu Letterboxd antes de pedir recomendações.');
+    throw new Error('Não há filmes sincronizados neste perfil. Importe seu histórico do Letterboxd antes de pedir recomendações.');
   }
   if (expected > 0 && !isHistoryComplete(synced, expected)) {
     throw new Error(`Histórico incompleto: ${synced} de ${expected} filmes sincronizados. Sincronize novamente antes de pedir recomendações.`);

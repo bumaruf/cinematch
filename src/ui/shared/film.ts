@@ -2,7 +2,6 @@ import type { SavedFilm } from '../../application/ports.ts';
 import type { Recommendation } from '../../domain/film.ts';
 import { letterboxdSearchUrl } from '../../domain/recommend/recommendation.ts';
 import { createFilmIdentityIndex } from '../../domain/profile/identity.ts';
-import { send } from '../../messaging/client.ts';
 import { safeUrl } from './html.ts';
 
 /** Anything the UI shows as a film: a recommendation or a saved entry. */
@@ -74,9 +73,9 @@ function place(container: HTMLElement, key: string, src: string, alt: string, on
 }
 
 /**
- * Fills a poster container: the catalog's TMDB poster first, then the
- * Letterboxd page artwork. The container keeps its fallback otherwise, and a
- * late response never overwrites a container reused for another film.
+ * Fills a poster container with the catalog's TMDB poster. The container keeps
+ * its fallback otherwise, and a late load never overwrites a container reused
+ * for another film. Letterboxd pages are not fetched for artwork.
  */
 export function hydratePoster(
   container: HTMLElement | null,
@@ -87,18 +86,6 @@ export function hydratePoster(
   if (!container) return;
   const key = posterKey(film);
   container.dataset.posterKey = key;
-  const alt = `Pôster de ${film.title}`;
-  const fromLetterboxd = async (): Promise<void> => {
-    const slug = film.letterboxdSlug || film.slug;
-    if (!slug) return;
-    try {
-      const url = await send('getFilmArtwork', { slug });
-      if (url && container.dataset.posterKey === key) place(container, key, safeUrl(url, ''), alt, undefined, onLoad);
-    } catch {
-      // Keep the neutral fallback.
-    }
-  };
   const tmdb = tmdbPosterUrl(film.posterPath, size);
-  if (tmdb) place(container, key, tmdb, alt, () => void fromLetterboxd(), onLoad);
-  else void fromLetterboxd();
+  if (tmdb) place(container, key, tmdb, `Pôster de ${film.title}`, undefined, onLoad);
 }

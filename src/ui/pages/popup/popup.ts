@@ -26,7 +26,9 @@ onReady(async () => {
     home: byId('homeView'),
     profileLoading: byId('profileLoading'),
     syncProgress: byId('syncProgressText'),
-    profileEmpty: byId<HTMLFormElement>('profileEmpty'),
+    profileEmpty: byId('profileEmpty'),
+    syncForm: byId<HTMLFormElement>('syncForm'),
+    importCsv: byId<HTMLButtonElement>('btnImportCsv'),
     profileLoaded: byId('profileLoaded'),
     discover: byId('discoverSection'),
     usernameInput: byId<HTMLInputElement>('usernameInput'),
@@ -277,15 +279,16 @@ onReady(async () => {
     clearTimeout(draftTimer);
     draftTimer = setTimeout(saveDraft, 300);
   });
-  el.profileEmpty.addEventListener('submit', (event) => {
+  // Importing the user's own export is the main path; syncing reads the site.
+  el.syncForm.addEventListener('submit', (event) => {
     event.preventDefault();
     const username = el.usernameInput.value.trim();
     if (username) void syncProfile(username);
   });
-  byId('btnImportCsv').addEventListener('click', () => void send('openDashboard', { hash: 'recovery' }));
+  el.importCsv.addEventListener('click', () => void send('openDashboard', { hash: 'importar' }));
   byId('btnChangeUser').addEventListener('click', () => {
     profileState('empty');
-    el.usernameInput.focus();
+    el.importCsv.focus();
   });
 
   // ── Start ─────────────────────────────────────────────────────────────────

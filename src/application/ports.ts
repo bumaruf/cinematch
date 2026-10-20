@@ -153,11 +153,6 @@ export interface LetterboxdSync {
   clearProgress(): Promise<void>;
 }
 
-export interface ArtworkSource {
-  /** The film page's og:image, or '' when unavailable. */
-  artworkUrl(slug: string): Promise<string>;
-}
-
 /**
  * Readiness of the on-device model, as Chrome reports it. `unsupported` means
  * this browser context does not expose the API at all.

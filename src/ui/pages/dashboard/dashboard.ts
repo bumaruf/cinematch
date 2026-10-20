@@ -37,12 +37,12 @@ onReady(async () => {
     daily.clear();
     feedback.reset();
   };
-  setupProfile({ state, notify, beforeChange: resetProfileSections });
-  const settings = setupSettings({ state, notify, goToImport: () => openRecovery(), onProfileCleared: resetProfileSections });
+  const profile = setupProfile({ state, notify, beforeChange: resetProfileSections });
+  const settings = setupSettings({ state, notify, goToImport: () => openImport(), onProfileCleared: resetProfileSections });
 
   /**
    * Shows a tab from its top. A link that opened the panel at a section
-   * (#fontes, #recovery) keeps its address; a plain switch clears it, so a
+   * (#fontes, #importar) keeps its address; a plain switch clears it, so a
    * reload does not jump back.
    */
   function activateTab(tab: string, { keepHash = false } = {}): void {
@@ -66,16 +66,15 @@ onReady(async () => {
     if (active) renderDna(active);
   });
 
-  function openRecovery(): void {
+  /** The CSV import, with the steps to export it from Letterboxd. */
+  function openImport(): void {
     activateTab('dna', { keepHash: true });
-    const recovery = byId<HTMLDetailsElement>('profileRecovery');
-    recovery.open = true;
-    recovery.scrollIntoView();
+    profile.openImport();
   }
 
-  /** Links into the panel: #settings, #fontes (the credits in Settings), #recovery. */
+  /** Links into the panel: #settings, #fontes (the credits in Settings), #importar (#recovery in older links). */
   function followHash(): void {
-    if (location.hash === '#recovery') openRecovery();
+    if (location.hash === '#importar' || location.hash === '#recovery') openImport();
     else if (location.hash === '#settings') activateTab('settings', { keepHash: true });
     else if (location.hash === '#fontes') {
       activateTab('settings', { keepHash: true });

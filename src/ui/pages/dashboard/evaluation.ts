@@ -21,7 +21,7 @@ export function setupRecommendationEvaluation(notify: Notifier, currentUsername:
 
   async function refresh(): Promise<boolean> {
     const username = currentUsername();
-    if (!username) { report = null; summary.textContent = 'Sincronize seu perfil para iniciar a avaliação.'; exportButton.disabled = true; clearButton.disabled = true; return false; }
+    if (!username) { report = null; summary.textContent = 'Importe seu histórico para iniciar a avaliação.'; exportButton.disabled = true; clearButton.disabled = true; return false; }
     const request = generation;
     try {
       const loaded = await send('getRecommendationEvaluationReport');

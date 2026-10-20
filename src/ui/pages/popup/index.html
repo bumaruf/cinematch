@@ -34,14 +34,20 @@
         <span id="syncProgressText">Sincronizando…</span>
       </div>
 
-      <form id="profileEmpty">
-        <label for="usernameInput" class="mb-2 block text-[13px] text-muted">Seu usuário no Letterboxd</label>
-        <div class="flex gap-2">
-          <input type="text" id="usernameInput" class="field" placeholder="ex.: seu_usuario" autocomplete="off" spellcheck="false">
-          <button id="btnSyncProfile" class="btn btn-primary min-h-10" type="submit">Conectar</button>
-        </div>
-        <p class="mt-3 text-[13px] text-muted">Perfil privado ou sem internet? <button id="btnImportCsv" class="cursor-pointer text-ink underline underline-offset-2 hover:text-brand" type="button">Importe o CSV do Letterboxd</button></p>
-      </form>
+      <div id="profileEmpty">
+        <p class="mb-3 text-[13px] text-muted">Importe o histórico que você exporta do Letterboxd para receber sugestões.</p>
+        <button id="btnImportCsv" class="btn btn-primary min-h-10 w-full" type="button">Importar histórico do Letterboxd</button>
+        <details id="syncOption" class="disclosure mt-3">
+          <summary class="text-[13px]">Ou sincronizar pelo nome de usuário</summary>
+          <form id="syncForm" class="mt-2">
+            <label for="usernameInput" class="mb-2 block text-[13px] text-muted">Seu usuário no Letterboxd (perfil público)</label>
+            <div class="flex gap-2">
+              <input type="text" id="usernameInput" class="field" placeholder="ex.: seu_usuario" autocomplete="off" spellcheck="false">
+              <button id="btnSyncProfile" class="btn min-h-10" type="submit">Sincronizar</button>
+            </div>
+          </form>
+        </details>
+      </div>
 
       <div id="profileLoaded" class="flex items-center gap-3 hidden">
         <img id="userAvatar" class="size-9 shrink-0 rounded-full object-cover ring-1 ring-white/10 hidden" src="" alt="">

@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { getFilmArtwork, getPopupSession, getSettings, listSavedFilms, savePopupSession, toggleSavedFilm, updateSettings } from '../../src/application/library.ts';
+import { getPopupSession, getSettings, listSavedFilms, savePopupSession, toggleSavedFilm, updateSettings } from '../../src/application/library.ts';
 import { DEFAULT_SETTINGS, KEYS } from '../../src/infrastructure/storage/stores.ts';
 import { createTestContext, FIXED_NOW, testWithCatalog } from '../helpers.ts';
 import { createCatalog } from '../../src/domain/catalog/catalog.ts';
@@ -49,11 +49,6 @@ test('updateSettings accepts only valid values and getSettings starts from defau
   const updated = await updateSettings(ctx, { avoidWatched: false, minVotes: -5, includeUnderrated: 'yes' as unknown as boolean });
   assert.deepEqual(updated, { ...DEFAULT_SETTINGS, avoidWatched: false });
   assert.deepEqual(await updateSettings(ctx, { minVotes: 5000 }), { ...DEFAULT_SETTINGS, avoidWatched: false, minVotes: 5000 });
-});
-
-test('getFilmArtwork delegates to the artwork source', async () => {
-  const { ctx } = await createTestContext({ artwork: { artworkUrl: async (slug) => `https://img/${slug}.jpg` } });
-  assert.equal(await getFilmArtwork(ctx, 'alien'), 'https://img/alien.jpg');
 });
 
 test('the popup session keeps the current list for this browser session', async () => {

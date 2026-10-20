@@ -14,7 +14,7 @@ function importMessage(summary: ImportSummary): string {
     : 'Notas atualizadas no histórico existente. Para substituir a lista de assistidos, importe watched.csv.';
 }
 
-/** Sidebar profile, Letterboxd sync and CSV import. */
+/** Sidebar profile, CSV import (the main path) and the optional Letterboxd sync. */
 export function setupProfile({ state, notify, beforeChange }: { state: ProfileState; notify: Notifier; beforeChange: () => void }) {
   const el = {
     avatar: byId<HTMLImageElement>('sideUserAvatar'),
@@ -32,7 +32,7 @@ export function setupProfile({ state, notify, beforeChange }: { state: ProfileSt
   function renderSidebar(profile: ProfileOverview | null): void {
     if (!profile) {
       el.displayName.textContent = 'Nenhum perfil';
-      el.username.textContent = 'Sincronize para começar';
+      el.username.textContent = 'Importe o CSV';
       return;
     }
     el.displayName.textContent = profile.displayName || profile.username;
@@ -106,11 +106,11 @@ export function setupProfile({ state, notify, beforeChange }: { state: ProfileSt
     (lastFocused as HTMLElement | null)?.focus?.();
   };
 
-  el.sync.addEventListener('click', () => void sync());
+  // Importing the user's own export comes first; syncing reads the site.
+  el.sync.addEventListener('click', openModal);
+  el.importDna.addEventListener('click', openModal);
   el.refreshDna.addEventListener('click', () => void sync());
   byId('btnFullSync').addEventListener('click', () => void sync(true));
-  el.importDna.addEventListener('click', () => el.csvInput.click());
-  byId('btnOpenCsvHelpDna').addEventListener('click', openModal);
   for (const id of ['btnDismissCsvModal', 'btnCloseCsvModal']) byId(id).addEventListener('click', closeModal);
   byId('btnSelectCsvFromModal').addEventListener('click', () => {
     closeModal();
@@ -127,4 +127,5 @@ export function setupProfile({ state, notify, beforeChange }: { state: ProfileSt
   });
 
   state.onOverview(renderSidebar);
+  return { openImport: openModal };
 }

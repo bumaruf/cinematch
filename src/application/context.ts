@@ -1,6 +1,5 @@
 import type { Catalog } from '../domain/catalog/catalog.ts';
 import type {
-  ArtworkSource,
   Clock,
   FeedbackStore,
   EvaluationStore,
@@ -35,7 +34,6 @@ export interface AppContext {
   feedback: FeedbackStore;
   evaluations: EvaluationStore;
   letterboxd: LetterboxdSync;
-  artwork: ArtworkSource;
   /** Chrome's built-in model; absent where the platform offers none. */
   onDeviceModel?: OnDeviceModel;
   /**

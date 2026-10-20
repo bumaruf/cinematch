@@ -11,10 +11,12 @@ const ICONS = {
 
 export default defineManifest({
   manifest_version: 3,
-  name: 'CineMatch for Letterboxd (unofficial)',
+  // No third-party brand in the name: the store treats it as a trademark use.
+  // Letterboxd only appears in the description, to say what the extension works with.
+  name: 'CineMatch: recomendações de filmes',
   version: pkg.version,
   // The Chrome Web Store rejects a description over 132 characters.
-  description: 'Recomendações de filmes pelo seu gosto no Letterboxd, por clima ou por pedido. Extensão não oficial.',
+  description: 'Recomendações de filmes pelo seu gosto, a partir do histórico do Letterboxd. Por clima ou por pedido. Extensão não oficial.',
   // unlimitedStorage lifts the 10 MB cap of chrome.storage.local: a large
   // Letterboxd history and its backup can approach it. It shows no warning.
   // No `tabs`: the Letterboxd host permissions already expose those tabs' URLs
@@ -29,7 +31,7 @@ export default defineManifest({
   action: {
     default_popup: 'src/ui/pages/popup/index.html',
     default_icon: ICONS,
-    default_title: 'CineMatch for Letterboxd (unofficial)',
+    default_title: 'CineMatch',
   },
   options_page: 'src/ui/pages/options/index.html',
   content_scripts: [
