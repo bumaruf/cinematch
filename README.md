@@ -4,10 +4,13 @@
 
 [![CI](https://github.com/bumaruf/cinematch/actions/workflows/ci.yml/badge.svg)](https://github.com/bumaruf/cinematch/actions/workflows/ci.yml)
 
-Extensão Manifest V3 para Chrome que recomenda filmes a partir do seu perfil no
-Letterboxd. Tudo roda no navegador: o motor de recomendação usa um catálogo
+Extensão Manifest V3 para Chrome que recomenda filmes a partir do histórico que
+você exporta do Letterboxd. Tudo roda no navegador: o motor de recomendação usa um catálogo
 local (25 mil filmes no catálogo expandido atual) e não envia seu perfil a nenhum serviço de recomendação.
 
+- **Importação do histórico:** importe os arquivos CSV que o Letterboxd
+  exporta (filmes vistos, notas e diário). A sincronização pelo nome de usuário
+  continua como opção.
 - **Recomendações por clima:** 15 atmosferas curadas, cada uma com um contrato
   de gêneros e sinais temáticos.
 - **Busca em linguagem natural:** gêneros e países com alternativas e exclusões,
@@ -104,7 +107,7 @@ tools/
   icons/           gera a logo e os ícones a partir de assets/brand
 assets/brand/      logo e ícone originais (fonte da marca)
 tests/             Vitest
-docs/              arquitetura e screenshots
+docs/              arquitetura, fontes dos dados, privacidade, desempenho, curadoria e screenshots
 ```
 
 A UI conversa com o service worker só pelo contrato de `src/messaging`. Por isso
@@ -185,7 +188,7 @@ O script não grava a credencial no catálogo ou no checkpoint.
 
 Perfil, preferências, histórico, filmes salvos, feedback e avaliações da curadoria ficam em `chrome.storage.local`.
 Hoje não expira na virada do dia, no fuso do usuário. Já assisti é uma marcação local;
-não modifica o histórico sincronizado nem publica uma atividade no Letterboxd.
+não modifica o histórico importado nem publica uma atividade no Letterboxd.
 O caminho principal é importar o CSV que você exporta do Letterboxd. A extensão
 acessa apenas o Letterboxd (na sincronização opcional), o arquivo
 público de notas do IMDb e o CDN de imagens do TMDB. Textos dinâmicos são escapados antes de entrar no HTML, e links
@@ -195,11 +198,12 @@ As palavras-chave novas registram sua origem (filme, gênero, diretor ou deriva�
 Termos de gênero ou estilo herdados automaticamente não comprovam um clima ou uma
 afinidade forte. Catálogos antigos recebem tratamento conservador; sinopses e dados
 ausentes ainda limitam a precisão. Durações desconhecidas não recebem o valor
-fictício de 100 minutos. A revisão local de 7 de outubro conferiu os 25 mil
-identificadores; restam 45 durações e 860 países desconhecidos após o enriquecimento.
+fictício de 100 minutos. No catálogo atual do Wikidata (25 mil filmes), 1.348
+durações e 10 países são desconhecidos; todos os filmes têm sinopse.
 
 O método, os resultados e o roteiro para avaliar com seu perfil estão em
-[docs/curation-validation.md](docs/curation-validation.md). Respostas humanas
+[docs/curation-validation.md](docs/curation-validation.md). Essas rodadas de
+curadoria foram feitas com o catálogo anterior, do IMDb. Respostas humanas
 ainda são necessárias para medir os acertos; testes automáticos conferem regras
 e funcionamento, sem comprovar satisfação com a curadoria.
 

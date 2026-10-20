@@ -1,5 +1,8 @@
 # Avaliação e revisão da curadoria
 
+> Registro histórico: esta rodada usou o catálogo anterior, do IMDb. Desde 18 de
+> outubro de 2026 o catálogo vem do Wikidata, e os números podem ser diferentes.
+
 A ampliação posterior dos dois climas com menor cobertura e a nova consulta
 dos metadados estão documentadas em
 [Ampliação de cobertura e revisão de metadados](curation-coverage.md), de 12

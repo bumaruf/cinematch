@@ -217,7 +217,7 @@ async function computeDailyPick(ctx: AppContext, options: { refresh?: boolean; u
     // oldest entry is the original daily selection; newer ones were refreshes.
     todayEntries.filter((entry) => !entry.data.kind).at(-1);
   if (!options.refresh && cached?.data.matchingVersion === DAILY_MATCHING_VERSION && cached.data.profileKey === key && !blocked.has(cached.data.film)) {
-    return { username, profileKey: key, data: cached.data };
+    return { username, profileKey: key, data: await withCurrentRating(ctx, cached.data) };
   }
 
   const excludedSlugs = history
@@ -231,6 +231,18 @@ async function computeDailyPick(ctx: AppContext, options: { refresh?: boolean; u
   const data: StoredDailyPick = { ...pick, profileKey: key, profileUsername: username, kind: 'daily' };
   await ctx.daily.add({ username, date: today, data });
   return { username, profileKey: key, data };
+}
+
+/**
+ * A pick chosen before IMDb's ratings finished downloading was stored without
+ * a rating, and the cards of the same film show one. Once the ratings exist,
+ * the stored pick takes the catalog's rating. The catalog loads only then.
+ */
+async function withCurrentRating(ctx: AppContext, data: StoredDailyPick): Promise<StoredDailyPick> {
+  if (data.film.imdbRating || (await ratingsMissing(ctx))) return data;
+  const film = (await ctx.catalog()).bySlug(data.film.catalogSlug);
+  if (!film?.imdbRating) return data;
+  return { ...data, film: { ...data.film, imdbRating: film.imdbRating, imdbVotes: film.imdbVotes } };
 }
 
 /**

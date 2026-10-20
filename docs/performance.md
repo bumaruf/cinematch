@@ -1,5 +1,8 @@
 # Desempenho
 
+> Registro histórico: as rodadas de 12 a 15 de outubro usaram o catálogo anterior,
+> do IMDb. A rodada de 18 de outubro, no fim, mede o catálogo do Wikidata.
+
 Rodada de 12–13 de outubro de 2026, comparada ao código de `7964f25`.
 O objetivo foi reduzir a demora ao reativar a extensão e o trabalho repetido do
 motor, preservando os filmes indicados e as regras de exclusão.
@@ -213,3 +216,20 @@ palavra, por aproximação, para cada termo. Agora o campo é dividido uma vez e
 cada palavra é procurada no conjunto de palavras do vocabulário que o termo já
 casa. O resultado é o mesmo; o motor passou de cerca de 345 ms para 100 ms nessa
 busca, e o painel com o worker quente responde em cerca de 190 ms.
+
+## Rodada de 18 de outubro de 2026: catálogo do Wikidata
+
+Com o catálogo do Wikidata, o worker frio levava cerca de 1,9 s para responder
+à primeira mensagem, porque relia e descomprimia o catálogo inteiro (45,8 MB
+descompactado). Quase metade disso era `keywordEvidence`, que repetia o texto
+de cada palavra-chave só para guardar a origem dela.
+
+- No pacote, a origem virou uma string de códigos paralela a `keywords`
+  (`keywordSources`). O JSON caiu de 45,8 para 24,1 MB, o gzip de 8,2 para
+  6,6 MB e o `JSON.parse` de cerca de 1.340 ms para 300 ms.
+- As estatísticas do perfil passaram a ficar em `chrome.storage.session`, e a
+  interface não espera mais o catálogo só para mostrá-las.
+
+Continuam em aberto: o primeiro clima com o worker frio (cerca de 1,35 s), a
+primeira busca por texto, que monta o índice de palavras, e manter o worker
+vivo enquanto uma página da extensão está aberta.

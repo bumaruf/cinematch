@@ -1,5 +1,8 @@
 # Ampliação de cobertura e revisão de metadados
 
+> Registro histórico: esta rodada usou o catálogo anterior, do IMDb. Desde 18 de
+> outubro de 2026 o catálogo vem do Wikidata, e os números podem ser diferentes.
+
 Rodada de 12 de outubro de 2026, após a primeira amostra qualitativa com o
 perfil do mantenedor. A recepção positiva daquela amostra não foi convertida
 em uma taxa de precisão. Esta etapa amplia a evidência disponível para os dois
