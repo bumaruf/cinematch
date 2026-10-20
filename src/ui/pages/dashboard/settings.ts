@@ -146,7 +146,7 @@ export function setupSettings({ state, notify, goToImport, onProfileCleared }: S
       clearCacheDialog.close();
       state.set(null);
       onProfileCleared();
-      notify.toast('Perfil apagado. Sincronize ou importe o CSV quando quiser.');
+      notify.toast('Perfil apagado. Importe o CSV de novo quando quiser.');
     } catch (error) {
       notify.error((error as Error).message);
     }

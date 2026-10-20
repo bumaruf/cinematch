@@ -109,7 +109,7 @@ function injectBadge(): void {
   let restoreTimer: ReturnType<typeof setTimeout> | undefined;
 
   badge.addEventListener('click', async (event) => {
-    // A script on the page could click the button; only the user may start a sync.
+    // A script on the page could click the button; only the user may use it.
     if (busy || !event.isTrusted) return;
     busy = true;
     clearTimeout(restoreTimer);
@@ -119,22 +119,24 @@ function injectBadge(): void {
     const username = usernameFromLetterboxdUrl(location.href);
     let offer: ProfileSwitch | undefined;
     try {
-      if (username) {
-        try {
-          const active = await send('getProfileSummary');
-          const activeName = active?.profile.filmCount ? active.profile.username : '';
-          if (!activeName) {
-            // Nothing to lose yet: the member being viewed becomes the profile.
-            label.textContent = 'Atualizando histórico…';
-            await syncProfileFully(username);
-          } else if (activeName.toLowerCase() !== username.toLowerCase()) {
-            // Never replace the active history without an explicit choice.
-            offer = { active: activeName, member: username };
-          }
-        } catch (error) {
-          completionLabel = (error as Error).message || 'Não foi possível sincronizar. Tente novamente.';
-          return;
-        }
+      let activeName = '';
+      try {
+        const active = await send('getProfileSummary');
+        activeName = active?.profile.filmCount ? active.profile.username : '';
+      } catch (error) {
+        completionLabel = (error as Error).message || 'Não foi possível ler o perfil. Tente novamente.';
+        return;
+      }
+      if (!activeName) {
+        // No history yet: the panel walks through importing the user's own
+        // CSV export, instead of the button reading the site on its own.
+        completionLabel = 'Importe seu histórico no Studio…';
+        void send('openDashboard', { hash: 'importar' }).catch(() => {});
+        return;
+      }
+      if (username && activeName.toLowerCase() !== username.toLowerCase()) {
+        // Never replace the active history without an explicit choice.
+        offer = { active: activeName, member: username };
       }
       try {
         showDailyModal((await send('getDailyPick', {})).data, offer);

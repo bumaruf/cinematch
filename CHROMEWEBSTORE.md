@@ -1,10 +1,12 @@
-# Chrome Web Store — CineMatch for Letterboxd (unofficial)
+# Chrome Web Store — CineMatch
 
 Atualizado: 2026-10-19. Rascunho local; ainda não publicado na loja.
 
 ## Listagem
 
-Nome: CineMatch for Letterboxd (unofficial)
+Nome: CineMatch: recomendações de filmes
+
+O nome não leva a marca Letterboxd: a loja trata isso como uso de marca de terceiros. O Letterboxd aparece só na descrição, para dizer com o que a extensão funciona, sempre como "não oficial".
 
 Descrição curta: Encontre filmes pelo seu gosto no Letterboxd, por clima ou por pedido, com sugestões diárias e uma lista de salvos.
 
@@ -16,7 +18,7 @@ Explore 15 climas, peça gêneros, exclusões, país de produção, período e d
 
 Quando faltam opções com evidência específica do clima, a lista pode incluir sugestões identificadas como Próximo ao clima. Se a busca fica vazia, Ver sugestões gerais permite começar outra busca sem o pedido e os filtros, respeitando seus assistidos e feedback.
 
-Sincronize seu usuário ou importe os arquivos de histórico e avaliações do Letterboxd. Consulte seu perfil, as indicações do dia, as buscas anteriores e a coleção de salvos. Ajuste sugestões com Hoje não, Não combina comigo ou Já assisti; cada registro pode ser desfeito na indicação.
+Importe os arquivos de histórico e avaliações que você exporta do Letterboxd, ou, se preferir, sincronize pelo nome de usuário. Consulte seu perfil, as indicações do dia, as buscas anteriores e a coleção de salvos. Ajuste sugestões com Hoje não, Não combina comigo ou Já assisti; cada registro pode ser desfeito na indicação.
 
 No painel, avalie opcionalmente se uma indicação combina com o pedido e se desperta vontade de assistir. As respostas distinguem filmes vistos de expectativas pela sinopse. Você pode exportar ou apagar suas avaliações em Seu perfil.
 
@@ -48,7 +50,7 @@ pôsteres e as notas do IMDb aparecerem.
 | unlimitedStorage | Remover o limite de 10 MB do armazenamento local: um histórico grande do Letterboxd e o backup do perfil anterior podem passar desse limite. Não mostra aviso na instalação. |
 | activeTab | Identificar o perfil do Letterboxd na aba ativa quando o usuário abre o popup. |
 | scripting | Consultar o Letterboxd na aba aberta para completar a sincronização quando o site pede verificação. |
-| https://letterboxd.com/* e https://*.letterboxd.com/* | Consultar perfil, histórico e pôsteres e mostrar o atalho de indicação nas páginas do Letterboxd. |
+| https://letterboxd.com/* e https://*.letterboxd.com/* | Na sincronização opcional, consultar o perfil e o histórico públicos; mostrar o atalho de indicação nas páginas do Letterboxd. |
 | https://image.tmdb.org/* | Exibir pôsteres dos filmes. |
 | https://datasets.imdbws.com/* | Baixar o arquivo público de notas do IMDb na instalação e uma vez por mês; as notas não vêm no pacote. |
 

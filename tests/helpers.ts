@@ -1,5 +1,5 @@
 import type { AppContext } from '../src/application/context.ts';
-import type { ArtworkSource, LetterboxdSync, OnDeviceModel } from '../src/application/ports.ts';
+import type { LetterboxdSync, OnDeviceModel } from '../src/application/ports.ts';
 import type { Catalog } from '../src/domain/catalog/catalog.ts';
 import type { UserProfile } from '../src/domain/film.ts';
 import { loadCatalog } from '../src/infrastructure/catalog.ts';
@@ -46,14 +46,12 @@ export function fakeLetterboxd(syncBatch?: LetterboxdSync['syncBatch']): FakeLet
   return fake;
 }
 
-export const fakeArtwork: ArtworkSource = { artworkUrl: async () => '' };
 
 export interface TestContextOptions {
   initial?: Record<string, unknown>;
   profile?: UserProfile | null;
   now?: Date | (() => Date);
   letterboxd?: LetterboxdSync;
-  artwork?: ArtworkSource;
   onDeviceModel?: OnDeviceModel;
   /** Defaults to the generated catalog (an empty stub in CI). */
   catalog?: Catalog;
@@ -79,7 +77,6 @@ export async function createTestContext(options: TestContextOptions = {}) {
     feedback: feedbackStore(kv),
     evaluations: evaluationStore(kv),
     letterboxd: options.letterboxd ?? fakeLetterboxd(),
-    artwork: options.artwork ?? fakeArtwork,
     onDeviceModel: options.onDeviceModel,
   };
   if (options.profile) await ctx.profiles.save(options.profile);

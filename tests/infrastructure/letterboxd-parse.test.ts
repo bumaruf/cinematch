@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { parseOgImage, letterboxdArtwork } from '../../src/infrastructure/letterboxd/artwork.ts';
 import {
   fetchLetterboxdPage,
   isVerificationPage,
@@ -154,29 +153,6 @@ test('fetchLetterboxdPage maps HTTP statuses to typed errors', async () => {
   assert.ok(!(serverError instanceof LetterboxdError), '500 is a plain, retryable Error');
   assert.match((serverError as Error).message, /HTTP 500/);
   assert.equal(await fetchLetterboxdPage(url, fakeFetch(200, '<html>ok</html>')), '<html>ok</html>');
-});
-
-test('parseOgImage reads og:image in either attribute order and decodes &amp;', () => {
-  assert.equal(parseOgImage('<meta property="og:image" content="https://a.ltrbxd.com/x.jpg?v=1&amp;k=2">'), 'https://a.ltrbxd.com/x.jpg?v=1&k=2');
-  assert.equal(parseOgImage(`<meta content='https://a.ltrbxd.com/y.jpg' property='og:image' />`), 'https://a.ltrbxd.com/y.jpg');
-  assert.equal(parseOgImage('<meta property="og:title" content="Alien">'), '');
-});
-
-test('letterboxdArtwork fetches the film page once, caches it and swallows failures', async () => {
-  const calls: string[] = [];
-  const fetchImpl = (async (url: string) => {
-    calls.push(url);
-    return { ok: true, status: 200, text: async () => '<meta property="og:image" content="https://img/alien.jpg">' };
-  }) as unknown as typeof fetch;
-  const artwork = letterboxdArtwork(fetchImpl);
-  assert.equal(await artwork.artworkUrl('Alien'), 'https://img/alien.jpg');
-  assert.equal(await artwork.artworkUrl('alien'), 'https://img/alien.jpg');
-  assert.deepEqual(calls, ['https://letterboxd.com/film/alien/']);
-  assert.equal(await artwork.artworkUrl('!!!'), '');
-  const failing = letterboxdArtwork((async () => {
-    throw new Error('offline');
-  }) as unknown as typeof fetch);
-  assert.equal(await failing.artworkUrl('alien'), '');
 });
 
 test('a film logged during the sync is not lost when it pushes another to the next page', async () => {

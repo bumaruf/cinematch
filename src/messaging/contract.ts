@@ -39,7 +39,6 @@ export interface Contract {
   /** IMDb scores this browser downloaded; they are not part of the package. */
   getRatingsStatus: { request: void; response: RatingsStatus };
   refreshRatings: { request: { force?: boolean }; response: RatingsStatus };
-  getFilmArtwork: { request: { slug: string }; response: string };
   openDashboard: { request: { hash?: string }; response: void };
 }
 
@@ -85,7 +84,6 @@ export const ACTIONS: readonly Action[] = [
   'getOnDeviceModelStatus',
   'getRatingsStatus',
   'refreshRatings',
-  'getFilmArtwork',
   'openDashboard',
 ];
 
@@ -99,7 +97,6 @@ export const CONTENT_SCRIPT_ACTIONS: ReadonlySet<Action> = new Set<Action>([
   'warmUp',
   'syncProfile',
   'getDailyPick',
-  'getFilmArtwork',
   'openDashboard',
 ]);
 

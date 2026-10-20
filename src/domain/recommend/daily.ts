@@ -15,7 +15,7 @@ export const GUEST_USERNAME = 'convidado';
 export class NoDailyCandidateError extends Error {
   constructor() {
     super(
-      'Não encontrei outro filme com afinidade suficiente. Sincronize suas avaliações e favoritos ou faça uma busca por tema para explorar novos filmes.',
+      'Não encontrei outro filme com afinidade suficiente. Atualize seu histórico com mais avaliações ou faça uma busca por tema para explorar novos filmes.',
     );
     this.name = 'NoDailyCandidateError';
   }

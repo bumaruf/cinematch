@@ -77,7 +77,7 @@ suas dependências:
   botão em Configurações); downloads simultâneos são compartilhados.
 - `ports.ts`: interfaces que a infraestrutura implementa (`ProfileStore`,
   `SettingsStore`, `HistoryStore`, `SavedFilmsStore`, `DailyPickStore`,
-  `SyncCheckpointStore`, `EvaluationStore`, `LetterboxdSync`, `ArtworkSource`,
+  `SyncCheckpointStore`, `EvaluationStore`, `LetterboxdSync`,
   `Clock`, `IdentifierSource`, `OnDeviceModel`). O identificador de uma lista não depende apenas
   do relógio: duas buscas no mesmo milissegundo continuam distintas.
 - `query-model.ts`: `interpretSearch`, que consulta o modelo no dispositivo
@@ -97,8 +97,10 @@ Adaptadores das portas:
   e um repositório por chave. As migrações de dados antigos rodam no
   `onInstalled`, não em getters.
 - `letterboxd/`: cliente HTTP (erros tipados, sem `SKIP_404:` em string),
-  parser de HTML/RSS e busca paginada com checkpoint.
-- `artwork.ts`: pôster via `og:image`, com cache limitado.
+  parser de HTML/RSS e busca paginada com checkpoint. Só é usado na
+  sincronização opcional; o caminho principal é importar o CSV que o próprio
+  usuário exporta. Pôsteres vêm só do TMDB: a extensão não baixa páginas de
+  filme do Letterboxd.
 - `imdb-ratings.ts`: baixa o arquivo de notas do IMDb no navegador, guarda só
   os filmes do catálogo no Cache Storage e devolve o mesmo objeto até um novo
   download.

@@ -86,7 +86,3 @@ export async function updateSettings(ctx: AppContext, changes: Partial<Settings>
   if (typeof changes.modelQuery === 'boolean') allowed.modelQuery = changes.modelQuery;
   return ctx.settings.update(allowed);
 }
-
-export async function getFilmArtwork(ctx: AppContext, slug: string): Promise<string> {
-  return ctx.artwork.artworkUrl(slug);
-}

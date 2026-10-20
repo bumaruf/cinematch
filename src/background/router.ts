@@ -1,7 +1,7 @@
 import type { AppContext } from '../application/context.ts';
 import { listFilmFeedback, recordFilmFeedback } from '../application/feedback.ts';
 import { clearRecommendationEvaluations, getRecommendationEvaluationReport, recordRecommendationEvaluation } from '../application/evaluation.ts';
-import { getFilmArtwork, getPopupSession, getSettings, listHistory, listSavedFilms, savePopupSession, toggleSavedFilm, updateSettings } from '../application/library.ts';
+import { getPopupSession, getSettings, listHistory, listSavedFilms, savePopupSession, toggleSavedFilm, updateSettings } from '../application/library.ts';
 import type { SyncProgress } from '../application/ports.ts';
 import { getOnDeviceModelStatus } from '../application/query-model.ts';
 import { getRatingsStatus, refreshRatings } from '../application/ratings.ts';
@@ -44,7 +44,6 @@ export function createHandlers(ctx: AppContext, platform: Platform): Handlers {
     getOnDeviceModelStatus: () => getOnDeviceModelStatus(ctx),
     getRatingsStatus: () => getRatingsStatus(ctx),
     refreshRatings: ({ force } = {}) => refreshRatings(ctx, { force }),
-    getFilmArtwork: ({ slug }) => getFilmArtwork(ctx, slug),
     openDashboard: ({ hash } = {}) => platform.openDashboard(hash),
   };
 }

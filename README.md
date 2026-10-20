@@ -1,6 +1,6 @@
 <p align="center"><img src="assets/brand/cinematch-logo.svg" alt="CineMatch" width="420"></p>
 
-# CineMatch for Letterboxd (não oficial)
+# CineMatch: recomendações de filmes
 
 [![CI](https://github.com/bumaruf/cinematch/actions/workflows/ci.yml/badge.svg)](https://github.com/bumaruf/cinematch/actions/workflows/ci.yml)
 
@@ -111,18 +111,21 @@ A UI conversa com o service worker só pelo contrato de `src/messaging`. Por iss
 o catálogo (um arquivo gzip de cerca de 6,6 MB) só é lido pelo service worker, e as páginas abrem
 sem carregá-lo.
 
-## Sincronização com o Letterboxd
+## Importação e sincronização com o Letterboxd
 
-A sincronização lê as páginas públicas do perfil, reaproveitando a sessão de uma
-aba aberta do Letterboxd quando existe (útil quando o site pede verificação).
-O histórico é coletado em lotes de 3 páginas, com progresso salvo, para não
-ultrapassar o limite de tempo do service worker. Falhas, perfis inexistentes e
-coletas incompletas não substituem o perfil salvo. Depois de uma revisão
-completa, sincronizações na mesma semana usam o RSS para atualizar só as
-atividades recentes.
+O caminho principal é importar `watched.csv`, `ratings.csv` e `diary.csv` da
+exportação de dados do Letterboxd (letterboxd.com/settings/data). É o próprio
+usuário quem exporta os dados dele, sem a extensão ler o site.
 
-Também é possível importar `watched.csv`, `ratings.csv` e `diary.csv` da
-exportação de dados do Letterboxd.
+A sincronização pelo nome de usuário continua disponível como opção. Ela lê as
+páginas públicas do perfil, reaproveitando a sessão de uma aba aberta do
+Letterboxd quando existe (útil quando o site pede verificação). O histórico é
+coletado em lotes de 3 páginas, com progresso salvo, para não ultrapassar o
+limite de tempo do service worker. Falhas, perfis inexistentes e coletas
+incompletas não substituem o perfil salvo. Depois de uma revisão completa,
+sincronizações na mesma semana usam o RSS para atualizar só as atividades
+recentes. Os termos do Letterboxd não permitem coleta automatizada, por isso a
+importação vem primeiro na interface.
 
 Mudanças no HTML do Letterboxd podem exigir ajustes em
 `src/infrastructure/letterboxd/parse.ts`.
@@ -183,7 +186,8 @@ O script não grava a credencial no catálogo ou no checkpoint.
 Perfil, preferências, histórico, filmes salvos, feedback e avaliações da curadoria ficam em `chrome.storage.local`.
 Hoje não expira na virada do dia, no fuso do usuário. Já assisti é uma marcação local;
 não modifica o histórico sincronizado nem publica uma atividade no Letterboxd.
-A extensão acessa apenas o Letterboxd (sincronização e pôsteres), o arquivo
+O caminho principal é importar o CSV que você exporta do Letterboxd. A extensão
+acessa apenas o Letterboxd (na sincronização opcional), o arquivo
 público de notas do IMDb e o CDN de imagens do TMDB. Textos dinâmicos são escapados antes de entrar no HTML, e links
 aceitam somente HTTP/HTTPS.
 
