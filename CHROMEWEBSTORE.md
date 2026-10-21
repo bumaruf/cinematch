@@ -1,6 +1,6 @@
 # Chrome Web Store — CineMatch
 
-Atualizado: 2026-10-19. Rascunho local; ainda não publicado na loja.
+Atualizado: 2026-10-20. Rascunho local; ainda não publicado na loja.
 
 ## Listagem
 
@@ -8,11 +8,11 @@ Nome: CineMatch: recomendações de filmes
 
 O nome não leva a marca Letterboxd: a loja trata isso como uso de marca de terceiros. O Letterboxd aparece só na descrição, para dizer com o que a extensão funciona, sempre como "não oficial".
 
-Descrição curta: Encontre filmes pelo seu gosto no Letterboxd, por clima ou por pedido, com sugestões diárias e uma lista de salvos.
+Descrição curta: Encontre filmes pelo seu histórico do Letterboxd, por clima ou por pedido, com sugestões diárias e uma lista de salvos.
 
 Descrição detalhada:
 
-O CineMatch ajuda a escolher o próximo filme com base no seu perfil do Letterboxd.
+O CineMatch ajuda a escolher o próximo filme com base no histórico que você exporta do Letterboxd. Extensão não oficial.
 
 Explore 15 climas, peça gêneros, exclusões, país de produção, período e duração, e confira como seu pedido foi entendido. Combine alternativas como “suspense ou ficção científica, sem terror, até 1h40”. Pedidos contraditórios mostram o que precisa ser ajustado. Seu gosto orienta as sugestões automaticamente.
 
@@ -39,8 +39,8 @@ pôsteres e as notas do IMDb aparecerem.
 |---|---|---|
 | Ícone 128 × 128 | public/icons/icon128.png | Pronto |
 | Bloco promocional 440 × 280 | docs/screenshots/loja-promo-440x280.png | Pronto |
-| Painel, resultados, perfil e opções | docs/screenshots/dashboard.png, resultados.png, perfil.png, options.png | Regenerar em 1280 × 800 (as atuais têm 1280 × 860) |
-| Popup | docs/screenshots/loja-popup.png | Gerar (popup enquadrado em 1280 × 800); popup.png, de 400 × 600, fica só no README |
+| Painel, resultados, perfil e opções | docs/screenshots/dashboard.png, resultados.png, perfil.png, options.png | Pronto (1280 × 800, 2026-10-20) |
+| Popup | docs/screenshots/loja-popup.png | Pronto (popup enquadrado em 1280 × 800); popup.png, de 400 × 600, fica só no README |
 
 ## Justificativas de permissões
 
@@ -66,7 +66,7 @@ Não há coleta de credenciais, pagamentos, saúde, localização, comunicaçõe
 
 ## Pendências antes de uma publicação
 
-URL pública da política de privacidade, nome do publicador, e-mail de contato, endereço de suporte, visibilidade e regiões: a definir pelo mantenedor. Validar as dimensões das novas screenshots e preencher as declarações da loja a partir do comportamento descrito acima. Estes campos não foram inventados e nenhum envio foi realizado.
+URL pública da política de privacidade, nome do publicador, e-mail de contato, endereço de suporte, visibilidade e regiões: a definir pelo mantenedor. Preencher as declarações da loja a partir do comportamento descrito acima. Estes campos não foram inventados e nenhum envio foi realizado.
 
 O pacote leva só dados que podem ser redistribuídos: catálogo do Wikidata (CC0), sinopses da Wikipédia (CC BY-SA 4.0, com crédito em Configurações → Fontes dos dados) e caminhos dos pôsteres do TMDB, com o aviso exigido pelo TMDB. As notas do IMDb (uso pessoal e não comercial) são baixadas pelo navegador de cada usuário. Detalhes em docs/data-sources.md. O código GPL não muda a licença dos dados.
 
@@ -74,6 +74,9 @@ O pacote leva só dados que podem ser redistribuídos: catálogo do Wikidata (CC
 
 | Versão | Data | Mudanças | Estado |
 |---|---|---|---|
+| 1.0.0, alterações locais | 2026-10-20 | Nome sem a marca Letterboxd; importar o CSV virou o caminho principal e a sincronização ficou opcional; pôsteres só do TMDB | Rascunho local |
+| 1.0.0, alterações locais | 2026-10-19 | Preparação para a loja: descrição do manifesto com até 132 caracteres, permissão `tabs` removida, botão do Letterboxd só com clique real, bloco promocional e capturas em 1280 × 800 | Rascunho local |
+| 1.0.0, alterações locais | 2026-10-18 | Catálogo trocado do IMDb para o Wikidata (notas do IMDb baixadas pelo navegador) e catálogo empacotado menor, para o worker acordar mais rápido | Rascunho local |
 | 1.0.0, alterações locais | 2026-10-14 | O botão do Letterboxd não troca mais o perfil ativo sem confirmação (com backup do anterior); fontes dos dados nas opções e no painel; "Não combina comigo" ensina o gosto; variedade por década; buscas mais rápidas; sincronização tolerante e dia no fuso do usuário | Rascunho local |
 | 1.0.0, alterações locais | 2026-10-12 | Alternativas de gêneros e países, negações locais, intervalos de duração e explicação de conflitos entre texto e filtros | Rascunho local |
 | 1.0.0, alterações locais | 2026-10-12 | Ampliação das evidências de Um único cenário e Cinema lento; revisão das lacunas de metadados e auditoria de cobertura por popularidade | Rascunho local |

@@ -1,5 +1,8 @@
 # Primeira rodada de melhorias de curadoria
 
+> Registro histórico: esta rodada usou o catálogo anterior, do IMDb. Desde 18 de
+> outubro de 2026 o catálogo vem do Wikidata, e os números podem ser diferentes.
+
 Implementação iniciada em 6 de outubro de 2026 e preparada para revisão em pull request. As alterações que já estavam no projeto foram preservadas, inclusive a expansão do catálogo e seu enriquecimento. O dataset de filmes gerado localmente continua fora do versionamento.
 
 A rodada seguinte, de 7 de outubro, está documentada em

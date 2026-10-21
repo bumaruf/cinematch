@@ -128,8 +128,8 @@ Adaptadores das portas:
 
 ## UI (`src/ui`)
 
-- `shared/`: o que as telas reutilizam: escape de HTML, pôster (TMDB com
-  fallback para o Letterboxd), meta e link do filme, leitura dos filtros,
+- `shared/`: o que as telas reutilizam: escape de HTML, pôster (só do
+  TMDB), meta e link do filme, leitura dos filtros,
   exportação em texto e usuário a partir da URL do Letterboxd.
 - `pages/popup`, `pages/dashboard` (um módulo por aba, inclusive Configurações)
   e `content/`: controladores que renderizam e chamam `messaging/client`.

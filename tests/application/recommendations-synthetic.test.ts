@@ -209,3 +209,18 @@ test('synthetic: before IMDb ratings are downloaded, the popularity floor is ski
   assert.equal(rated.recommendations.length, 0);
   assert.ok(!rated.notice.includes(MISSING_RATINGS_NOTICE));
 });
+
+test('synthetic: a daily pick chosen before the ratings arrived shows the rating once they exist', async () => {
+  const unrated = createCatalog(catalog.films.map(withoutRatings));
+  const { ctx } = await context({ profile: tasteProfile, catalog: unrated });
+  ctx.ratings = { store: memoryRatingsStore(null), source: { download: async () => ({}) } };
+  const first = await getDailyPick(ctx);
+  assert.equal(first.data.film.imdbRating, 0);
+  // The ratings finished downloading; the catalog now carries them.
+  ctx.ratings.store = memoryRatingsStore({ fetchedAt: FIXED_NOW.toISOString(), ratings: {} });
+  ctx.catalog = async () => catalog;
+  const later = await getDailyPick(ctx);
+  assert.equal(later.data.film.letterboxdSlug, first.data.film.letterboxdSlug);
+  assert.equal(later.data.film.imdbRating, catalog.bySlug(first.data.film.catalogSlug)?.imdbRating);
+  assert.ok(later.data.film.imdbRating > 0);
+});

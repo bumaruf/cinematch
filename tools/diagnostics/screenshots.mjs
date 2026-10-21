@@ -33,6 +33,11 @@ const context = await chromium.launchPersistentContext(mkdtempSync(join(tmpdir()
 /** Lets posters (TMDB) and fonts finish before a capture. */
 async function settle(page) {
   await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+  // TMDB posters can still be downloading after the network goes quiet; a
+  // capture before they finish shows a grey placeholder.
+  await page
+    .waitForFunction(() => [...document.images].every((image) => image.complete), null, { timeout: 20000 })
+    .catch(() => console.warn('Algum pôster não terminou de carregar.'));
   await page.waitForTimeout(1200);
 }
 
@@ -58,6 +63,10 @@ try {
     { name: 'ratings.csv', text: ['Date,Name,Year,Letterboxd URI,Rating', ...picked.map((f, i) => `${row(f)},${ratings[i % ratings.length]}`)].join('\n') },
   ] });
   if (!imported.ok) throw new Error(imported.error);
+  // The daily pick shows IMDb's rating only if the ratings finished downloading
+  // first; refreshRatings joins the download the install already started.
+  const ratingsDownload = await send('refreshRatings', {});
+  if (!ratingsDownload?.ok) console.warn('As notas do IMDb não foram baixadas:', ratingsDownload?.error);
   await send('getDailyPick', { refresh: true });
 
   // Painel: the daily pick and the climate picker.
