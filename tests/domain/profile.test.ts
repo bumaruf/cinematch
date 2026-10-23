@@ -171,3 +171,9 @@ test('pinned favorites do not fabricate five-star ratings or inflate the five-st
   assert.equal(result.topFilms.find((f) => f.slug === 'example-xyz')?.rating, 3);
   assert.equal(result.topFilms.find((f) => f.slug === 'other-xyz')?.rating, null);
 });
+
+test('a history without ratings has no average instead of an invented one', () => {
+  const analyzed = analyzeProfile({ ...emptyProfile, films: [{ title: 'Alien', slug: 'alien', year: 1979, rating: null }] }, catalog, FIXED_NOW);
+  assert.equal(analyzed.stats.totalRated, 0);
+  assert.equal(analyzed.stats.avgRating, 0);
+});

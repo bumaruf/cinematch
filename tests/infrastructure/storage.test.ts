@@ -109,10 +109,26 @@ test('replacing an empty profile keeps the existing backup', async () => {
   const kv = memoryKeyValueStore();
   const profiles = profileStore(kv, () => FIXED_NOW);
   const history = { username: 'a', films: [{ title: 'Alien', slug: 'alien' }] };
+  await profiles.save(history);
   await profiles.replace({ username: 'b', films: [] }, history, 'switch');
   await profiles.replace({ username: 'c', films: [{ title: 'Heat', slug: 'heat' }] }, { username: 'b', films: [] }, 'import');
   assert.deepEqual((await kv.get<{ profile: unknown }>(KEYS.switchBackup))?.profile, history);
   assert.equal(await kv.get(KEYS.importBackup), undefined);
+});
+
+test('a profile changed by another writer is never overwritten', async () => {
+  const kv = memoryKeyValueStore();
+  const profiles = profileStore(kv, () => FIXED_NOW);
+  const read = { username: 'a', films: [{ title: 'Alien', slug: 'alien' }] };
+  const imported = { username: 'a', films: [{ title: 'Alien', slug: 'alien', rating: 4 }] };
+  await profiles.save(read);
+  // An import lands while a sync that read `read` is still collecting.
+  await profiles.replace(imported, read, 'import');
+  await assert.rejects(profiles.save({ username: 'a', films: [] }, read), /alterado em outra janela/);
+  await assert.rejects(profiles.replace({ username: 'b', films: [] }, read, 'switch'), /alterado em outra janela/);
+  assert.deepEqual(await profiles.get(), imported);
+  await profiles.save({ username: 'a', films: [] }, imported);
+  assert.deepEqual(await profiles.get(), { username: 'a', films: [] });
 });
 
 test('cleanup keeps only the newest of the backups written by earlier versions', async () => {

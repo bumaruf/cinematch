@@ -41,6 +41,16 @@ function preparedFor(profile: UserProfile, catalog: Catalog, now: Date, rejected
   return prepared;
 }
 
+/**
+ * The prepared profile requests use: built with the active "Não combina
+ * comigo" list, so it shares the cache with recommendations and the warm-up.
+ */
+export async function preparedForActiveProfile(ctx: AppContext, profile: UserProfile, catalog: Catalog): Promise<PreparedProfile> {
+  const now = ctx.clock.now();
+  const feedback = activeFeedback(await ctx.feedback.list(usernameKey(profile.username)), now, timeZoneOf(ctx));
+  return preparedFor(profile, catalog, now, splitFeedback(feedback).rejectedFilms);
+}
+
 export interface RecommendationQuery {
   themeId?: string | null;
   customPrompt?: string;
@@ -331,9 +341,7 @@ export function warmUp(ctx: AppContext): void {
     const profile = await ctx.profiles.get();
     const catalog = await ctx.catalog();
     if (!profile?.films.length) return;
-    const now = ctx.clock.now();
-    const feedback = activeFeedback(await ctx.feedback.list(usernameKey(profile.username)), now, timeZoneOf(ctx));
-    preparedFor(profile, catalog, now, splitFeedback(feedback).rejectedFilms);
+    await preparedForActiveProfile(ctx, profile, catalog);
     // Popup and panel both warm up; one background run per worker is enough.
     if (idleWorkScheduled.has(catalog)) return;
     idleWorkScheduled.add(catalog);

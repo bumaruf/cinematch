@@ -1,10 +1,9 @@
 import type { Settings } from '../domain/film.ts';
 import { letterboxdSearchUrl } from '../domain/recommend/recommendation.ts';
 import { createFilmIdentityIndex } from '../domain/profile/identity.ts';
-import { analyzeProfile } from '../domain/profile/analyze.ts';
-import { createWatchedIndex } from '../domain/profile/watched.ts';
 import { usernameKey } from '../domain/recommend/daily.ts';
 import type { AppContext } from './context.ts';
+import { preparedForActiveProfile } from './recommendations.ts';
 import type { HistoryEntry, PopupSession, SavedFilm } from './ports.ts';
 
 export type SavedFilmInput = Omit<SavedFilm, 'savedAt'>;
@@ -61,7 +60,8 @@ export async function getPopupSession(ctx: AppContext): Promise<PopupSession | n
   if (session?.view !== 'results' || !session.result) return session;
   const [profile, settings] = await Promise.all([ctx.profiles.get(), ctx.settings.get()]);
   if (!settings.avoidWatched || !profile || usernameKey(profile.username) !== usernameKey(session.username)) return session;
-  const watched = createWatchedIndex(analyzeProfile(profile, await ctx.catalog(), ctx.clock.now()).watchedList);
+  // The cached prepared profile: analyzing the history again took a second on every popup open.
+  const { watched } = await preparedForActiveProfile(ctx, profile, await ctx.catalog());
   const films = session.result.films.filter(film => !watched.has(film));
   if (films.length === session.result.films.length) return session;
   return { ...session, result: { ...session.result, films,

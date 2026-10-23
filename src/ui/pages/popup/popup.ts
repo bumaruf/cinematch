@@ -9,7 +9,7 @@ import { filmCard, filmSkeletons } from '../../shared/film-card.ts';
 import { readFilters } from '../../shared/filters.ts';
 import { html, render, safeUrl } from '../../shared/html.ts';
 import { interpretationText } from '../../shared/interpretation.ts';
-import { usernameFromLetterboxdUrl } from '../../shared/letterboxd.ts';
+import { usernameFromLetterboxdUrl } from '../../../domain/letterboxd.ts';
 
 interface Results {
   title: string;
@@ -296,9 +296,13 @@ onReady(async () => {
     // The header needs no catalog; the catalog starts loading meanwhile, so the
     // first climate click does not pay for it.
     void send('warmUp').catch(() => {});
-    const [summary, session] = await Promise.all([send('getProfileSummary'), send('getPopupSession')]);
+    // A saved list may need the catalog to hide films watched since; the
+    // header must not wait for it.
+    const pendingSession = send('getPopupSession').catch(() => null);
+    const summary = await send('getProfileSummary');
     if (summary) {
       displayProfile(summary.profile, summary.avgRating);
+      const session = await pendingSession;
       if (session?.username.toLowerCase() === summary.profile.username.toLowerCase()) {
         if (session.view === 'results' && session.result) await showResults(session.result, false);
         else el.prompt.value = session.prompt;

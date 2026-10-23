@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { usernameFromLetterboxdUrl } from '../../src/ui/shared/letterboxd.ts';
+import { usernameFromLetterboxdUrl } from '../../src/domain/letterboxd.ts';
 
 test('member pages return the member', () => {
   expect(usernameFromLetterboxdUrl('https://letterboxd.com/someone/')).toBe('someone');

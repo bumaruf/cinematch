@@ -12,8 +12,15 @@ export interface Clock {
 
 export interface ProfileStore {
   get(): Promise<UserProfile | null>;
-  save(profile: UserProfile): Promise<void>;
-  /** Replaces the profile and keeps the previous one (when it has films) as the only backup. */
+  /**
+   * With `expected`, writes only if storage still holds that profile (null:
+   * none), and rejects otherwise, so concurrent writers never overwrite each other.
+   */
+  save(profile: UserProfile, expected?: UserProfile | null): Promise<void>;
+  /**
+   * Replaces `previous`, which must still be the stored profile, and keeps it
+   * (when it has films) as the only backup.
+   */
   replace(profile: UserProfile, previous: UserProfile | null, reason: 'import' | 'repair' | 'switch'): Promise<void>;
   clear(): Promise<void>;
 }
@@ -23,6 +30,8 @@ export interface SyncCheckpoint {
   username: string;
   totalFilms: number;
   startedAt: number;
+  /** Last page saved; a recent checkpoint means a sync is still running. */
+  updatedAt?: number;
   nextPage: number;
   collectedSlugs: string[];
   films: ProfileFilm[];

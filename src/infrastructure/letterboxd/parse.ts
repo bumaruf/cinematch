@@ -1,5 +1,7 @@
 /** Parsers for Letterboxd pages. They follow its markup, so they may need updates. */
 
+import { isMemberSegment } from '../../domain/letterboxd.ts';
+
 export interface ParsedFilm {
   title: string;
   slug: string;
@@ -41,7 +43,11 @@ export function cleanUsername(input: string | null | undefined): string {
   if (!input) return '';
   let user = input.trim();
   const urlMatch = user.match(/letterboxd\.com\/([a-zA-Z0-9_-]+)/);
-  if (urlMatch) user = urlMatch[1];
+  if (urlMatch) {
+    // A film, list or other site page is not a member ("letterboxd.com/film/…").
+    if (!isMemberSegment(urlMatch[1])) return '';
+    user = urlMatch[1];
+  }
   user = user.replace(/^@/, '').toLowerCase().trim();
   return /^[a-z0-9_-]+$/.test(user) ? user : '';
 }
