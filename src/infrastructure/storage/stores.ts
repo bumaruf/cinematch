@@ -63,12 +63,35 @@ const ALL_BACKUP_KEYS: readonly string[] = Object.values(BACKUP_KEYS);
 
 interface ProfileBackup { profile: UserProfile | null; savedAt: string }
 
+export class ProfileChangedElsewhereError extends Error {
+  constructor() {
+    super('O perfil foi alterado em outra janela durante esta operação. Nada foi gravado; tente de novo.');
+    this.name = 'ProfileChangedElsewhereError';
+  }
+}
+
+/** Both values were read from storage, so equal profiles serialize the same way. */
+function sameStoredProfile(a: UserProfile | null | undefined, b: UserProfile | null | undefined): boolean {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+}
+
 export function profileStore(kv: KeyValueStore, clock: () => Date = () => new Date()): ProfileStore {
+  /**
+   * Writes the profile only if storage still holds `expected`, under the
+   * key's lock: a sync and an import finishing together must not silently
+   * overwrite each other.
+   */
+  const write = (profile: UserProfile, expected: UserProfile | null) =>
+    kv.update<UserProfile>(KEYS.profile, (current) => {
+      if (!sameStoredProfile(current, expected)) throw new ProfileChangedElsewhereError();
+      return profile;
+    });
   return {
     get: async () => (await kv.get<UserProfile>(KEYS.profile)) ?? null,
-    save: (profile) => {
+    save: (profile, expected) => {
       assertProfileSize(profile);
-      return kv.set({ [KEYS.profile]: profile });
+      if (expected === undefined) return kv.set({ [KEYS.profile]: profile });
+      return write(profile, expected).then(() => undefined);
     },
     // Only the latest previous history is kept: a full history can take
     // megabytes, and three backups plus the profile used to fill the storage.
@@ -76,11 +99,9 @@ export function profileStore(kv: KeyValueStore, clock: () => Date = () => new Da
     // leaves the existing backup in place.
     replace: async (profile, previous, reason) => {
       assertProfileSize(profile);
-      if (!previous?.films.length) return kv.set({ [KEYS.profile]: profile });
-      await kv.set({
-        [KEYS.profile]: profile,
-        [BACKUP_KEYS[reason]]: { profile: previous, savedAt: clock().toISOString() } satisfies ProfileBackup,
-      });
+      await write(profile, previous);
+      if (!previous?.films.length) return;
+      await kv.set({ [BACKUP_KEYS[reason]]: { profile: previous, savedAt: clock().toISOString() } satisfies ProfileBackup });
       await kv.remove(ALL_BACKUP_KEYS.filter((key) => key !== BACKUP_KEYS[reason]));
     },
     clear: () => kv.remove([KEYS.profile, KEYS.syncCheckpoint, KEYS.importBackup, KEYS.repairBackup, KEYS.switchBackup, KEYS.watchlist]),

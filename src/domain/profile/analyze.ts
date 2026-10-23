@@ -164,7 +164,8 @@ export function analyzeProfile(profile: UserProfile | null | undefined, catalog:
     dislikedFilms: disliked.slice(0, 30),
     watchedList,
     stats: {
-      avgRating: ratedCount > 0 ? Number.parseFloat((ratingSum / ratedCount).toFixed(2)) : 3.8,
+      // No rated film means no average; pages show "—" for 0.
+      avgRating: ratedCount > 0 ? Number.parseFloat((ratingSum / ratedCount).toFixed(2)) : 0,
       fiveStarCount: films.filter((film) => film.rating === 5).length,
       fourHalfCount: fourHalf.length,
       fourStarCount: fourStar.length,

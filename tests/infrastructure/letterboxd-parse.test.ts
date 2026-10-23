@@ -207,3 +207,11 @@ test('an unrated favorite keeps no rating instead of an invented 5', async () =>
   assert.equal(bySlug.get('rated')?.rating, 4);
   assert.equal(bySlug.get('rated')?.isFavorite, true);
 });
+
+test('a film or list URL is not taken for a member', () => {
+  for (const url of ['https://letterboxd.com/film/parasite-2019/', 'letterboxd.com/films/', 'https://letterboxd.com/settings/']) {
+    assert.equal(cleanUsername(url), '', url);
+  }
+  assert.equal(cleanUsername('https://letterboxd.com/Cinefilo/films/'), 'cinefilo');
+  assert.equal(cleanUsername('@cinefilo'), 'cinefilo');
+});

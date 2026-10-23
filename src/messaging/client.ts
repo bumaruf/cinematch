@@ -28,10 +28,18 @@ export async function syncProfileFully(
   { forceFull = false, onProgress = () => {} }: { forceFull?: boolean; onProgress?: (message: string) => void } = {},
 ): Promise<Extract<ResponseOf<'syncProfile'>, { pending: false }>> {
   let force = forceFull;
+  let collected = -1;
+  let stalled = 0;
   for (;;) {
     const result = await send('syncProfile', { username, forceFull: force });
     force = false;
     if (!result.pending) return result;
+    // A batch collects at least one new page. A restart (the film count
+    // changed mid-sync) may happen once; repeated ones mean something keeps
+    // resetting the progress, and looping would only hammer Letterboxd.
+    stalled = result.collected > collected ? 0 : stalled + 1;
+    if (stalled >= 3) throw new Error('A sincronização parou de avançar. Tente novamente em alguns minutos.');
+    collected = result.collected;
     onProgress(`${result.collected} de ${result.totalFilms} filmes coletados…`);
   }
 }

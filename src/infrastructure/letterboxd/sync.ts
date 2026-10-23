@@ -12,6 +12,11 @@ const PAGES_PER_BATCH = 3;
 const FILMS_PER_PAGE = 72;
 /** Pause between list pages, so a large history does not trip rate limits. */
 const PAGE_INTERVAL_MS = 600;
+/**
+ * A checkpoint saved this recently belongs to a sync still running: batches
+ * follow each other at once, and each saves after every page.
+ */
+const ACTIVE_CHECKPOINT_MS = 2 * BATCH_DEADLINE_MS;
 
 type Progress = (progress: SyncProgress) => void;
 
@@ -28,8 +33,14 @@ export function createLetterboxdSync({ fetchPage, checkpoints, now = Date.now, s
     async syncBatch(rawUsername, { previous, forceFull, onProgress }) {
       const username = cleanUsername(rawUsername);
       if (!username) throw new Error('Informe um usuário válido.');
+      const stored = await checkpoints.get();
+      // One checkpoint serves every sync. Starting another member's sync
+      // would erase this one's progress, and each would then restart the other.
+      if (stored && stored.username !== username && now() - (stored.updatedAt ?? stored.startedAt) < ACTIVE_CHECKPOINT_MS) {
+        throw new LetterboxdError(`Outra sincronização (@${stored.username}) está em andamento. Aguarde ela terminar e tente de novo.`);
+      }
       if (forceFull) await checkpoints.clear();
-      const checkpoint = await checkpoints.get();
+      const checkpoint = forceFull ? null : stored;
       const deadline = now() + BATCH_DEADLINE_MS;
 
       const fetchWithRetry: PageFetcher = async (url) => {
@@ -212,7 +223,7 @@ export async function collectFullProfile(rawUsername: string, fetchPage: PageFet
         throw new Error('Paginação repetiu a mesma página.');
       }
       pagesProcessed++;
-      await options.saveCheckpoint?.({ username, totalFilms: total, startedAt, nextPage: page + 1, collectedSlugs: [...collected], films: [...films.values()] });
+      await options.saveCheckpoint?.({ username, totalFilms: total, startedAt, updatedAt: now(), nextPage: page + 1, collectedSlugs: [...collected], films: [...films.values()] });
       // A full page may hide a film pushed to the next one by a film logged
       // during the sync, so only a short page ends the collection early.
       if (collected.size >= total && pageFilms.length < FILMS_PER_PAGE) break;

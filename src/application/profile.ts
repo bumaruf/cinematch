@@ -124,7 +124,7 @@ export async function syncProfile(
   if (previous?.films.length && usernameKey(previous.username) !== usernameKey(result.profile.username)) {
     await ctx.profiles.replace(result.profile, previous, 'switch');
   } else {
-    await ctx.profiles.save(result.profile);
+    await ctx.profiles.save(result.profile, previous);
   }
   await ctx.popupSession.clear();
   await ctx.letterboxd.clearProgress();

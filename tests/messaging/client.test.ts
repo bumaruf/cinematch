@@ -44,6 +44,18 @@ test('client continues batches and only forces restart on the first request', as
   assert.deepEqual(progress, ['216 de 300 filmes coletados…']);
 });
 
+test('client stops when batches keep failing to advance, but tolerates one restart', async () => {
+  const sequence = [216, 432, 216, 432, 648];
+  installRuntime((_message, index) =>
+    index < sequence.length ? { ok: true, data: { pending: true, collected: sequence[index], totalFilms: 720 } } : { ok: true, data: { pending: false, profile: {} } },
+  );
+  await syncProfileFully('audit');
+
+  const messages = installRuntime(() => ({ ok: true, data: { pending: true, collected: 216, totalFilms: 720 } }));
+  await assert.rejects(syncProfileFully('audit'), /parou de avançar/);
+  assert.equal(messages.length, 4);
+});
+
 test('send rejects with the worker error, or when the worker does not answer', async () => {
   installRuntime(() => ({ ok: false, error: 'Filme inválido.' }));
   await assert.rejects(send('getSettings'), /Filme inválido/);

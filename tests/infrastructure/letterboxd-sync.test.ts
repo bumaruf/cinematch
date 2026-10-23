@@ -200,3 +200,30 @@ test('clearProgress drops the saved checkpoint', async () => {
   await sync.clearProgress();
   assert.equal(await kv.get(KEYS.syncCheckpoint), undefined);
 });
+
+test("another member's sync waits for the running one instead of erasing its progress", async () => {
+  const member = (name: string) => `<h1 class="person-display-name">${name}</h1><a href="/${name}/films/"><span>720</span></a>`;
+  const fetchPage: PageFetcher = async (url) => {
+    const user = url.split('/')[3];
+    if (/\.com\/[a-z]+\/$/.test(url)) return member(user);
+    if (url.includes('/rss/') || url.includes('/year/')) return '';
+    const page = Number(url.match(/page\/(\d+)/)?.[1] || 1);
+    return Array.from({ length: 72 }, (_, i) =>
+      `<li class="griditem"><div data-item-slug="${user}-${(page - 1) * 72 + i}" data-item-name="F ${i} (2000)"><span class="rated-8"></span></div></li>`).join('');
+  };
+  let clock = nowMs();
+  const kv = memoryKeyValueStore();
+  const sync = createLetterboxdSync({ fetchPage, checkpoints: syncCheckpointStore(kv), now: () => clock, sleep: noSleep });
+  const batch = (username: string, forceFull = false) => sync.syncBatch(username, { previous: null, forceFull, onProgress: () => {} });
+
+  assert.equal((await batch('alice')).pending, true);
+  await assert.rejects(batch('bob'), /Outra sincronização \(@alice\)/);
+  await assert.rejects(batch('bob', true), /Outra sincronização/, 'a full resync of another member must not erase it either');
+  assert.equal((await batch('alice')).pending, true, 'alice resumes where she stopped');
+  assert.equal((await kv.get<SyncCheckpoint>(KEYS.syncCheckpoint))?.nextPage, 7);
+
+  // An abandoned sync stops blocking after a few minutes.
+  clock += 10 * 60_000;
+  assert.equal((await batch('bob')).pending, true);
+  assert.equal((await kv.get<SyncCheckpoint>(KEYS.syncCheckpoint))?.username, 'bob');
+});

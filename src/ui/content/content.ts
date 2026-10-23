@@ -3,7 +3,7 @@ import { send, syncProfileFully } from '../../messaging/client.ts';
 import { differentOriginalTitle, hydratePoster, trailerSearchUrl } from '../shared/film.ts';
 import iconSvg from '../assets/cinematch-icon.svg?raw';
 import { html, joinHtml, Markup, render, safeUrl } from '../shared/html.ts';
-import { usernameFromLetterboxdUrl } from '../shared/letterboxd.ts';
+import { usernameFromLetterboxdUrl } from '../../domain/letterboxd.ts';
 
 // Adds a "Filme do Dia" button to Letterboxd pages. On a member's page it
 // syncs that member first, so the pick reflects the history being viewed.

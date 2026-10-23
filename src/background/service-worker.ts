@@ -10,7 +10,8 @@ const ctx = createContext(kv, chromeKeyValueStore(chrome.storage.session));
 
 chrome.runtime.onInstalled.addListener(async () => {
   await removeObsoleteData(kv);
-  await repairLegacyCsvProfile(ctx);
+  // A page may write the profile meanwhile; the repair then runs on the next update.
+  await repairLegacyCsvProfile(ctx).catch((error: unknown) => console.warn('[CineMatch] reparo do perfil:', error));
   // IMDb's scores are not in the package; this browser downloads them once installed.
   await refreshRatings(ctx).catch((error: unknown) => console.warn('[CineMatch] notas do IMDb:', error));
 });
