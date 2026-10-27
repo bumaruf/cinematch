@@ -29,7 +29,7 @@ testWithCatalog('without a theme or a prompt, recommendations come from the gene
   const { ctx } = await createTestContext({ profile: tasteProfile });
   const result = await generateRecommendations(ctx, {});
   assert.ok(result.recommendations.length > 0);
-  assert.equal(result.themeName, 'Recomendação especial');
+  assert.equal(result.themeName, 'Sugestões para você');
   for (const film of result.recommendations) {
     assert.ok(film.affinityReason, `${film.title} must be explained by the user's taste`);
     assert.notEqual(film.letterboxdSlug, 'the-dark-knight');

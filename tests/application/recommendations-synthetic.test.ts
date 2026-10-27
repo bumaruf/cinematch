@@ -32,7 +32,7 @@ test('synthetic: general recommendations come from the taste and skip watched fi
   const { ctx } = await context({ profile: tasteProfile });
   const result = await generateRecommendations(ctx, {});
   assert.ok(result.recommendations.length > 0);
-  assert.equal(result.themeName, 'Recomendação especial');
+  assert.equal(result.themeName, 'Sugestões para você');
   assert.ok(!slugs(result.recommendations).includes('obra-favorita'));
   const explained = result.recommendations.filter((film) => film.affinityReason);
   assert.ok(explained.length > 0, 'films by the loved director are explained by the taste');

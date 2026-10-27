@@ -58,10 +58,14 @@ onReady(async () => {
   }
 
   // The daily pick only needs to know who is active, so it starts with the overview.
+  const onboarding = byId('dashOnboarding');
   state.onOverview((overview) => {
+    show(onboarding, !overview);
     void curator.refreshEvaluation();
     if (overview) void daily.load();
   });
+  // Importing from the start page keeps the user here: the daily pick appears once it finishes.
+  byId('btnOnboardingImport').addEventListener('click', () => profile.openImport());
   state.subscribe((active) => {
     if (active) renderDna(active);
   });
@@ -88,6 +92,8 @@ onReady(async () => {
   byId('homeLink').addEventListener('click', (event) => {
     event.preventDefault();
     activateTab('curator');
+    // Back to the start also closes the last results, so the daily pick returns.
+    curator.backToStart();
   });
 
   try {

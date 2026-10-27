@@ -87,7 +87,7 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
   const query = request.searchQuery ?? parseSearchQuery(prompt);
   const conflict = query.issues[0] ?? constraintConflict(filters, query.constraints);
   if (conflict) return {
-    themeName: query.clean ? `Busca: "${prompt}"` : (getThemeById(themeId)?.title ?? 'Recomendação especial'),
+    themeName: query.clean ? `Busca: "${prompt}"` : (getThemeById(themeId)?.title ?? 'Sugestões para você'),
     curatorComment: conflict, notice: conflict, recommendations: [], allowRecentFallback: false, interpretation: query.interpretation,
   };
   const blocked = createFilmIdentityIndex([...(request.excludedFilms ?? []), ...(request.rejectedFilms ?? [])]);
@@ -185,7 +185,7 @@ export function recommend(request: RecommendationRequest, catalog: Catalog, now:
   const nearbyComment = nearbyCount ? `${nearbyCount} ${nearbyCount === 1 ? 'sugestão próxima' : 'sugestões próximas'} ao clima, com contexto compatível e sem confirmação de todos os detalhes de estilo.` : '';
   const fallbackComment = [fallback ? FALLBACK_COMMENTS[fallback] : '', nearbyComment].filter(Boolean).join(' ');
   return {
-    themeName: query.clean ? `Busca: "${prompt}"` : (getThemeById(themeId)?.title ?? 'Recomendação especial'),
+    themeName: query.clean ? `Busca: "${prompt}"` : (getThemeById(themeId)?.title ?? 'Sugestões para você'),
     curatorComment:
       recommendations.length > 0
         ? `Recomendações geradas a partir do seu DNA no Letterboxd${mapped > 0 ? ` (${mapped} filmes mapeados)` : ''}${filters.avoidWatched !== false ? ', excluindo os assistidos identificados no perfil' : ''}. ${fallbackComment}`.trim()
