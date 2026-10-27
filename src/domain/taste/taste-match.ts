@@ -1,7 +1,7 @@
 import type { Catalog } from '../catalog/catalog.ts';
 import { descriptiveTags, type EvidenceFilm } from '../catalog/evidence.ts';
 import type { EnrichedFilm, FilmIdentity, UserProfile } from '../film.ts';
-import { fold } from '../text.ts';
+import { fold, foldWords } from '../text.ts';
 
 export interface TasteMatch {
   eligible: boolean;
@@ -36,6 +36,33 @@ export function tasteTags(film: TasteCandidate, catalog: Catalog): readonly stri
     const frequency = catalog.keywordFrequency(tag);
     return tag.length >= 5 && frequency >= 2 && frequency <= common;
   });
+}
+
+/** How a synopsis concept reads in a reason shown to the user. */
+const CONCEPT_LABELS: Readonly<Record<string, string>> = {
+  memoria: 'memória', identidade: 'identidade', vinganca: 'vingança', investigacao: 'investigação',
+  corrupcao: 'corrupção', luto: 'luto', isolamento: 'isolamento', amizade: 'amizade',
+  amadurecimento: 'amadurecimento', viagemTemporal: 'viagem no tempo', realidadeVirtual: 'realidade virtual',
+  inteligenciaArtificial: 'inteligência artificial', distopia: 'distopia',
+};
+
+/**
+ * Tags are folded keys ("ficcao cientifica"). A reason shows the film's own
+ * keyword, with its accents, and says each idea once ("time-travel" and
+ * "time travel" are the same).
+ */
+export function tagLabels(tags: readonly string[], film: EvidenceFilm): string[] {
+  const originals = new Map((film.keywords ?? []).map((term) => [fold(term), term.trim()]));
+  const seen = new Set<string>();
+  const labels: string[] = [];
+  for (const tag of tags) {
+    const label = tag.startsWith('conceito:') ? (CONCEPT_LABELS[tag.slice(9)] ?? tag.slice(9)) : (originals.get(tag) ?? tag);
+    const key = foldWords(label);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    labels.push(label);
+  }
+  return labels;
 }
 
 /** Indexed evidence keeps work proportional to relevant signals, not history size. */
@@ -100,7 +127,7 @@ export function createTasteMatcher(profile: Partial<UserProfile>, catalog: Catal
       if (score > best.score) best = { score, sameDirector,
         reason: sameDirector
           ? `Mesmo diretor de “${signal.title}”, que você ${signal.isFavorite ? 'favoritou' : `avaliou com ${String(signal.rating).replace('.', ',')} estrelas`}`
-          : `Relacionado a “${signal.title}” por ${shared.slice(0, 2).map((tag) => tag.replace('conceito:', '')).join(' e ')}` };
+          : `Relacionado a “${signal.title}” por ${tagLabels(shared, signal).slice(0, 2).join(' e ')}` };
     }
     // Genre affinity helps browsing but never establishes a strong match.
     const genreAffinity = [...genres].reduce((total, genre) => total + (genreWeight.get(genre) ?? 0) / Math.max(1, totalWeight), 0) * 16;

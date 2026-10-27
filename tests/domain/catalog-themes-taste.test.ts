@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { normalizeGenres } from '../../src/domain/catalog/genres.ts';
 import { createCatalog } from '../../src/domain/catalog/catalog.ts';
 import { getThemeById, getThemeCriteria, searchThemes, THEMES_CATALOG } from '../../src/domain/themes/themes.ts';
-import { createTasteMatcher } from '../../src/domain/taste/taste-match.ts';
+import { createTasteMatcher, tagLabels } from '../../src/domain/taste/taste-match.ts';
 import { loadCatalog } from '../../src/infrastructure/catalog.ts';
 import { emptyProfile, testWithCatalog } from '../helpers.ts';
 
@@ -62,4 +62,9 @@ testWithCatalog('generic action tags never establish affinity for KGF, Pushpa or
   assert.equal(fan(kgf).eligible, true);
   const disliked = createTasteMatcher({ films: [{ title: 'K.G.F: Chapter 1', slug: 'kgf-chapter-1', rating: 1 }] }, catalog);
   assert.equal(disliked(kgf).eligible, false);
+});
+
+test('motivo de afinidade: mostra a palavra-chave com acento, uma vez só', () => {
+  const film = { keywords: ['Ficção científica', 'time-travel', 'time travel'] };
+  assert.deepEqual(tagLabels(['ficcao cientifica', 'time-travel', 'time travel', 'conceito:vinganca'], film), ['Ficção científica', 'time-travel', 'vingança']);
 });

@@ -17,7 +17,7 @@
   --color-line-strong: #454a53;
   --color-ink: #eeebe5;
   --color-muted: #a5a9b0;
-  --color-faint: #767b83;
+  --color-faint: #868b93; /* 4.5:1 on surface: the small notes stay readable. */
   /* Brand palette, from assets/brand. Gold (the icon's star): the main action
      and ratings. Teal (the film reel): selection, focus, links and taste.
      Coral (the "match" wordmark): small brand accents only, never actions.

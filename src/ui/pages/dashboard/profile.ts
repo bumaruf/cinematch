@@ -30,9 +30,15 @@ export function setupProfile({ state, notify, beforeChange }: { state: ProfileSt
   };
 
   function renderSidebar(profile: ProfileOverview | null): void {
+    const syncLabel = profile ? 'Atualizar histórico' : 'Importar histórico';
+    el.sync.title = syncLabel;
+    el.sync.setAttribute('aria-label', syncLabel);
     if (!profile) {
       el.displayName.textContent = 'Nenhum perfil';
       el.username.textContent = 'Importe o CSV';
+      hide(el.avatar);
+      show(el.avatarFallback);
+      el.avatarFallback.textContent = '?';
       return;
     }
     el.displayName.textContent = profile.displayName || profile.username;

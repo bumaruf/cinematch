@@ -122,7 +122,9 @@ export function setupCurator({
       const isSaved = savedMatcher(saved);
       current = result.recommendations;
       evaluation.show(result);
-      el.resultsTitle.textContent = result.themeName;
+      // A climate keeps the short name the user clicked; a search keeps its own title.
+      const theme = !customPrompt && selectedThemeId ? themesById.get(selectedThemeId) : undefined;
+      el.resultsTitle.textContent = theme?.shortTitle ?? result.themeName;
       el.exportText.hidden = current.length === 0;
       el.note.textContent = current.length ? result.notice : '';
       el.interpretation.textContent = interpretationText(result.interpretation, result.interpretedBy);
@@ -156,11 +158,12 @@ export function setupCurator({
   const themesById = new Map(THEMES_CATALOG.map((theme) => [theme.id, theme]));
   let activeCollectionIndex = 0;
 
-  function renderThemePicker(): void {
+  function renderThemePicker({ focusActive = false } = {}): void {
     const activeCollection = THEME_COLLECTIONS[activeCollectionIndex];
     const picker = document.createElement('div');
     const collectionControls = document.createElement('div');
     collectionControls.className = 'flex flex-wrap gap-2';
+    collectionControls.setAttribute('role', 'group');
     collectionControls.setAttribute('aria-label', 'Tipos de clima');
     const themesTitleId = 'activeThemeCollection';
 
@@ -174,7 +177,8 @@ export function setupCurator({
         render(control, html`${collection.title}`);
         control.addEventListener('click', () => {
           activeCollectionIndex = index;
-          renderThemePicker();
+          // The picker is rebuilt: keep keyboard focus on the chosen group.
+          renderThemePicker({ focusActive: true });
         });
         return control;
       }),
@@ -220,6 +224,7 @@ export function setupCurator({
 
     picker.append(collectionControls, collectionHeader, list);
     el.themes.replaceChildren(picker);
+    if (focusActive) collectionControls.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus();
   }
 
   renderThemePicker();
@@ -245,6 +250,19 @@ export function setupCurator({
 
   return {
     refreshEvaluation: evaluation.refresh,
+    /** Closes the results and brings the daily pick back (the logo's "voltar ao início"). */
+    backToStart(): void {
+      if (el.results.classList.contains('hidden')) return;
+      generation++;
+      current = [];
+      evaluation.reset();
+      hide(el.results);
+      el.generate.disabled = false;
+      el.list.setAttribute('aria-busy', 'false');
+      selectedThemeId = null;
+      markSelected();
+      show(el.daily, hasDaily());
+    },
     /** Hides results that belonged to the previous profile. */
     reset(): void {
       generation++;

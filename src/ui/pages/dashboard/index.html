@@ -51,6 +51,15 @@
       <section id="tab-curator" class="tab-pane active mx-auto max-w-[960px]">
         <h1 class="font-serif text-4xl leading-tight font-medium tracking-tight md:text-5xl">O que vamos assistir?</h1>
 
+        <!-- First run: without a history the suggestions only follow the catalog. -->
+        <div id="dashOnboarding" class="mt-6 flex flex-col gap-4 rounded-2xl border border-brand/40 bg-brand/10 p-5 sm:flex-row sm:items-center sm:justify-between hidden">
+          <div class="max-w-prose">
+            <h2 class="font-semibold">Comece pelo seu histórico do Letterboxd</h2>
+            <p class="mt-1 text-[13px] leading-relaxed text-muted">Importe o CSV que o Letterboxd exporta e as sugestões passam a seguir o seu gosto, sem repetir o que você já viu. Leva um minuto.</p>
+          </div>
+          <button id="btnOnboardingImport" class="btn btn-primary shrink-0" type="button">Importar histórico</button>
+        </div>
+
         <div class="mt-6 flex flex-col gap-2 sm:flex-row">
           <div class="relative flex-1">
             <svg class="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-faint" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg>
